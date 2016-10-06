@@ -8,7 +8,7 @@ import logging
 import numpy as np
 
 from ._libtoasty import subsample, mid
-from .io import save_png
+from .io import save_png, read_png
 from .norm import normalize
 from collections import defaultdict, namedtuple
 
@@ -23,7 +23,59 @@ Pos = namedtuple('Pos', 'n x y')
 Tile = namedtuple('Tile', 'pos increasing corners')
 
 
-def _postfix_corner(tile, depth, bottom_only):
+def minmax(arr):
+    return min(arr),max(arr)
+
+
+def defaultTileInRange(tile):
+    return True
+
+
+def minMaxTileInRange(ra_range, dec_range):
+    
+    def isOverlap(tile):
+        c = tile[1]
+        
+        minRa,maxRa = minmax([ (x[0] + 2*np.pi) if x[0] < 0 else x[0] for x in [y for y in c if np.abs(y[1]) !=  np.pi/2] ])
+        minDec,maxDec = minmax([x[1] for x in c])
+        if (dec_range[0] > maxDec) or (dec_range[1] < minDec): # tile is not within dec range
+            return False
+        if (maxRa - minRa) > np.pi: # tile croses circle boundary   
+            if (ra_range[0] < maxRa) and (ra_range[1] > minRa): # tile is not within ra range
+                return False
+        else:
+            if (ra_range[0] > maxRa) or (ra_range[1] < minRa): # tile is not within ra range
+                return False
+
+        return True
+
+    return isOverlap
+
+def isSubtile(subLoc, loc):
+    
+    if subLoc.n == loc.n:
+        if (subLoc.x == loc.x) and (subLoc.y == loc.y):
+            return True
+        return False
+    
+    return isSubtile(Pos(n=subLoc.n-1, x=int(subLoc.x/2), y=int(subLoc.y/2)),loc)
+
+
+def nxyTileInRange(layer,tx,ty):
+    regionLoc = Pos(n=layer,x=tx,y=ty)
+    
+    def isOverlap(tile):
+        tileLoc = tile[0]
+
+        if tileLoc.n > regionLoc.n:
+            return True
+        
+        return isSubtile(regionLoc,tileLoc)
+
+    return isOverlap
+
+
+def _postfix_corner(tile, depth, bottom_only, tileInRange = None):
     """
     Yield subtiles of a given tile, in postfix order
 
@@ -37,12 +89,19 @@ def _postfix_corner(tile, depth, bottom_only):
     bottom_only : bool
       If True, only yield tiles at max_depth
     """
+        
     n = tile[0].n
     if n > depth:
         return
 
+    if not tileInRange:
+        tileInRange = defaultTileInRange
+
+    if not tileInRange(tile):
+        return
+    
     for child in _div4(*tile):
-        for item in _postfix_corner(child, depth, bottom_only):
+        for item in _postfix_corner(child, depth, bottom_only, tileInRange):
             yield item
 
     if n == depth or not bottom_only:
@@ -80,7 +139,7 @@ def _parent(child):
     return (parent, left, top)
 
 
-def iter_corners(depth, bottom_only=True):
+def iter_corners(depth, bottom_only=True, tileInRange = None):
     """
     Iterate over toast tiles and return the corners.
     Tiles are traversed in post-order (children before parent)
@@ -103,21 +162,25 @@ def iter_corners(depth, bottom_only=True):
             (Pos(n=1, x=0, y=1), level1[3], False)]
 
     for t in todo:
-        for item in _postfix_corner(t, depth, bottom_only):
+        for item in _postfix_corner(t, depth, bottom_only, tileInRange):
             yield item
 
-
-def iter_tiles(data_sampler, depth, merge=True):
+            
+def iter_tiles(data_sampler, depth, merge=True,
+               base_level_only=False,tileInRange=None,restartDir=None, top=0):
     """
     Create a hierarchy of toast tiles
 
     Parameters
     ----------
-    data_sampler : function
-       A function that takes two 2D numpy arrays of (lon, lat) as input,
+    data_sampler : func or string
+      - A function that takes two 2D numpy arrays of (lon, lat) as input,
        and returns an image of the original dataset sampled
        at these locations
-
+      - A string giving a base toast directory that contains the
+        base level of toasted tiles, using this option, only the
+        merge step takes place, the given directory must contain 
+        a "depth" directory for the given depth parameter
     depth : int
       The maximum depth to tile to. A depth of N creates
       4^N pngs at the deepest level
@@ -129,6 +192,13 @@ def iter_tiles(data_sampler, depth, merge=True):
       - If False, sampler will be called explicitly for all tiles
       - If a callable object, this object will be passed the
         4x oversampled image to downsample
+    base_level_only : bool (default False)
+      If True only the bottem level of tiles will be created.
+      In this case merge will be set to True, but no merging will happen,
+      and only the highest resolution layer of images will be created.
+    tileInRange: callable (optional)
+      A function that takes a tile and determines if it is in toasting range. 
+      If not given defaultTileInRange will be used which simply returns True.
 
     Yields
     ------
@@ -139,23 +209,47 @@ def iter_tiles(data_sampler, depth, merge=True):
         merge = _default_merge
 
     parents = defaultdict(dict)
+    
 
     for node, c, increasing in iter_corners(max(depth, 1),
-                                            bottom_only=merge):
+                                            bottom_only=merge, tileInRange=tileInRange):
+        
+        n, x, y = node.n, node.x, node.y
+        
+        if type(data_sampler) == str:
+            imgDir = data_sampler + '/' + str(n) + '/'
+            try:
+                img = read_png(imgDir + str(y) + '/' + str(y) + '_' + str(x) + '.png')
+            except: # could not read image
+                img = None
+        elif restartDir and os.path.isfile(restartDir + '/' + str(n) + '/' + str(y) + '/' + str(y) + '_' + str(x) + '.png'):
+            img = None
+        else:
+            l, b = subsample(c[0], c[1], c[2], c[3], 256, increasing)
+            img = data_sampler(l, b)
 
-        l, b = subsample(c[0], c[1], c[2], c[3], 256, increasing)
-        img = data_sampler(l, b)
-
-        for pth, img in _trickle_up(img, node, parents, merge, depth):
+        # No image was returned by the sampler,
+        # either image data was not availible for the given ra/dec range
+        # or it is a restart job, and that image was already computed
+        if (img is None) and  base_level_only:
+                continue
+            
+        if not base_level_only:
+            for pth, img in _trickle_up(img, node, parents, merge, depth, top):
+                if img is None:
+                    continue
+                yield pth, img
+        else:    
+            pth = os.path.join('%i' % n, '%i' % y, '%i_%i.png' % (y, x))
             yield pth, img
-
-
-def _trickle_up(im, node, parents, merge, depth):
+    
+            
+def _trickle_up(im, node, parents, merge, depth, top=0):
     """
     When a new toast tile is ready, propagate it up the hierarchy
     and recursively yield its completed parents
     """
-
+    
     n, x, y = node.n, node.x, node.y
 
     pth = os.path.join('%i' % n, '%i' % y, '%i_%i.png' % (y, x))
@@ -163,10 +257,10 @@ def _trickle_up(im, node, parents, merge, depth):
     nparent = sum(len(v) for v in parents.values())
     assert nparent <= 4 * max(depth, 1)
 
-    if depth >= n:  # handle special case of depth=0, n=1
+    if depth >= n: # handle special case of depth=0, n=1
         yield pth, im
 
-    if n == 0:
+    if n == top: # This is the uppermost level desired
         return
 
     # - If not merging and not at level 1, no need to accumulate
@@ -179,16 +273,47 @@ def _trickle_up(im, node, parents, merge, depth):
 
     if len(corners) < 4:  # parent not yet ready
         return
-
+        
     parents.pop(parent)
+
+    # imgs = [ul,ur,bl,br]
+    #imgs = np.array([corners[(0, 0)],corners[(1, 0)],corners[(1, 0)],corners[(1, 1)]])
+    
     ul = corners[(0, 0)]
     ur = corners[(1, 0)]
     bl = corners[(0, 1)]
     br = corners[(1, 1)]
-    mosaic = np.vstack((np.hstack((ul, ur)), np.hstack((bl, br))))
-    im = (merge or _default_merge)(mosaic)
 
-    for item in _trickle_up(im, parent, parents, merge, depth):
+    # dealing with any children lacking image data
+    if all(x is None for x in [ul,ur,bl,br]):
+        im = None
+    else:
+        # get img shape
+        imgShape = [x for x in [ul,ur,bl,br] if x is not None][0].shape
+
+        if not imgShape: # This shouldn't happen but...
+            print([type(x) for x in [ul,ur,bl,br]])
+            im = None
+        else:
+
+            if ul is None:
+                ul = np.zeros(imgShape,dtype=np.uint8)
+            if ur is None:
+                ur = np.zeros(imgShape,dtype=np.uint8)
+            if bl is None:
+                bl = np.zeros(imgShape,dtype=np.uint8)
+            if br is None:
+                br = np.zeros(imgShape,dtype=np.uint8)
+
+            try:
+                mosaic = np.vstack((np.hstack((ul, ur)), np.hstack((bl, br))))
+                im = (merge or _default_merge)(mosaic)
+            except:
+                print(imgShape)
+                im = None
+       
+
+    for item in _trickle_up(im, parent, parents, merge, depth, top):
         yield item
 
 
@@ -251,15 +376,21 @@ def gen_wtml(base_dir, depth, **kwargs):
     return template.format(**kwargs)
 
 
-def toast(data_sampler, depth, base_dir, wtml_file=None, merge=True):
+def toast(data_sampler, depth, base_dir,
+          wtml_file=None, merge=True, base_level_only=False,
+          ra_range=None, dec_range=None,toast_tile=None,restart=False,top_layer=0):
     """
     Build a directory of toast tiles
 
     Parameters
     ----------
-    data_sampler : func
-      A function of (lon, lat) that samples a dataset
-      at the input 2D coordinate arrays
+    data_sampler : func or string
+      - A function of (lon, lat) that samples a dataset
+        at the input 2D coordinate arrays
+      - A string giving a base toast directory that contains the
+        base level of toasted tiles, using this option, only the
+        merge step takes place, the given directory must contain 
+        a "depth" directory for the given depth parameter
     depth : int
       The maximum depth to generate tiles for.
       4^n tiles are generated at each depth n
@@ -275,14 +406,48 @@ def toast(data_sampler, depth, base_dir, wtml_file=None, merge=True):
       - If False, sampler will be called explicitly for all tiles
       - If a callable object, this object will be passed the
         4x oversampled image to downsample
+    base_level_only : bool (default False)
+      If True only the bottem level of tiles will be created.
+      In this case merge will be set to True, but no merging will happen,
+      and only the highest resolution layer of images will be created.
+    ra_range: array (optional)
+    dec_range: array (optional)
+      To toast only a portion of the sky give min and max ras and decs 
+      ([minRA,maxRA],[minDec,maxDec]) in degrees
+      If these keywords are used base_level_only will be automatically set to
+      true, regardless of its given value.
+    toast_tile: array[n,x,y] (optional)
+      If this keyword is used the output will be all the subtiles of toast_tile 
+      at the given depth (base_level_only will be automatically set to
+      true, regardless of its given value.
+    top_layer: int (optional)
+      If merging this indicates the uppermost layer to be created.
     """
     if wtml_file is not None:
         wtml = gen_wtml(base_dir, depth)
         with open(wtml_file, 'w') as outfile:
             outfile.write(wtml)
 
+    if ra_range and dec_range:
+        ra_range = [np.radians(ra) for ra in ra_range]
+        dec_range = [np.radians(dec) for dec in dec_range]
+        tileInRange = minMaxTileInRange(ra_range, dec_range)
+    else:
+        tileInRange = None
+
+    if toast_tile:
+        tileInRange = nxyTileInRange(*toast_tile)        
+
+    if base_level_only:
+        merge = True
+
+    if restart:
+        restartDir = base_dir
+    else:
+        restartDir = None
+        
     num = 0
-    for pth, tile in iter_tiles(data_sampler, depth, merge):
+    for pth, tile in iter_tiles(data_sampler, depth, merge, base_level_only, tileInRange,restartDir,top_layer):
         num += 1
         if num % 10 == 0:
             logging.getLogger(__name__).info("Finished %i of %i tiles" %
@@ -290,9 +455,15 @@ def toast(data_sampler, depth, base_dir, wtml_file=None, merge=True):
         pth = os.path.join(base_dir, pth)
         direc, _ = os.path.split(pth)
         if not os.path.exists(direc):
-            os.makedirs(direc)
-        save_png(pth, tile)
-
+            try:
+                os.makedirs(direc)
+            except FileExistsError:
+                print("%s already exists." % direc)
+        try:
+            save_png(pth, tile)
+        except:
+            print(pth)
+            print(type(tile))
 
 def depth2tiles(depth):
     return (4 ** (depth + 1) - 1) // 3
@@ -443,6 +614,9 @@ def normalizer(sampler, vmin, vmax, scaling='linear',
     """
     def result(x, y):
         raw = sampler(x, y)
-        r = normalize(raw, vmin, vmax, bias, contrast, scaling)
-        return r
+        if raw is None:
+            return raw
+        else:
+            r = normalize(raw, vmin, vmax, bias, contrast, scaling)
+            return r
     return result

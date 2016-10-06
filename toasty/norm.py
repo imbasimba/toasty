@@ -108,12 +108,20 @@ def asinh_warp(x, vmin, vmax, bias, contrast):
     x = cscale(x, bias, contrast)
     return x
 
+
+def sinh_warp(x, vmin, vmax, bias, contrast):
+    x = norm(x, vmin, vmax)
+    x = np.divide(np.sinh(np.multiply(x, 3, out=x), out=x), 10, out=x)
+    x = cscale(x, bias, contrast)
+    return x
+
 warpers = dict(linear=linear_warp,
                log=log_warp,
                sqrt=sqrt_warp,
                power=pow_warp,
                squared=squared_warp,
-               arcsinh=asinh_warp)
+               arcsinh=asinh_warp,
+               sinh=sinh_warp)
 
 def normalize(value, vmin, vmax, bias=.5, contrast=1, stretch='linear'):
     inverted = vmax <= vmin

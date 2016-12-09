@@ -16,16 +16,39 @@ Library to build WorldWide Telescope TOAST tiles.
 
 ```python
 from toasty import toast
-toast(sampler, depth, directory)
+(data_sampler, depth, base_dir, wtml_file=None, merge=True, base_level_only=False, ra_range=None, dec_range=None, toast_tile=None, restart=False, top_layer=0)
 ```
 
 where:
 
-  * **sampler** is a function that takes 2D arrays of (lon, lat) as input,
-    samples a dataset at these locations, and returns the resampled image
-  * **depth** is the depth of the tile pyramid to create (4^d tiles are
-    created at a depth of d)
-  * **directory** is the path to create the hierarchy at
+  * **data_sampler** function or string  
+    - A function of (lon, lat) that samples a datasetat the input 2D coordinate arrays
+    - A string giving a base toast directory that contains the base level of toasted tiles, using this option, only the merge step takes place, the given directory must contain a "depth" directory for the given depth parameter
+  * **depth** int
+    - The depth of the tile pyramid to create (4^d tiles are created at a depth of d)
+  * **base_dir** str
+    - The path to create the files at
+  * **wtml_file** str (optional)
+    - The path to write a WTML file to. If not present, no file will be written
+  * **merge** bool or callable (default True)  
+     How to treat lower resolution tiles.
+    - If True, tiles above the lowest level (highest resolution) will be computed by averaging and downsampling the 4 subtiles.
+    - If False, sampler will be called explicitly for all tiles
+    - If a callable object, this object will be passed the 4x oversampled image to downsample
+  * **base_level_only** bool (default False)  
+     If True only the bottem level of tiles will be created.  
+     In this case merge will be set to True, but no merging will happen, and only the highest resolution layer of images will be created.
+  * **ra_range** array (optional)
+  * **dec_range** array (optional)  
+     To toast only a portion of the sky give min and max ras and decs ([minRA,maxRA],[minDec,maxDec]) in degrees.  
+     If these keywords are used base_level_only will be automatically set to true, regardless of its given value.
+  * **toast_tile** array\[n,x,y\] (optional)  
+     If this keyword is used the output will be all the subtiles of toast_tile at the given depth (base_level_only will be automatically set to true, regardless of its given value.
+  * **top_layer** int (optional)  
+     If merging this indicates the uppermost layer to be created.
+
+
+
 
 Toasty provides a few basic sampler functions:
 

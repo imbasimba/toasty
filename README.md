@@ -1,22 +1,20 @@
 toasty
 ======
 
-[![Coverage Status](https://coveralls.io/repos/ChrisBeaumont/toasty/badge.png)](https://coveralls.io/r/ChrisBeaumont/toasty)
-[![Build Status](https://travis-ci.org/ChrisBeaumont/toasty.png?branch=master)](https://travis-ci.org/ChrisBeaumont/toasty)
-
-
 Library to build WorldWide Telescope TOAST tiles.
 
 
 ### Dependencies
- * Required: python (2.6, 2.7, 3.2, or 3.3), numpy, cython, Pillow/PIL
+ * Required: python (2.6, 2.7, 3.2, 3.3, or 3.5), numpy, cython, Pillow/PIL
  * Optional: astropy (for FITS IO), healpy (for HEALPIX data), pytest (for testing)
 
 ### Usage
 
 ```python
 from toasty import toast
-(data_sampler, depth, base_dir, wtml_file=None, merge=True, base_level_only=False, ra_range=None, dec_range=None, toast_tile=None, restart=False, top_layer=0)
+
+toast(data_sampler, depth, base_dir, wtml_file=None, merge=True, base_level_only=False, 
+      ra_range=None, dec_range=None, toast_tile=None, restart=False, top_layer=0)
 ```
 
 where:
@@ -66,9 +64,27 @@ from skimage.io import imread
 
 data = imread('allsky.png')
 sampler = cartesian_sampler(data)
-output = 'toast'
+toastDirectory = 'toast'
 depth = 8  # approximately 0.165"/pixel at highest resolution
-toast(sampler, depth, output)
+
+# Getting the full toast tile set for the entire sky
+toast(sampler, depth, toastDirectory)
+
+# Toasting a specific region of the sky defined by ra/dec bounds
+raRange = [208.8,212.2]
+decRange = [52.5,56.8]
+toast(sampler, depth, outtoastDirectoryput, ra_range=raRange, dec_range=decRange)
+
+# Toasting a specific region of the sky defined by a higher level toast tile
+tile=[4,5,9]
+toast(sampler, depth, toastDirectory, toast_tile=tile)
+
+# Creating only the bottom layer of toast tiles
+toast(sampler, depth, toastDirectory,base_level_only=True)
+
+# Merging from a previously created toast layer up to a specified top layer
+topLayer = 4
+toast(toastDirectory, depth, toastDirectory, top_layer=topLayer)
 ```
 
 To apply a log-stretch to an all sky FITS image:
@@ -108,9 +124,7 @@ depth = 8
 toast(sampler, depth, output)
 ```
 
-
 See ``toasty.tile`` for documentation on these functions.
-
 
 ### Using with WorldWide Telescope
 To quickly preview a toast directory named `test`, navigate to the directory

@@ -1,7 +1,7 @@
 toasty
 ======
 
-Library to build WorldWide Telescope TOAST tiles.
+Library to build WorldWide Telescope TOAST tiles (forked from Chris Beaumont's [toasty](https://github.com/ChrisBeaumont/toasty)).
 
 
 ### Dependencies
@@ -139,4 +139,6 @@ This will start a web server, probably at [http://0.0.0.0:8000](http://0.0.0:800
 For more information about using WorldWide Telescope with custom image data,
 see [the official documentation](http://www.worldwidetelescope.org/Docs/worldwidetelescopedatafilesreference.html). The function `toasty.gen_wtml` can generate the wtml information for images generated with toasty.
 
-For an example of tiles generated with Toasty (originally from [Aladin healpix images](http://alasky.u-strasbg.fr/cats/SIMBAD/)), see [The ADS All Sky Survey](http://adsass.org/wwt). The code used to generate these images is [here](https://github.com/ChrisBeaumont/adsass/blob/master/toast/toast.py).
+For an example of tiles generated with Toasty, see [The ADS All Sky Survey](http://adsass.org/wwt). The code used to generate these images is [here](https://github.com/ChrisBeaumont/adsass/blob/master/toast/toast.py).
+
+For an example of tiles generated using the Toasty functionality specific to this fork see [The STScI AstroView Panstarrs Survey](https://mast.stsci.edu/portal/Mashup/Clients/AstroView/AstroView.html?debug&avSurveyType=PANSTARRS). The code used to generate these images is [here](https://github.com/ceb8/toastPanstarrs).

@@ -124,6 +124,27 @@ warpers = dict(linear=linear_warp,
                sinh=sinh_warp)
 
 def normalize(value, vmin, vmax, bias=.5, contrast=1, stretch='linear'):
+    """Normalize data, by scaling between vmin and vmax, with given bias, contrast, and stretch.
+
+    Parameters
+    ----------
+    value: array
+      values to be normalized
+    vmin,vmax: float
+      minimum and maximum values for the normalized output
+    bias: float (default 0.5)
+      bias scaling to be applied during normalization 
+    contrast: float (default 1)
+      contrast scaling to be applied during normalization
+    stretch: string (default 'linear')
+      stretch to apply to the data
+      valid values are: linear,log,sqrt,power,squared,arcsinh,sinh
+
+    Returns
+    -------
+    The normalized data array
+    """
+    
     inverted = vmax <= vmin
 
     hi, lo = max(vmin, vmax), min(vmin, vmax)

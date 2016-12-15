@@ -24,16 +24,25 @@ Tile = namedtuple('Tile', 'pos increasing corners')
 
 
 def minmax(arr):
+    """Returns the minimum and maximum values of an array."""
     return min(arr),max(arr)
 
 
-def defaultTileInRange(tile):
+def default_tile_in_range(tile):
+    """Default tile_in_range, always returns true, so all tiles are toasted."""
     return True
 
 
-def minMaxTileInRange(ra_range, dec_range):
+def minmax_tile_in_range(ra_range, dec_range):
+    """Returns the tile_in_range function based on a ra/dec range.
+
+    Parameters
+    ----------
+    ra_range, dec_range: (array)
+      The ra and dec ranges to be toasted (in the form [min,max]).
+    """
     
-    def isOverlap(tile):
+    def is_overlap(tile):
         c = tile[1]
         
         minRa,maxRa = minmax([ (x[0] + 2*np.pi) if x[0] < 0 else x[0] for x in [y for y in c if np.abs(y[1]) !=  np.pi/2] ])
@@ -49,33 +58,45 @@ def minMaxTileInRange(ra_range, dec_range):
 
         return True
 
-    return isOverlap
+    return is_overlap
 
-def isSubtile(subLoc, loc):
+def is_subtile(subLoc, loc):
+    """Function to determine if a lower level tile (subLoc) is contained
+    within a higher level tile (loc)"""
     
     if subLoc.n == loc.n:
         if (subLoc.x == loc.x) and (subLoc.y == loc.y):
             return True
         return False
     
-    return isSubtile(Pos(n=subLoc.n-1, x=int(subLoc.x/2), y=int(subLoc.y/2)),loc)
+    return is_subtile(Pos(n=subLoc.n-1, x=int(subLoc.x/2), y=int(subLoc.y/2)),loc)
 
 
-def nxyTileInRange(layer,tx,ty):
+def nxy_tile_in_range(layer,tx,ty):
+    """Returns the tile_in_range function based on a given super-tile.
+
+    Parameters
+    ----------
+    layer,tx,ty: (int)
+      Layer and x,y coordinates, for a tile that will serve at the "super-tile"
+      such that all subtiles will be toasted/merged.
+    """
+    
+    
     regionLoc = Pos(n=layer,x=tx,y=ty)
     
-    def isOverlap(tile):
+    def is_overlap(tile):
         tileLoc = tile[0]
 
         if tileLoc.n > regionLoc.n:
             return True
         
-        return isSubtile(regionLoc,tileLoc)
+        return is_subtile(regionLoc,tileLoc)
 
-    return isOverlap
+    return is_overlap
 
 
-def _postfix_corner(tile, depth, bottom_only, tileInRange = None):
+def _postfix_corner(tile, depth, bottom_only, tile_in_range = None):
     """
     Yield subtiles of a given tile, in postfix order
 
@@ -94,14 +115,14 @@ def _postfix_corner(tile, depth, bottom_only, tileInRange = None):
     if n > depth:
         return
 
-    if not tileInRange:
-        tileInRange = defaultTileInRange
+    if not tile_in_range:
+        tile_in_range = default_tile_in_range
 
-    if not tileInRange(tile):
+    if not tile_in_range(tile):
         return
     
     for child in _div4(*tile):
-        for item in _postfix_corner(child, depth, bottom_only, tileInRange):
+        for item in _postfix_corner(child, depth, bottom_only, tile_in_range):
             yield item
 
     if n == depth or not bottom_only:
@@ -139,7 +160,7 @@ def _parent(child):
     return (parent, left, top)
 
 
-def iter_corners(depth, bottom_only=True, tileInRange = None):
+def iter_corners(depth, bottom_only=True, tile_in_range = None):
     """
     Iterate over toast tiles and return the corners.
     Tiles are traversed in post-order (children before parent)
@@ -148,9 +169,11 @@ def iter_corners(depth, bottom_only=True, tileInRange = None):
     ----------
     depth : int
       The tile depth to recurse to
-
     bottom_only : bool
       If True, then only the lowest tiles will be yielded
+    tile_in_range: callable (optional)
+      The function that determines which tiles are in the range to be
+      toasted (default is all of them).   
 
     Yields
     ------
@@ -162,12 +185,12 @@ def iter_corners(depth, bottom_only=True, tileInRange = None):
             (Pos(n=1, x=0, y=1), level1[3], False)]
 
     for t in todo:
-        for item in _postfix_corner(t, depth, bottom_only, tileInRange):
+        for item in _postfix_corner(t, depth, bottom_only, tile_in_range):
             yield item
 
             
 def iter_tiles(data_sampler, depth, merge=True,
-               base_level_only=False,tileInRange=None,restartDir=None, top=0):
+               base_level_only=False,tile_in_range=None,restartDir=None, top=0):
     """
     Create a hierarchy of toast tiles
 
@@ -184,7 +207,6 @@ def iter_tiles(data_sampler, depth, merge=True,
     depth : int
       The maximum depth to tile to. A depth of N creates
       4^N pngs at the deepest level
-
     merge : bool or callable (default True)
       How to treat lower resolution tiles.
       - If True, tiles above the lowest level (highest resolution)
@@ -196,9 +218,15 @@ def iter_tiles(data_sampler, depth, merge=True,
       If True only the bottem level of tiles will be created.
       In this case merge will be set to True, but no merging will happen,
       and only the highest resolution layer of images will be created.
-    tileInRange: callable (optional)
+    tile_in_range: callable (optional)
       A function that takes a tile and determines if it is in toasting range. 
-      If not given defaultTileInRange will be used which simply returns True.
+      If not given default_tile_in_range will be used which simply returns True.
+    restartDir: string (optional)
+      For restart jobs, the directory in which to check for toast tiles  
+      before toasting (if tile is found, the toasting step is skipped)
+    top: int (optional)
+      The topmost layer of toast tiles to create (only relevant if
+      base_level_only is False), default is 0.
 
     Yields
     ------
@@ -212,7 +240,7 @@ def iter_tiles(data_sampler, depth, merge=True,
     
 
     for node, c, increasing in iter_corners(max(depth, 1),
-                                            bottom_only=merge, tileInRange=tileInRange):
+                                            bottom_only=merge, tile_in_range=tile_in_range):
         
         n, x, y = node.n, node.x, node.y
         
@@ -431,12 +459,12 @@ def toast(data_sampler, depth, base_dir,
     if ra_range and dec_range:
         ra_range = [np.radians(ra) for ra in ra_range]
         dec_range = [np.radians(dec) for dec in dec_range]
-        tileInRange = minMaxTileInRange(ra_range, dec_range)
+        tile_in_range = minmax_tile_in_range(ra_range, dec_range)
     else:
-        tileInRange = None
+        tile_in_range = None
 
     if toast_tile:
-        tileInRange = nxyTileInRange(*toast_tile)        
+        tile_in_range = nxy_tile_in_range(*toast_tile)        
 
     if base_level_only:
         merge = True
@@ -447,7 +475,7 @@ def toast(data_sampler, depth, base_dir,
         restartDir = None
         
     num = 0
-    for pth, tile in iter_tiles(data_sampler, depth, merge, base_level_only, tileInRange,restartDir,top_layer):
+    for pth, tile in iter_tiles(data_sampler, depth, merge, base_level_only, tile_in_range,restartDir,top_layer):
         num += 1
         if num % 10 == 0:
             logging.getLogger(__name__).info("Finished %i of %i tiles" %
@@ -464,6 +492,7 @@ def toast(data_sampler, depth, base_dir,
         except:
             print(pth)
             print(type(tile))
+            
 
 def depth2tiles(depth):
     return (4 ** (depth + 1) - 1) // 3

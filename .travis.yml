@@ -31,6 +31,7 @@ install:
 script:
   - python setup.py sdist
   - cd dist && pip install *.tar.gz --verbose && cd ..
+  - python setup.py build_ext --inplace
   - py.test --cov toasty toasty
 
 after_success:

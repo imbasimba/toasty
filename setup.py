@@ -31,6 +31,7 @@ setup_args = dict(
 
     packages = [
         'toasty',
+        'toasty.tests',
     ],
     include_package_data = True,
 

@@ -6,6 +6,12 @@ os:
 
 sudo: false
 
+# Don't CI branches besides master. PR's still get built -- this just prevents
+# PR branches from being built twice in the standard workflow.
+branches:
+  only:
+    - master
+
 notifications:
   email: false
 

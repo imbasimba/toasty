@@ -5,7 +5,6 @@
 from __future__ import absolute_import, division, print_function
 
 from setuptools import setup, Extension
-from Cython.Distutils import build_ext
 import numpy as np
 
 setup_args = dict(
@@ -54,9 +53,6 @@ setup_args = dict(
         ],
     },
 
-    cmdclass = {
-        'build_ext': build_ext,
-    },
     include_dirs = [
         np.get_include(),
     ],
@@ -65,6 +61,22 @@ setup_args = dict(
     ],
 )
 
+# When we build on ReadTheDocs, there seems to be no way to ensure that Cython
+# is installed before this file is evaluated (yes, I tried all sorts of
+# requirements.txt tricks and things). So we allow the Cython import to fail
+# in that environment since we can make things work out for the docs build in
+# the end.
+
+try:
+    from Cython.Distutils import build_ext
+except ImportError:
+    import os
+    if 'READTHEDOCS' not in os.environ:
+        raise
+else:
+    setup_args['cmdclass'] = {
+        'build_ext': build_ext,
+    }
 
 if __name__ == '__main__':
     setup(**setup_args)

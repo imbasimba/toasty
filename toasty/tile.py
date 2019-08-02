@@ -570,7 +570,7 @@ def healpix_sampler(data, nest=False, coord='C', interpolation='nearest'):
 
     def vec2pix(l, b):
         if galactic:
-            f = FK5(l, b, unit=(u.rad, u.rad))
+            f = FK5(l * u.rad, b * u.rad)
             g = f.transform_to(Galactic)
             l, b = g.l.rad, g.b.rad
 

@@ -1,6 +1,9 @@
 toasty
 ======
 
+[![Build Status](https://travis-ci.com/WorldWideTelescope/toasty.svg?branch=master)](https://travis-ci.com/WorldWideTelescope/toasty)
+[![Coverage Status](https://coveralls.io/repos/github/WorldWideTelescope/toasty/badge.svg?branch=master)](https://coveralls.io/github/WorldWideTelescope/toasty?branch=master)
+
 Library to build WorldWide Telescope TOAST tiles (forked from Chris Beaumont's [toasty](https://github.com/ChrisBeaumont/toasty)).
 
 

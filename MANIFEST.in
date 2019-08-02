@@ -4,6 +4,9 @@ include .coveragerc
 
 recursive-include toasty *.png
 
+graft docs
+prune docs/_build
+
 global-exclude *~
 global-exclude *.pyc
 global-exclude *.pyo

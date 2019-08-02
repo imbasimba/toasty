@@ -2,6 +2,8 @@ include LICENSE
 include README.md
 include .coveragerc
 
+recursive-include toasty *.png
+
 global-exclude *~
 global-exclude *.pyc
 global-exclude *.pyo

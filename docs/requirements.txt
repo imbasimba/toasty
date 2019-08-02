@@ -1,8 +1,0 @@
-cython
-numpy
-numpydoc
-pillow
-sphinx
-sphinx-automodapi
-sphinx_rtd_theme
-toasty

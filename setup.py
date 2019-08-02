@@ -47,7 +47,9 @@ setup_args = dict(
             'pytest-cov',
         ],
         'docs': [
+            'numpydoc',
             'sphinx',
+            'sphinx-automodapi',
             'sphinx_rtd_theme',
         ],
     },

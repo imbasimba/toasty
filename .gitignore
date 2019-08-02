@@ -1,3 +1,5 @@
+/toasty/_libtoasty.c
+
 *.py[cod]
 
 # C extensions

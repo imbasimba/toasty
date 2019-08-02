@@ -33,7 +33,8 @@ script:
   - cd dist && pip install *.tar.gz --verbose && cd ..
   - python setup.py build_ext --inplace
   - py.test --cov toasty toasty
-  - make -C docs html linkcheck
+  # Different stdlib organization breaks API doc files on Python 2:
+  - if [[ $PYTHON_VERSION == 3.7 ]] ; then make -C docs html linkcheck ; fi
 
 after_success:
   - coveralls

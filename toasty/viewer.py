@@ -14,6 +14,10 @@ except:  # python 3.X
 
 from . import gen_wtml
 
+__all__ = '''
+SimpleWWTHandler
+'''.split()
+
 
 class SimpleWWTHandler(SimpleHTTPRequestHandler):
 

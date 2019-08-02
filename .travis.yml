@@ -18,7 +18,7 @@ notifications:
 env:
   global:
     - CONDA_CHANNELS="conda-forge"
-    - CONDA_DEPENDENCIES="astropy coveralls cython healpy pillow"
+    - CONDA_DEPENDENCIES="astropy coveralls cython healpy pillow pytest-cov"
   matrix:
     - PYTHON_VERSION=2.7
     - PYTHON_VERSION=3.6

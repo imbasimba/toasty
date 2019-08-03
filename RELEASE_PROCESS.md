@@ -18,7 +18,7 @@ These are notes for the `toasty` developers about how to create a new release.
 9. If needed, do a `git rebase -i` to make the version-bump commit the last
    one again.
 10. `git tag v${version}`
-11. Update the version number to `${cur_major}.${next_minor}.0dev0` and add a
+11. Update the version number to `${cur_major}.${next_minor}.0.dev0` and add a
     new separator in `CHANGES.md` along the lines of `${version} (unreleased)`.
     Commit with a message of `Back to development.`
 12. `git push` (with `-f` if history was rewritten) to the PR branch. This had

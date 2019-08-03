@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2013-2019 Chris Beaumont
+# Copyright 2013-2019 Chris Beaumont and the AAS WorldWide Telescope team
 # Licensed under the MIT License
 
 from __future__ import absolute_import, division, print_function
@@ -25,7 +25,8 @@ setup_args = dict(
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
-        'Topic :: Scientific/Engineering :: Data Visualization'
+        'Topic :: Scientific/Engineering :: Astronomy',
+        'Topic :: Scientific/Engineering :: Visualization',
     ],
 
     packages = [

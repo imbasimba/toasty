@@ -90,9 +90,9 @@ The role of toasty
 ==================
 
 The toasty_ module helps create these TOAST tile pyramids from astronomical
-FITS images. There are essentially three problems that it tackles:
+image data. There are essentially three problems that it tackles:
 
-1. Transforming FITS data from their native projection to the TOAST one.
+1. Transforming image data from their native projection to the TOAST one.
 2. Mapping scalar data values into RGB color images for user display.
 3. Downsampling the high-resolution TOAST map all the way down to the level-0
    map.

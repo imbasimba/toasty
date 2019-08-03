@@ -10,7 +10,8 @@ Here we’ll summarize some of the ways that you can use toasty_.
 Toasting a Cartesian, all-sky PNG image
 =======================================
 
-This script actually processes a PNG image, not a FITS, using scikit-image_::
+This script processes an existing all-sky PNG image that uses a Cartesian
+projection, using scikit-image_ to load the data::
 
   from toasty import toast, cartesian_sampler
   from skimage.io import imread

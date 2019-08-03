@@ -34,7 +34,7 @@ project homepage].
 
 setup_args = dict(
     name = 'toasty',
-    version = '0.0.3',  # also update docs/conf.py
+    version = '0.1.0dev0',  # also update docs/conf.py
     description = 'Generate TOAST image tile pyramids from FITS files',
     long_description = get_long_desc(),
     long_description_content_type = 'text/markdown',

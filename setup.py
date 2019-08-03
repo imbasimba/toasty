@@ -7,11 +7,38 @@ from __future__ import absolute_import, division, print_function
 import os
 from setuptools import setup, Extension
 
+def get_long_desc():
+    in_preamble = True
+    lines = []
+
+    with open('README.md') as f:
+        for line in f:
+            if in_preamble:
+                if line.startswith('<!--pypi-begin-->'):
+                    in_preamble = False
+            else:
+                if line.startswith('<!--pypi-end-->'):
+                    break
+                else:
+                    lines.append(line)
+
+    lines.append('''
+
+For more information, including installation instructions, please visit [the
+project homepage].
+
+[the project homepage]: https://toasty.readthedocs.io/
+''')
+    return ''.join(lines)
+
+
 setup_args = dict(
     name = 'toasty',
     version = '0.0.2',  # also update docs/conf.py
     description = 'Generate TOAST image tile pyramids from FITS files',
-    url = 'https://github.com/WorldWideTelescope/toasty/',
+    long_description = get_long_desc(),
+    long_description_content_type = 'text/markdown',
+    url = 'https://toasty.readthedocs.io/',
     license = 'MIT',
     platforms = 'Linux, Mac OS X',
 

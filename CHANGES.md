@@ -1,4 +1,4 @@
-# 0.1.0dev0 (unreleased)
+# 0.0.3 (2019 Aug 3)
 
 - Attempt to fix ReadTheDocs build.
 - Better metadata for PyPI.

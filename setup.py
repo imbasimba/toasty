@@ -4,14 +4,41 @@
 
 from __future__ import absolute_import, division, print_function
 
+import os
 from setuptools import setup, Extension
-import numpy as np
+
+def get_long_desc():
+    in_preamble = True
+    lines = []
+
+    with open('README.md') as f:
+        for line in f:
+            if in_preamble:
+                if line.startswith('<!--pypi-begin-->'):
+                    in_preamble = False
+            else:
+                if line.startswith('<!--pypi-end-->'):
+                    break
+                else:
+                    lines.append(line)
+
+    lines.append('''
+
+For more information, including installation instructions, please visit [the
+project homepage].
+
+[the project homepage]: https://toasty.readthedocs.io/
+''')
+    return ''.join(lines)
+
 
 setup_args = dict(
     name = 'toasty',
-    version = '0.0.2',  # also update docs/conf.py
+    version = '0.1.0dev0',  # also update docs/conf.py
     description = 'Generate TOAST image tile pyramids from FITS files',
-    url = 'https://github.com/WorldWideTelescope/toasty/',
+    long_description = get_long_desc(),
+    long_description_content_type = 'text/markdown',
+    url = 'https://toasty.readthedocs.io/',
     license = 'MIT',
     platforms = 'Linux, Mac OS X',
 
@@ -54,30 +81,41 @@ setup_args = dict(
         ],
     },
 
-    include_dirs = [
-        np.get_include(),
-    ],
     ext_modules = [
         Extension('toasty._libtoasty', ['toasty/_libtoasty.pyx']),
     ],
 )
 
+
 # When we build on ReadTheDocs, there seems to be no way to ensure that Cython
-# is installed before this file is evaluated (yes, I tried all sorts of
-# requirements.txt tricks and things). So we allow the Cython import to fail
-# in that environment since we can make things work out for the docs build in
-# the end.
+# and Numpy are installed before this file is evaluated (yes, I tried all
+# sorts of requirements.txt tricks and things). So, we allow these imports to
+# fail in that environment, since we can make things work out for the docs
+# build in the end.
+
+ON_READTHEDOCS = 'READTHEDOCS' in os.environ
+
+try:
+    import numpy as np
+except ImportError:
+    if not ON_READTHEDOCS:
+        raise
+else:
+    setup_args['include_dirs'] = [
+        np.get_include(),
+    ]
 
 try:
     from Cython.Distutils import build_ext
 except ImportError:
-    import os
-    if 'READTHEDOCS' not in os.environ:
+    if not ON_READTHEDOCS:
         raise
 else:
     setup_args['cmdclass'] = {
         'build_ext': build_ext,
     }
+
+# That was fun.
 
 if __name__ == '__main__':
     setup(**setup_args)

@@ -2,7 +2,7 @@
 Overview: What is Toasting?
 ===========================
 
-So, toasty_ is for TOASTing. What does that even mean?
+So, toasty_ is for toasting. What does that even mean?
 
 .. _toasty: https://toasty.readthedocs.io/
 
@@ -96,3 +96,6 @@ FITS images. There are essentially three problems that it tackles:
 2. Mapping scalar data values into RGB color images for user display.
 3. Downsampling the high-resolution TOAST map all the way down to the level-0
    map.
+
+The process of creating TOAST tile pyramids from some input data is
+colloquially referred to as “toasting.”

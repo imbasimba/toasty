@@ -21,6 +21,7 @@ User guide
 
    overview
    installation
+   examples
    api
 
 

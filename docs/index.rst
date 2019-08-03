@@ -10,7 +10,7 @@ be viewed in software such as the AAS_ `WorldWide Telescope`_.
 .. _TOAST: https://arxiv.org/abs/1812.03926
 .. _FITS: https://en.wikipedia.org/wiki/FITS
 .. _AAS: https://aas.org/
-.. _WorldWide Telescope: http://www.worldwidetelescope.org/
+.. _WorldWide Telescope: http://www.worldwidetelescope.org/home
 
 
 User guide
@@ -26,13 +26,13 @@ User guide
 Getting help
 ============
 
-If you run into any issues when using ``toasty``, please open an issue `on its
+If you run into any issues when using toasty_, please open an issue `on its
 GitHub repository <https://github.com/WorldWideTelescope/toasty/issues>`_.
 
 
 Acknowledgments
 ===============
 
-Work on ``toasty`` is funded through the American Astronomical Society
-(`AAS`_) `WorldWide Telescope`_ project. The first version of ``toasty`` was
+Work on toasty_ is funded through the American Astronomical Society
+(`AAS`_) `WorldWide Telescope`_ project. The first version of toasty_ was
 written by Chris Beaumont.

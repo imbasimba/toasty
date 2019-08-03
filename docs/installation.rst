@@ -9,7 +9,7 @@ You can also install the latest release of toasty using pip_::
 
   pip install toasty
 
-.. _pip: https://pip.pypa.io/
+.. _pip: https://pip.pypa.io/en/stable/
 
 
 Dependencies
@@ -26,7 +26,7 @@ Installing the developer version
 ================================
 
 If you want to use the very latest developer version, you should clone `this
-repository <http://github.com/WorldWideTelescope/toasty/>`_ and manually
+repository <https://github.com/WorldWideTelescope/toasty/>`_ and manually
 install the package in “editable” mode::
 
   git clone https://github.com/WorldWideTelescope/toasty.git

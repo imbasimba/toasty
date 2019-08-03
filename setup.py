@@ -4,8 +4,8 @@
 
 from __future__ import absolute_import, division, print_function
 
+import os
 from setuptools import setup, Extension
-import numpy as np
 
 setup_args = dict(
     name = 'toasty',
@@ -54,30 +54,41 @@ setup_args = dict(
         ],
     },
 
-    include_dirs = [
-        np.get_include(),
-    ],
     ext_modules = [
         Extension('toasty._libtoasty', ['toasty/_libtoasty.pyx']),
     ],
 )
 
+
 # When we build on ReadTheDocs, there seems to be no way to ensure that Cython
-# is installed before this file is evaluated (yes, I tried all sorts of
-# requirements.txt tricks and things). So we allow the Cython import to fail
-# in that environment since we can make things work out for the docs build in
-# the end.
+# and Numpy are installed before this file is evaluated (yes, I tried all
+# sorts of requirements.txt tricks and things). So, we allow these imports to
+# fail in that environment, since we can make things work out for the docs
+# build in the end.
+
+ON_READTHEDOCS = 'READTHEDOCS' in os.environ
+
+try:
+    import numpy as np
+except ImportError:
+    if not ON_READTHEDOCS:
+        raise
+else:
+    setup_args['include_dirs'] = [
+        np.get_include(),
+    ]
 
 try:
     from Cython.Distutils import build_ext
 except ImportError:
-    import os
-    if 'READTHEDOCS' not in os.environ:
+    if not ON_READTHEDOCS:
         raise
 else:
     setup_args['cmdclass'] = {
         'build_ext': build_ext,
     }
+
+# That was fun.
 
 if __name__ == '__main__':
     setup(**setup_args)

@@ -1,3 +1,9 @@
+# 0.1.0dev0 (unreleased)
+
+- Attempt to fix ReadTheDocs build.
+- Better metadata for PyPI.
+- Exercise workflow documented in `RELEASE_PROCESS.md`.
+
 # 0.0.2 (2019 Aug 3)
 
 - Revamp packaging infrastructure

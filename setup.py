@@ -9,7 +9,7 @@ import numpy as np
 
 setup_args = dict(
     name = 'toasty',
-    version = '0.0.1',
+    version = '0.0.2',  # also update docs/conf.py
     description = 'Generate TOAST image tile pyramids from FITS files',
     url = 'https://github.com/WorldWideTelescope/toasty/',
     license = 'MIT',

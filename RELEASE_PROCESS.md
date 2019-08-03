@@ -9,11 +9,12 @@ These are notes for the `toasty` developers about how to create a new release.
 5. For the final commit, update the version number in `setup.py` and
    `docs/conf.py`, and add a proper version and date to `CHANGES.md`. Commit
    with message `Release version ${version}`.
-6. Create a pull request on GitHub for the new release.
+6. Push to GitHub and create a pull request for the new release called
+   "Release PR for version $version".
 7. Get it so that it passes CI, creating fixup commits as necessary.
-8. When it's really really ready, `git clean -fxd && python setup.py sdist
-   bdist_wheel --universal && twine upload dist/*.tar.gz dist/*.whl`. If
-   `twine` finds problems, make any final changes and retry.
+8. When it's really really ready, `git clean -fxd && python setup.py sdist &&
+   twine upload dist/*.tar.gz`. If `twine` finds problems, make any final
+   changes and retry.
 9. If needed, do a `git rebase -i` to make the version-bump commit the last
    one again.
 10. `git tag v${version}`

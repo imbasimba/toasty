@@ -30,7 +30,11 @@ The easiest way to install [toasty] is through [pip]:
 pip install toasty
 ```
 
-[pip]: https://pypi.org/project/pip/
+[pip]: https://pip.pypa.io/
+
+For more information, please see the [toasty installation instructions].
+
+[toasty installation instructions]: https://toasty.readthedocs.io/en/latest/installation.html
 
 
 ## Dependencies

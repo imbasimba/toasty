@@ -1,4 +1,4 @@
-# 0.1.0dev0 (unreleased)
+# 0.1.0.dev0 (unreleased)
 
 - No changes yet
 

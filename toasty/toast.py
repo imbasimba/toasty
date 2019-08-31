@@ -248,7 +248,7 @@ def iter_corners(depth, bottom_only=True, tile_filter=None):
 
 
 def iter_tiles(data_sampler, depth, merge=True,
-               base_level_only=False,tile_filter=None,restartDir=None, top=0):
+               base_level_only=False,tile_filter=None,restart_dir=None, top=0):
     """
     Create a hierarchy of toast tiles
 
@@ -282,7 +282,7 @@ def iter_tiles(data_sampler, depth, merge=True,
     tile_filter: callable (optional)
       A function that takes a tile and determines if it is in toasting range.
       If not given default_tile_filter will be used which simply returns True.
-    restartDir: string (optional)
+    restart_dir: string (optional)
       For restart jobs, the directory in which to check for toast tiles
       before toasting (if tile is found, the toasting step is skipped)
     top: int (optional)
@@ -306,12 +306,12 @@ def iter_tiles(data_sampler, depth, merge=True,
         n, x, y = tile.pos.n, tile.pos.x, tile.pos.y
 
         if type(data_sampler) == str:
-            imgDir = data_sampler + '/' + str(n) + '/'
+            img_dir = data_sampler + '/' + str(n) + '/'
             try:
-                img = read_png(imgDir + str(y) + '/' + str(y) + '_' + str(x) + '.png')
+                img = read_png(img_dir + str(y) + '/' + str(y) + '_' + str(x) + '.png')
             except: # could not read image
                 img = None
-        elif restartDir and os.path.isfile(restartDir + '/' + str(n) + '/' + str(y) + '/' + str(y) + '_' + str(x) + '.png'):
+        elif restart_dir and os.path.isfile(restart_dir + '/' + str(n) + '/' + str(y) + '/' + str(y) + '_' + str(x) + '.png'):
             img = None
         else:
             l, b = subsample(tile.corners[0], tile.corners[1], tile.corners[2], tile.corners[3], 256, tile.increasing)
@@ -519,12 +519,12 @@ def toast(data_sampler, depth, base_dir,
         merge = True
 
     if restart:
-        restartDir = base_dir
+        restart_dir = base_dir
     else:
-        restartDir = None
+        restart_dir = None
 
     num = 0
-    for pth, tile in iter_tiles(data_sampler, depth, merge, base_level_only, tile_filter, restartDir, top_layer):
+    for pth, tile in iter_tiles(data_sampler, depth, merge, base_level_only, tile_filter, restart_dir, top_layer):
         num += 1
         if num % 10 == 0:
             logging.getLogger(__name__).info("Finished %i of %i tiles" %

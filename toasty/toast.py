@@ -211,23 +211,26 @@ def _parent(pos):
 
 
 def iter_corners(depth, bottom_only=True, tile_filter=None):
-    """
-    Iterate over toast tiles and return the corners.
-    Tiles are traversed in post-order (children before parent)
+    """Generate a pyramid of TOAST tiles in deepest-first order.
 
     Parameters
     ----------
     depth : int
-      The tile depth to recurse to
+      The tile depth to recurse to.
     bottom_only : bool
-      If True, then only the lowest tiles will be yielded
+      If True, then only the lowest tiles will be yielded.
     tile_filter : callable or None (the default)
-      The function that determines which tiles are in the range to be
-      toasted (default is all of them).
+      If not None, a filter function applied to the process;
+      only tiles for which ``tile_filter(tile)`` returns True
+      will be yielded
 
     Yields
     ------
-    pos, corner
+    tile : Tile
+      An individual tile to process. Tiles are yield deepest-first.
+
+    The ``n = 0`` depth is not included.
+
     """
     if tile_filter is None:
         tile_filter = lambda t: True
@@ -299,10 +302,8 @@ def iter_tiles(data_sampler, depth, merge=True,
 
     parents = defaultdict(dict)
 
-    for node, c, increasing in iter_corners(max(depth, 1),
-                                            bottom_only=merge, tile_filter=tile_filter):
-
-        n, x, y = node.n, node.x, node.y
+    for tile in iter_corners(max(depth, 1), bottom_only=merge, tile_filter=tile_filter):
+        n, x, y = tile.pos.n, tile.pos.x, tile.pos.y
 
         if type(data_sampler) == str:
             imgDir = data_sampler + '/' + str(n) + '/'
@@ -313,7 +314,7 @@ def iter_tiles(data_sampler, depth, merge=True,
         elif restartDir and os.path.isfile(restartDir + '/' + str(n) + '/' + str(y) + '/' + str(y) + '_' + str(x) + '.png'):
             img = None
         else:
-            l, b = subsample(c[0], c[1], c[2], c[3], 256, increasing)
+            l, b = subsample(tile.corners[0], tile.corners[1], tile.corners[2], tile.corners[3], 256, tile.increasing)
             img = data_sampler(l, b)
 
         # No image was returned by the sampler,
@@ -323,7 +324,7 @@ def iter_tiles(data_sampler, depth, merge=True,
                 continue
 
         if not base_level_only:
-            for pth, img in _trickle_up(img, node, parents, merge, depth, top):
+            for pth, img in _trickle_up(img, tile.pos, parents, merge, depth, top):
                 if img is None:
                     continue
                 yield pth, img

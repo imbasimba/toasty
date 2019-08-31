@@ -13,7 +13,7 @@ API Documentation
    :no-inheritance-diagram:
    :no-inherited-members:
 
-.. automodapi:: toasty.tile
+.. automodapi:: toasty.toast
    :no-inheritance-diagram:
    :no-inherited-members:
 

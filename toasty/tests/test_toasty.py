@@ -15,8 +15,8 @@ try:
 except ImportError:
     HAS_ASTRO = False
 
-from .. import tile
-from .. import iter_tiles, cartesian_sampler, gen_wtml, toast, healpix_sampler
+from .. import toast
+from ..toast import iter_tiles, cartesian_sampler, gen_wtml, healpix_sampler
 from ..io import read_png, save_png
 from .._libtoasty import mid
 
@@ -133,7 +133,7 @@ def test_healpix_sampler_galactic():
 @pytest.mark.skipif('not HAS_ASTRO')
 def test_guess_healpix():
     pth = os.path.join(cwd(), 'test.hpx')
-    d, nest, coord = tile._guess_healpix(pth)
+    d, nest, coord = toast._guess_healpix(pth)
     assert nest is True
     assert coord == 'C'
     np.testing.assert_array_equal(d, fits.open(pth)[1].data['I'])
@@ -179,13 +179,13 @@ class TestToaster(object):
     def test_default(self):
 
         wtml = os.path.join(self.base, 'test.wtml')
-        toast(self.sampler, 1, self.base, wtml_file=wtml)
+        toast.toast(self.sampler, 1, self.base, wtml_file=wtml)
 
         assert os.path.exists(wtml)
         self.verify_toast()
 
     def test_no_merge(self):
-        toast(self.sampler, 1, self.base, merge=False)
+        toast.toast(self.sampler, 1, self.base, merge=False)
         self.verify_toast()
 
 

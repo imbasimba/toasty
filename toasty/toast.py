@@ -8,9 +8,9 @@ from __future__ import absolute_import, division, print_function
 
 __all__ = '''
 depth2tiles
+generate_tiles
 gen_wtml
 is_subtile
-iter_corners
 iter_tiles
 minmax_tile_filter
 nxy_tile_filter
@@ -213,7 +213,7 @@ def _parent(pos):
     return parent, pos.x % 2, pos.y % 2
 
 
-def iter_corners(depth, bottom_only=True, tile_filter=None):
+def generate_tiles(depth, bottom_only=True, tile_filter=None):
     """Generate a pyramid of TOAST tiles in deepest-first order.
 
     Parameters
@@ -305,7 +305,7 @@ def iter_tiles(data_sampler, depth, merge=True,
 
     parents = defaultdict(dict)
 
-    for tile in iter_corners(max(depth, 1), bottom_only=merge, tile_filter=tile_filter):
+    for tile in generate_tiles(max(depth, 1), bottom_only=merge, tile_filter=tile_filter):
         n, x, y = tile.pos.n, tile.pos.x, tile.pos.y
 
         if type(data_sampler) == str:

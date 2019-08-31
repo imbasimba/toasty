@@ -409,15 +409,18 @@ def gen_wtml(base_dir, depth, **kwargs):
       in the WTML file (i.e., this should be a path visible to a server)
     depth : int
       The maximum depth of the pyramid
+    **kwargs
+      Keyword arguments may be used to set parameters that appear in the
+      generated WTML file. Keywords that are honored are:
 
-    Optional Keywords
-    -----------------
-    FolderName
-    BandPass
-    Name
-    Credits
-    CreditsUrl
-    ThumbnailUrl
+      - FolderName
+      - BandPass
+      - Name
+      - Credits
+      - CreditsUrl
+      - ThumbnailUrl
+
+      Unhandled keywords are silently ignored.
 
     Returns
     -------

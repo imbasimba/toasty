@@ -202,6 +202,9 @@ def _parent(pos):
       The vertical index of the child inside its parent.
 
     """
+    if pos.n < 1:
+        raise ValueError('cannot take the parent of a tile position with depth < 1')
+
     parent = Pos(
         n = pos.n - 1,
         x = pos.x // 2,

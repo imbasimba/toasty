@@ -13,6 +13,10 @@ API Documentation
    :no-inheritance-diagram:
    :no-inherited-members:
 
+.. automodapi:: toasty.samplers
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
 .. automodapi:: toasty.toast
    :no-inheritance-diagram:
    :no-inherited-members:

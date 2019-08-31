@@ -16,9 +16,10 @@ except ImportError:
     HAS_ASTRO = False
 
 from .. import toast
-from ..toast import iter_tiles, cartesian_sampler, gen_wtml, healpix_sampler
-from ..io import read_png, save_png
 from .._libtoasty import mid
+from ..io import read_png, save_png
+from ..samplers import cartesian_sampler, healpix_fits_file_sampler
+from ..toast import iter_tiles, gen_wtml
 
 
 def mock_sampler(x, y):
@@ -100,12 +101,8 @@ def test_wwt_compare_sky():
 
 @pytest.mark.skipif('not HAS_ASTRO')
 def test_healpix_sampler():
-
     direc = cwd()
-
-    im = fits.open(os.path.join(direc, 'test.hpx'))[1].data['I']
-
-    sampler = healpix_sampler(im, nest=True)
+    sampler = healpix_fits_file_sampler(os.path.join(direc, 'test.hpx'))
 
     for pth, result in iter_tiles(sampler, depth=1):
         expected = read_png(os.path.join(direc, 'test_sky', pth))
@@ -116,27 +113,14 @@ def test_healpix_sampler():
 
 @pytest.mark.skipif('not HAS_ASTRO')
 def test_healpix_sampler_galactic():
-
     direc = cwd()
-
-    im = fits.open(os.path.join(direc, 'test_gal.hpx'))[1].data['I']
-
-    sampler = healpix_sampler(im, nest=True, coord='G')
+    sampler = healpix_fits_file_sampler(os.path.join(direc, 'test_gal.hpx'))
 
     for pth, result in iter_tiles(sampler, depth=1):
         expected = read_png(os.path.join(direc, 'test_sky', pth))
         expected = expected[:, :, 0]
 
         image_test(expected, result, "Failed for %s" % pth)
-
-
-@pytest.mark.skipif('not HAS_ASTRO')
-def test_guess_healpix():
-    pth = os.path.join(cwd(), 'test.hpx')
-    d, nest, coord = toast._guess_healpix(pth)
-    assert nest is True
-    assert coord == 'C'
-    np.testing.assert_array_equal(d, fits.open(pth)[1].data['I'])
 
 
 def test_merge():

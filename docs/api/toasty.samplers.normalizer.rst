@@ -1,6 +1,6 @@
 normalizer
 ==========
 
-.. currentmodule:: toasty
+.. currentmodule:: toasty.samplers
 
 .. autofunction:: normalizer

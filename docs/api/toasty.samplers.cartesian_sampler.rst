@@ -1,6 +1,6 @@
 cartesian_sampler
 =================
 
-.. currentmodule:: toasty
+.. currentmodule:: toasty.samplers
 
 .. autofunction:: cartesian_sampler

@@ -16,7 +16,12 @@ from .norm import normalize
 from collections import defaultdict, namedtuple
 
 __all__ = '''
-normalizer
+depth2tiles
+gen_wtml
+iter_corners
+iter_tiles
+minmax_tile_in_range
+toast
 '''.split()
 
 level1 = [[np.radians(c) for c in row]
@@ -206,7 +211,7 @@ def iter_tiles(data_sampler, depth, merge=True,
     data_sampler : func or string
       - A function that takes two 2D numpy arrays of (lon, lat) as input,
         and returns an image of the original dataset sampled
-        at these locations
+        at these locations; see :mod:`toasty.samplers`.
       - A string giving a base toast directory that contains the
         base level of toasted tiles, using this option, only the
         merge step takes place, the given directory must contain
@@ -507,156 +512,3 @@ def toast(data_sampler, depth, base_dir,
 
 def depth2tiles(depth):
     return (4 ** (depth + 1) - 1) // 3
-
-
-def _find_extension(pth):
-    """
-    Find the first HEALPIX extension in a fits file,
-    and return the extension number. Else, raise an IndexError
-    """
-    for i, hdu in enumerate(pth):
-        if hdu.header.get('PIXTYPE') == 'HEALPIX':
-            return i
-    else:
-        raise IndexError("No HEALPIX extensions found in %s" % pth.filename())
-
-
-def _guess_healpix(pth, extension=None):
-    # try to guess healpix_sampler arguments from
-    # a file
-
-    from astropy.io import fits
-    f = fits.open(pth)
-
-    if extension is None:
-        extension = _find_extension(f)
-
-    data, hdr = f[extension].data, f[extension].header
-    # grab the first healpix parameter
-    data = data[data.dtype.names[0]]
-
-    nest = hdr.get('ORDERING') == 'NESTED'
-    coord = hdr.get('COORDSYS', 'C')
-
-    return data, nest, coord
-
-
-def healpix_sampler(data, nest=False, coord='C', interpolation='nearest'):
-    """
-    Build a sampler for Healpix images
-
-    Parameters
-    ----------
-    data : array
-      The healpix data
-    nest : bool (default: False)
-      Whether the data is ordered in the nested healpix style
-    coord : 'C' | 'G'
-      Whether the image is in Celestial (C) or Galactic (G) coordinates
-    interpolation : 'nearest' | 'bilinear'
-      What interpolation scheme to use.
-
-      WARNING: bilinear uses healpy's get_interp_val,
-               which seems prone to segfaults
-
-    Returns
-    -------
-    A function which samples the healpix image, given arrays
-    of (lon, lat)
-    """
-    from healpy import ang2pix, get_interp_val, npix2nside
-    from astropy.coordinates import Galactic, FK5
-    import astropy.units as u
-
-    interp_opts = ['nearest', 'bilinear']
-    if interpolation not in interp_opts:
-        raise ValueError("Invalid interpolation %s. Must be one of %s" %
-                         (interpolation, interp_opts))
-    if coord.upper() not in 'CG':
-        raise ValueError("Invalid coord %s. Must be 'C' or 'G'" % coord)
-
-    galactic = coord.upper() == 'G'
-    interp = interpolation == 'bilinear'
-    nside = npix2nside(data.size)
-
-    def vec2pix(l, b):
-        if galactic:
-            f = FK5(l * u.rad, b * u.rad)
-            g = f.transform_to(Galactic)
-            l, b = g.l.rad, g.b.rad
-
-        theta = np.pi / 2 - b
-        phi = l
-
-        if interp:
-            return get_interp_val(data, theta, phi, nest=nest)
-
-        return data[ang2pix(nside, theta, phi, nest=nest)]
-
-    return vec2pix
-
-
-def cartesian_sampler(data):
-    """Return a sampler function for a dataset in the cartesian projection
-
-    The image is assumed to be oriented with longitude increasing to the left,
-    with (l,b) = (0,0) at the center pixel
-
-    Parameters
-    ----------
-    data : array-like
-      The map to sample
-    """
-    data = np.asarray(data)
-    ny, nx = data.shape[0:2]
-
-    if ny * 2 != nx:
-        raise ValueError("Map must be twice as wide as it is tall")
-
-    def vec2pix(l, b):
-        l = (l + np.pi) % (2 * np.pi)
-        l[l < 0] += 2 * np.pi
-        l = nx * (1 - l / (2 * np.pi))
-        l = np.clip(l.astype(np.int), 0, nx - 1)
-        b = ny * (1 - (b + np.pi / 2) / np.pi)
-        b = np.clip(b.astype(np.int), 0, ny - 1)
-        return data[b, l]
-
-    return vec2pix
-
-
-def normalizer(sampler, vmin, vmax, scaling='linear',
-               bias=0.5, contrast=1):
-    """
-    Apply an intensity scaling to a sampler function
-
-    Parameters
-    ----------
-    sampler : function
-       A function of (lon, lat) that samples a dataset
-
-    vmin : float
-      The data value to assign to black
-    vmin : float
-      The data value to assign to white
-    bias : float between 0-1. Default=0.5
-      Where to assign middle-grey, relative to (vmin, vmax).
-    contrast : float, default=1
-      How quickly to ramp from black to white. The default of 1
-      ramps over a data range of (vmax - vmin)
-    scaling : 'linear' | 'log' | 'arcsinh' | 'sqrt' | 'power'
-      The type of intensity scaling to apply
-
-    Returns
-    -------
-    A function of (lon, lat) that samples an image,
-    scales the intensity, and returns an array of dtype=np.uint8
-    """
-    def result(x, y):
-        raw = sampler(x, y)
-        if raw is None:
-            return raw
-        else:
-            r = normalize(raw, vmin, vmax, bias, contrast, scaling)
-            return r
-    return result

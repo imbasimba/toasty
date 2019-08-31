@@ -1,6 +1,6 @@
 healpix_sampler
 ===============
 
-.. currentmodule:: toasty
+.. currentmodule:: toasty.samplers
 
 .. autofunction:: healpix_sampler

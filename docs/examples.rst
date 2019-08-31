@@ -13,7 +13,8 @@ Toasting a Cartesian, all-sky PNG image
 This script processes an existing all-sky PNG image that uses a Cartesian
 projection, using scikit-image_ to load the data::
 
-  from toasty.toast import toast, cartesian_sampler
+  from toasty.toast import toast
+  from toasty.samplers import cartesian_sampler
   from skimage.io import imread
 
   data = imread('allsky.png')
@@ -59,7 +60,8 @@ Controlling how data are turned into RGB
 
 Here we apply a log-stretch to an all sky FITS image::
 
-  from toasty.toast import toast, cartesian_sampler, normalizer
+  from toasty.toast import toast
+  from toasty.sampler import cartesian_sampler, normalizer
   from astropy.io import fits
 
   data = fits.open('allsky.fits')[0].data

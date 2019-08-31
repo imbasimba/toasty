@@ -36,7 +36,8 @@ def healpix_sampler(data, nest=False, coord='C', interpolation='nearest'):
     Returns
     -------
     A function that samples the HEALPix data; the call signature is
-    ``vec2pix(lon, lat) -> data``, where the inputs and output are 1D arrays.
+    ``vec2pix(lon, lat) -> data``, where the inputs and output are 2D arrays
+    and *lon* and *lat* are in radians.
 
     """
     from healpy import ang2pix, get_interp_val, npix2nside
@@ -102,12 +103,8 @@ def healpix_fits_file_sampler(path, extension=None, interpolation='nearest'):
     Returns
     -------
     A function that samples the HEALPix image; the call signature is
-    ``vec2pix(lon, lat) -> data``, where the inputs and output are 1D arrays.
-
-    """
-    """Guess settings for :func:`healpix_sampler` based on FITS headers.
-
-    If reading HEALPix data from a FITS file.
+    ``vec2pix(lon, lat) -> data``, where the inputs and output are 2D arrays
+    and *lon* and *lat* are in radians.
 
     """
     from astropy.io import fits
@@ -139,7 +136,8 @@ def cartesian_sampler(data):
     Returns
     -------
     A function that samples the image; the call signature is
-    ``vec2pix(lon, lat) -> data``, where the inputs and output are 1D arrays.
+    ``vec2pix(lon, lat) -> data``, where the inputs and output are 2D arrays
+    and *lon* and *lat* are in radians.
 
     """
     data = np.asarray(data)
@@ -182,8 +180,8 @@ def normalizer(sampler, vmin, vmax, scaling='linear', bias=0.5, contrast=1):
     Returns
     -------
     A function that scales the input sampler; the call signature is
-    ``vec2pix(lon, lat) -> data``, where the inputs and output are 1D arrays.
-    The output has a dtype of ``np.uint8``.
+    ``vec2pix(lon, lat) -> data``, where the inputs and output are 2D arrays
+    and *lon* and *lat* are in radians. The output has a dtype of ``np.uint8``.
 
     """
     from .norm import normalize

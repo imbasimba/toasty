@@ -9,6 +9,7 @@ from __future__ import absolute_import, division, print_function
 __all__ = '''
 depth2tiles
 gen_wtml
+is_subtile
 iter_corners
 iter_tiles
 minmax_tile_filter
@@ -75,16 +76,29 @@ def minmax_tile_filter(ra_range, dec_range):
 
     return is_overlap
 
-def is_subtile(subLoc, loc):
-    """Function to determine if a lower level tile (subLoc) is contained
-    within a higher level tile (loc)"""
 
-    if subLoc.n == loc.n:
-        if (subLoc.x == loc.x) and (subLoc.y == loc.y):
-            return True
-        return False
+def is_subtile(deeper_pos, shallower_pos):
+    """Determine if one tile is a child of another.
 
-    return is_subtile(Pos(n=subLoc.n-1, x=int(subLoc.x/2), y=int(subLoc.y/2)),loc)
+    Parameters
+    ----------
+    deeper_pos : Pos
+      A tile position.
+    shallower_pos : Pos
+      A tile position that is shallower than *deeper_pos*.
+
+    Returns
+    -------
+    True if *deeper_pos* represents a tile that is a child of *shallower_pos*.
+
+    """
+    if deeper_pos.n < shallower_pos.n:
+        raise ValueError('deeper_pos has a lower depth than shallower_pos')
+
+    if deeper_pos.n == shallower_pos.n:
+        return deeper_pos.x == shallower_pos.x and deeper_pos.y == shallower_pos.y
+
+    return is_subtile(_parent(deeper_pos)[0], shallower_pos)
 
 
 def nxy_tile_filter(layer,tx,ty):
@@ -157,19 +171,30 @@ def _div4(pos, c, increasing):
              increasing)]
 
 
-def _parent(child):
-    """
-    Given a toast tile, return the address of the parent,
-    as well as the corner of the parent that this tile occupies
+def _parent(pos):
+    """Return a tile position's parent.
+
+    Parameters
+    ----------
+    pos : Pos
+      A tile position.
 
     Returns
     -------
-    Pos, xcorner, ycorner
+    parent : Pos
+      The tile position that is the parent of *pos*.
+    x_index : integer, 0 or 1
+      The horizontal index of the child inside its parent.
+    y_index : integer, 0 or 1
+      The vertical index of the child inside its parent.
+
     """
-    parent = Pos(n=child.n - 1, x=child.x // 2, y=child.y // 2)
-    left = child.x % 2
-    top = child.y % 2
-    return (parent, left, top)
+    parent = Pos(
+        n = pos.n - 1,
+        x = pos.x // 2,
+        y = pos.y // 2
+    )
+    return parent, pos.x % 2, pos.y % 2
 
 
 def iter_corners(depth, bottom_only=True, tile_filter=None):
@@ -460,7 +485,7 @@ def toast(data_sampler, depth, base_dir,
       and only the highest resolution layer of images will be created.
     tile_filter : callable or None (the default)
       An optional function ``accept_tile(tile) -> bool`` that filters tiles;
-      only tiles for which the fuction returns :const:`True` will be
+      only tiles for which the fuction returns ``True`` will be
       processed.
     top_layer: int (optional)
       If merging this indicates the uppermost layer to be created.

@@ -7,5 +7,5 @@ from .toast import (
     depth2tiles,
     gen_wtml,
     iter_tiles,
-    minmax_tile_in_range,
+    minmax_tile_filter,
 )

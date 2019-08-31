@@ -34,15 +34,16 @@ Toasting subsets of the sky
 You don’t have to build the full pyramid for the full sky all at once::
 
   # Toast a specific region of the sky defined by RA/Dec bounds
-  toast(sampler, depth, output_directory,
-        ra_range = [208.8, 212.2],  # degrees
-        dec_range = [52.5, 56.8],  # degrees
-  )
+  from toasty.toast import minmax_tile_filter
+  ra_range = [0.17, 0.19],  # radians
+  dec_range = [1.22, 1.24],  # radians
+  filter = minmax_tile_filter(ra_range, dec_range)
+  toast(sampler, depth, output_directory, tile_filter=filter)
 
   # Toast a specific region of the sky defined by a higher-level TOAST tile
-  toast(sampler, depth, output_directory,
-        toast_tile = [4, 5, 9],
-  )
+  from toasty.toast import nxy_tile_filter
+  filter = nxy_tile_filter(4, 5, 9)  # depth=4, ix=5, iy=9
+  toast(sampler, depth, output_directory, tile_filter=filter)
 
   # Create only the bottom layer of toast tiles
   toast(sampler, depth, output_directory,

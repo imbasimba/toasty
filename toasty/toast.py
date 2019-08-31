@@ -12,6 +12,7 @@ gen_wtml
 iter_corners
 iter_tiles
 minmax_tile_filter
+nxy_tile_filter
 toast
 '''.split()
 
@@ -425,9 +426,8 @@ def gen_wtml(base_dir, depth, **kwargs):
 
 def toast(data_sampler, depth, base_dir,
           wtml_file=None, merge=True, base_level_only=False,
-          ra_range=None, dec_range=None,toast_tile=None,restart=False,top_layer=0):
-    """
-    Build a directory of toast tiles
+          tile_filter=None, restart=False, top_layer=0):
+    """Build a directory of toast tiles
 
     Parameters
     ----------
@@ -458,33 +458,18 @@ def toast(data_sampler, depth, base_dir,
       If True only the bottem level of tiles will be created.
       In this case merge will be set to True, but no merging will happen,
       and only the highest resolution layer of images will be created.
-    ra_range: array (optional)
-    dec_range: array (optional)
-      To toast only a portion of the sky give min and max ras and decs
-      ([minRA,maxRA],[minDec,maxDec]) in degrees
-      If these keywords are used base_level_only will be automatically set to
-      true, regardless of its given value.
-    toast_tile: array[n,x,y] (optional)
-      If this keyword is used the output will be all the subtiles of toast_tile
-      at the given depth (base_level_only will be automatically set to
-      true, regardless of its given value.
+    tile_filter : callable or None (the default)
+      An optional function ``accept_tile(tile) -> bool`` that filters tiles;
+      only tiles for which the fuction returns :const:`True` will be
+      processed.
     top_layer: int (optional)
       If merging this indicates the uppermost layer to be created.
+
     """
     if wtml_file is not None:
         wtml = gen_wtml(base_dir, depth)
         with open(wtml_file, 'w') as outfile:
             outfile.write(wtml)
-
-    if ra_range and dec_range:
-        ra_range = [np.radians(ra) for ra in ra_range]
-        dec_range = [np.radians(dec) for dec in dec_range]
-        tile_filter = minmax_tile_filter(ra_range, dec_range)
-    else:
-        tile_filter = None
-
-    if toast_tile:
-        tile_filter = nxy_tile_filter(*toast_tile)
 
     if base_level_only:
         merge = True
@@ -495,7 +480,7 @@ def toast(data_sampler, depth, base_dir,
         restartDir = None
 
     num = 0
-    for pth, tile in iter_tiles(data_sampler, depth, merge, base_level_only, tile_filter,restartDir,top_layer):
+    for pth, tile in iter_tiles(data_sampler, depth, merge, base_level_only, tile_filter, restartDir, top_layer):
         num += 1
         if num % 10 == 0:
             logging.getLogger(__name__).info("Finished %i of %i tiles" %

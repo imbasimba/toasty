@@ -8,10 +8,10 @@ from __future__ import absolute_import, division, print_function
 
 __all__ = '''
 depth2tiles
+generate_images
 generate_tiles
 gen_wtml
 is_subtile
-iter_tiles
 minmax_tile_filter
 nxy_tile_filter
 Pos
@@ -250,8 +250,15 @@ def generate_tiles(depth, bottom_only=True, tile_filter=None):
             yield item
 
 
-def iter_tiles(data_sampler, depth, merge=True,
-               base_level_only=False,tile_filter=None,restart_dir=None, top=0):
+def generate_images(
+        data_sampler,
+        depth,
+        merge = True,
+        base_level_only = False,
+        tile_filter = None,
+        restart_dir = None,
+        top = 0
+):
     """
     Create a hierarchy of toast tiles
 
@@ -527,7 +534,7 @@ def toast(data_sampler, depth, base_dir,
         restart_dir = None
 
     num = 0
-    for pth, tile in iter_tiles(data_sampler, depth, merge, base_level_only, tile_filter, restart_dir, top_layer):
+    for pth, tile in generate_images(data_sampler, depth, merge, base_level_only, tile_filter, restart_dir, top_layer):
         num += 1
         if num % 10 == 0:
             logging.getLogger(__name__).info("Finished %i of %i tiles" %

@@ -5,7 +5,7 @@ from __future__ import absolute_import, division, print_function
 
 from .toast import (
     depth2tiles,
+    generate_images,
     gen_wtml,
-    iter_tiles,
     minmax_tile_filter,
 )

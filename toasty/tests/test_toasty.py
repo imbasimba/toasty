@@ -19,7 +19,7 @@ from .. import toast
 from .._libtoasty import mid
 from ..io import read_png, save_png
 from ..samplers import cartesian_sampler, healpix_fits_file_sampler
-from ..toast import iter_tiles, gen_wtml
+from ..toast import generate_images, gen_wtml
 
 
 def mock_sampler(x, y):
@@ -27,8 +27,8 @@ def mock_sampler(x, y):
 
 
 @pytest.mark.parametrize('depth', (0, 1, 2))
-def test_iter_tiles_path(depth):
-    result = set(r[0] for r in iter_tiles(mock_sampler, depth))
+def test_generate_images_path(depth):
+    result = set(r[0] for r in generate_images(mock_sampler, depth))
     expected = set(['{n}/{y}/{y}_{x}.png'.format(n=n, x=x, y=y)
                     for n in range(depth + 1)
                     for y in range(2 ** n)
@@ -92,7 +92,7 @@ def test_wwt_compare_sky():
     im = read_png(os.path.join(direc, 'test.png'))
     sampler = cartesian_sampler(im)
 
-    for pth, result in iter_tiles(sampler, depth=1):
+    for pth, result in generate_images(sampler, depth=1):
         expected = read_png(os.path.join(direc, 'test_sky', pth))
         expected = expected[:, :, :3]
 
@@ -104,7 +104,7 @@ def test_healpix_sampler():
     direc = cwd()
     sampler = healpix_fits_file_sampler(os.path.join(direc, 'test.hpx'))
 
-    for pth, result in iter_tiles(sampler, depth=1):
+    for pth, result in generate_images(sampler, depth=1):
         expected = read_png(os.path.join(direc, 'test_sky', pth))
         expected = expected[:, :, 0]
 
@@ -116,7 +116,7 @@ def test_healpix_sampler_galactic():
     direc = cwd()
     sampler = healpix_fits_file_sampler(os.path.join(direc, 'test_gal.hpx'))
 
-    for pth, result in iter_tiles(sampler, depth=1):
+    for pth, result in generate_images(sampler, depth=1):
         expected = read_png(os.path.join(direc, 'test_sky', pth))
         expected = expected[:, :, 0]
 
@@ -132,7 +132,7 @@ def test_merge():
 
     sampler = cartesian_sampler(im)
 
-    for pth, im in iter_tiles(sampler, 2, null_merge):
+    for pth, im in generate_images(sampler, 2, null_merge):
         if pth[0] != '2':
             assert im.max() == 0
         else:

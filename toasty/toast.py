@@ -14,6 +14,8 @@ iter_corners
 iter_tiles
 minmax_tile_filter
 nxy_tile_filter
+Pos
+Tile
 toast
 '''.split()
 
@@ -37,7 +39,7 @@ level1 = [
 ]
 
 Pos = namedtuple('Pos', 'n x y')
-Tile = namedtuple('Tile', 'pos increasing corners')
+Tile = namedtuple('Tile', 'pos corners increasing')
 
 
 def depth2tiles(depth):
@@ -127,19 +129,22 @@ def nxy_tile_filter(layer,tx,ty):
 
 def _postfix_corner(tile, depth, bottom_only, tile_filter):
     """
-    Yield subtiles of a given tile, in postfix order
-
+    Yield subtiles of a given tile, in postfix (deepest-first) order.
 
     Parameters
     ----------
-    tile : (Pos, corner, increasing)
-      Description of Current tile
+    tile : Tile
+      Parameters of the current tile.
     depth : int
-      Depth to descend to
+      The depth to descend to.
     bottom_only : bool
-      If True, only yield tiles at max_depth
-    """
+      If True, only yield tiles at max_depth.
+    tile_filter : callable
+      A function with signature ``tile_filter(tile) -> bool`` that determines
+      which tiles will be yielded; tiles for which it returns ``False`` will
+      be skipped.
 
+    """
     n = tile[0].n
     if n > depth:
         return
@@ -147,7 +152,7 @@ def _postfix_corner(tile, depth, bottom_only, tile_filter):
     if not tile_filter(tile):
         return
 
-    for child in _div4(*tile):
+    for child in _div4(tile):
         for item in _postfix_corner(child, depth, bottom_only, tile_filter):
             yield item
 
@@ -155,20 +160,28 @@ def _postfix_corner(tile, depth, bottom_only, tile_filter):
         yield tile
 
 
-def _div4(pos, c, increasing):
-    n, x, y = pos.n, pos.x, pos.y
-    ul, ur, lr, ll = c
+def _div4(tile):
+    """Return the four child tiles of an input tile."""
+    n, x, y = tile.pos.n, tile.pos.x, tile.pos.y
+    ul, ur, lr, ll = tile.corners
+    increasing = tile.increasing
+
     to = mid(ul, ur)
     ri = mid(ur, lr)
     bo = mid(lr, ll)
     le = mid(ll, ul)
     ce = mid(ll, ur) if increasing else mid(ul, lr)
 
-    return [(Pos(n=n + 1, x=2 * x, y=2 * y), (ul, to, ce, le), increasing),
-            (Pos(n=n + 1, x=2 * x + 1, y=2 * y), (to, ur, ri, ce), increasing),
-            (Pos(n=n + 1, x=2 * x, y=2 * y + 1), (le, ce, bo, ll), increasing),
-            (Pos(n=n + 1, x=2 * x + 1, y=2 * y + 1), (ce, ri, lr, bo),
-             increasing)]
+    n += 1
+    x *= 2
+    y *= 2
+
+    return [
+        Tile(Pos(n=n, x=x,     y=y    ), (ul, to, ce, le), increasing),
+        Tile(Pos(n=n, x=x + 1, y=y    ), (to, ur, ri, ce), increasing),
+        Tile(Pos(n=n, x=x,     y=y + 1), (le, ce, bo, ll), increasing),
+        Tile(Pos(n=n, x=x + 1, y=y + 1), (ce, ri, lr, bo), increasing),
+    ]
 
 
 def _parent(pos):
@@ -219,10 +232,12 @@ def iter_corners(depth, bottom_only=True, tile_filter=None):
     if tile_filter is None:
         tile_filter = lambda t: True
 
-    todo = [(Pos(n=1, x=0, y=0), level1[0], True),
-            (Pos(n=1, x=1, y=0), level1[1], False),
-            (Pos(n=1, x=1, y=1), level1[2], True),
-            (Pos(n=1, x=0, y=1), level1[3], False)]
+    todo = [
+        Tile(Pos(n=1, x=0, y=0), level1[0], True),
+        Tile(Pos(n=1, x=1, y=0), level1[1], False),
+        Tile(Pos(n=1, x=1, y=1), level1[2], True),
+        Tile(Pos(n=1, x=0, y=1), level1[3], False),
+    ]
 
     for t in todo:
         for item in _postfix_corner(t, depth, bottom_only, tile_filter):

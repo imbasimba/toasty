@@ -1,19 +1,10 @@
 # Copyright 2013-2019 Chris Beaumont and the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
-"""
-Generate PNG tile directories
+"""Computations for the TOAST projection scheme and tile pyramid format.
+
 """
 from __future__ import absolute_import, division, print_function
-import os
-import logging
-
-import numpy as np
-
-from ._libtoasty import subsample, mid
-from .io import save_png, read_png
-from .norm import normalize
-from collections import defaultdict, namedtuple
 
 __all__ = '''
 depth2tiles
@@ -24,20 +15,37 @@ minmax_tile_in_range
 toast
 '''.split()
 
-level1 = [[np.radians(c) for c in row]
-          for row in [[(0, -90), (90, 0), (0, 90), (180, 0)],
-                      [(90, 0), (0, -90), (0, 0), (0, 90)],
-                      [(0, 90), (0, 0), (0, -90), (270, 0)],
-                      [(180, 0), (0, 90), (270, 0), (0, -90)]]
-          ]
+from collections import defaultdict, namedtuple
+import os
+import logging
+import numpy as np
+
+from ._libtoasty import subsample, mid
+from .io import save_png, read_png
+from .norm import normalize
+
+level1 = [
+    [np.radians(c) for c in row]
+    for row in [
+            [(0, -90), (90, 0), (0, 90), (180, 0)],
+            [(90, 0), (0, -90), (0, 0), (0, 90)],
+            [(0, 90), (0, 0), (0, -90), (270, 0)],
+            [(180, 0), (0, 90), (270, 0), (0, -90)],
+    ]
+]
 
 Pos = namedtuple('Pos', 'n x y')
 Tile = namedtuple('Tile', 'pos increasing corners')
 
 
+def depth2tiles(depth):
+    """Return the total number of tiles in a TOAST pyramid of depth *depth*."""
+    return (4 ** (depth + 1) - 1) // 3
+
+
 def minmax(arr):
     """Returns the minimum and maximum values of an array."""
-    return min(arr),max(arr)
+    return min(arr), max(arr)
 
 
 def default_tile_in_range(tile):
@@ -508,7 +516,3 @@ def toast(data_sampler, depth, base_dir,
         except:
             print(pth)
             print(type(tile))
-
-
-def depth2tiles(depth):
-    return (4 ** (depth + 1) - 1) // 3

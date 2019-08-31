@@ -6,7 +6,6 @@ from __future__ import absolute_import, division, print_function
 from .toast import (
     depth2tiles,
     gen_wtml,
-    iter_corners,
     iter_tiles,
     minmax_tile_in_range,
 )

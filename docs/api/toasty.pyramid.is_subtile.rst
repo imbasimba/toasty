@@ -1,6 +1,6 @@
 is_subtile
 ==========
 
-.. currentmodule:: toasty.toast
+.. currentmodule:: toasty.pyramid
 
 .. autofunction:: is_subtile

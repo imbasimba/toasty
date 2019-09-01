@@ -1,7 +1,7 @@
 Pos
 ===
 
-.. currentmodule:: toasty.toast
+.. currentmodule:: toasty.pyramid
 
 .. autoclass:: Pos
    :show-inheritance:

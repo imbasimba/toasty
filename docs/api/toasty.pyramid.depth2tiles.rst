@@ -1,6 +1,6 @@
 depth2tiles
 ===========
 
-.. currentmodule:: toasty.toast
+.. currentmodule:: toasty.pyramid
 
 .. autofunction:: depth2tiles

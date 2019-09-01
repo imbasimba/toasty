@@ -7,14 +7,11 @@
 from __future__ import absolute_import, division, print_function
 
 __all__ = '''
-depth2tiles
 generate_images
 generate_tiles
 gen_wtml
-is_subtile
 minmax_tile_filter
 nxy_tile_filter
-Pos
 Tile
 toast
 '''.split()
@@ -27,6 +24,7 @@ import numpy as np
 from ._libtoasty import subsample, mid
 from .io import save_png, read_png
 from .norm import normalize
+from .pyramid import Pos, depth2tiles, is_subtile, pos_parent
 
 level1 = [
     [np.radians(c) for c in row]
@@ -38,13 +36,7 @@ level1 = [
     ]
 ]
 
-Pos = namedtuple('Pos', 'n x y')
 Tile = namedtuple('Tile', 'pos corners increasing')
-
-
-def depth2tiles(depth):
-    """Return the total number of tiles in a TOAST pyramid of depth *depth*."""
-    return (4 ** (depth + 1) - 1) // 3
 
 
 def _minmax(arr):
@@ -77,30 +69,6 @@ def minmax_tile_filter(ra_range, dec_range):
         return True
 
     return is_overlap
-
-
-def is_subtile(deeper_pos, shallower_pos):
-    """Determine if one tile is a child of another.
-
-    Parameters
-    ----------
-    deeper_pos : Pos
-      A tile position.
-    shallower_pos : Pos
-      A tile position that is shallower than *deeper_pos*.
-
-    Returns
-    -------
-    True if *deeper_pos* represents a tile that is a child of *shallower_pos*.
-
-    """
-    if deeper_pos.n < shallower_pos.n:
-        raise ValueError('deeper_pos has a lower depth than shallower_pos')
-
-    if deeper_pos.n == shallower_pos.n:
-        return deeper_pos.x == shallower_pos.x and deeper_pos.y == shallower_pos.y
-
-    return is_subtile(_parent(deeper_pos)[0], shallower_pos)
 
 
 def nxy_tile_filter(layer,tx,ty):
@@ -182,35 +150,6 @@ def _div4(tile):
         Tile(Pos(n=n, x=x,     y=y + 1), (le, ce, bo, ll), increasing),
         Tile(Pos(n=n, x=x + 1, y=y + 1), (ce, ri, lr, bo), increasing),
     ]
-
-
-def _parent(pos):
-    """Return a tile position's parent.
-
-    Parameters
-    ----------
-    pos : Pos
-      A tile position.
-
-    Returns
-    -------
-    parent : Pos
-      The tile position that is the parent of *pos*.
-    x_index : integer, 0 or 1
-      The horizontal index of the child inside its parent.
-    y_index : integer, 0 or 1
-      The vertical index of the child inside its parent.
-
-    """
-    if pos.n < 1:
-        raise ValueError('cannot take the parent of a tile position with depth < 1')
-
-    parent = Pos(
-        n = pos.n - 1,
-        x = pos.x // 2,
-        y = pos.y // 2
-    )
-    return parent, pos.x % 2, pos.y % 2
 
 
 def generate_tiles(depth, bottom_only=True, tile_filter=None):
@@ -366,7 +305,7 @@ def _trickle_up(im, node, parents, merge, depth, top=0):
     if not merge and n > 1:
         return
 
-    parent, xc, yc = _parent(node)
+    parent, xc, yc = pos_parent(node)
     corners = parents[parent]
     corners[(xc, yc)] = im
 

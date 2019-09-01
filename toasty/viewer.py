@@ -1,7 +1,12 @@
+# -*- mode: python; coding: utf-8 -*-
+# Copyright 2013-2019 Chris Beaumont and the AAS WorldWide Telescope project
+# Licensed under the MIT License.
+
+"""Set up a minimal HTTP Server to preview a Toasty-generated tile pyramid.
+
 """
-Set up a minimal HTTP Server to preview a Toasty-generated
-tile pyramid
-"""
+from __future__ import absolute_import, division, print_function
+
 import os
 import sys
 from time import time

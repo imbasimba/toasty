@@ -1,4 +1,5 @@
-# Copyright 2013-2019 the AAS WorldWide Telescope project
+# -*- mode: python; coding: utf-8 -*-
+# Copyright 2019 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 """Generate tiles from a collection of images on a common TAN projection.

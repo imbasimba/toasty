@@ -5,6 +5,10 @@ API Documentation
    :no-inheritance-diagram:
    :no-inherited-members:
 
+.. automodapi:: toasty.cli
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
 .. automodapi:: toasty.io
    :no-inheritance-diagram:
    :no-inherited-members:

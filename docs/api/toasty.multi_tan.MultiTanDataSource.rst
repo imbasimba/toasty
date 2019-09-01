@@ -12,10 +12,10 @@ MultiTanDataSource
 
       ~MultiTanDataSource.compute_global_pixelization
       ~MultiTanDataSource.create_wtml
-      ~MultiTanDataSource.generate_deepest_layer_WIP
+      ~MultiTanDataSource.generate_deepest_layer_numpy
 
    .. rubric:: Methods Documentation
 
    .. automethod:: compute_global_pixelization
    .. automethod:: create_wtml
-   .. automethod:: generate_deepest_layer_WIP
+   .. automethod:: generate_deepest_layer_numpy

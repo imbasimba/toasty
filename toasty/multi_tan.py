@@ -15,7 +15,7 @@ from astropy.io import fits
 import numpy as np
 import os.path
 
-PERCENTILES = [1, 5, 50, 95, 99]
+from .pyramid import Pos
 
 MATCH_HEADERS = [
     'CTYPE1', 'CTYPE2',
@@ -36,18 +36,6 @@ def next_highest_power_of_2(n):
     while p < n:
         p *= 2
     return p
-
-
-def tile_path(level, ix, iy, suffix):
-    level = str(level)
-    ix = str(ix)
-    iy = str(iy)
-
-    d = os.path.join(level, iy)
-    os.makedirs(d, exist_ok=True)
-
-    return os.path.join(d, f'{iy}_{ix}.{suffix}')
-
 
 
 class MultiTanDataSource(object):
@@ -88,6 +76,10 @@ class MultiTanDataSource(object):
     _center_cry = None
     """The Y position of the image center, in pixels relative to the center of
     the tangential projection."""
+    _crxmin = None
+    "The minimum observed pixel X index, relative to the CRPIX of the projection."
+    _crymin = None
+    "The minimum observed pixel Y index, relative to the CRPIX of the projection."
 
     def __init__(self, paths, hdu_index=0):
         self._paths = paths
@@ -157,9 +149,11 @@ class MultiTanDataSource(object):
             n_hdus += 1
 
         # Figure out the global properties of the tiled TAN representation
+        self._crxmin = crxmin
+        self._crymin = crymin
 
-        self._width = int(crxmax - crxmin) + 1
-        self._height = int(crymax - crymin) + 1
+        self._width = int(crxmax - self._crxmin) + 1
+        self._height = int(crymax - self._crymin) + 1
         self._p2w = next_highest_power_of_2(self._width)
         self._p2h = next_highest_power_of_2(self._height)
 
@@ -167,8 +161,6 @@ class MultiTanDataSource(object):
             raise Exception('TODO: we don\'t properly handle non-square-ish images; got {},{}'.format(self._p2w, self._p2h))
         p2max = max(self._p2w, self._p2h)
         self._tile_levels = int(np.log2(p2max / 256))
-        crxofs = (self._p2w - self._width) // 2
-        cryofs = (self._p2h - self._height) // 2
         nfullx = self._p2w // 256
         nfully = self._p2h // 256
 
@@ -189,8 +181,8 @@ class MultiTanDataSource(object):
         self._scale_x = np.sqrt(cd1_1**2 + cd2_1**2) * cd_sign
         self._scale_y = np.sqrt(cd1_2**2 + cd2_2**2)
 
-        self._center_crx = self._width // 2 + crxmin
-        self._center_cry = self._height // 2 + crymin
+        self._center_crx = self._width // 2 + self._crxmin
+        self._center_cry = self._height // 2 + self._crymin
 
         return self  # chaining convenience
 
@@ -303,43 +295,64 @@ class MultiTanDataSource(object):
         return folder
 
 
-    def generate_deepest_layer_WIP(self):
-        # Stub out data arrays for the global highest-rez tiling. We're assuming
-        # that if individual images overlap, we can just use the pixels from any
-        # one of them without caring which particular one we choose.
+    def generate_deepest_layer_numpy(
+            self,
+            pio,
+            percentiles = [1, 99],
+    ):
+        """Fill in the deepest layer of the tile pyramid with Numpy-format data.
 
-        a = np.empty((256, 256))
-        a.fill(np.nan)
+        Parameters
+        ----------
+        pio : :class:`toasty.pyramid.PyramidIO`
+          A :class:`~toasty.pyramid.PyramidIO` instance to manage the I/O with
+          the tiles in the tile pyramid.
+        percentiles : iterable of numbers
+          This is a list of percentile points to calculate while reading the
+          data. Each number should be between 0 and 100. For each
+          high-resolution tile, the percentiles are computed; then the *median*
+          across all tiles is computed and returned.
 
-        for iy in range(nfully):
-            for ix in range(nfullx):
-                p = tile_path(tile_levels, ix, iy, 'npy')
-                np.save(p, a)
+        Returns
+        -------
+        percentiles : dict mapping numbers to numbers
+          This dictionary contains the result of the median-percentile
+          computation. The keys are the values provided in the *percentiles*
+          parameter. The values are the median of each percentile across
+          all of the tiles.
 
-        del a
+        Notes
+        -----
+        The impementation assumes that if individual images overlap, we can
+        just use the pixels from any one of them without caring which
+        particular one we choose.
 
-        # Now actually read the images and fill in the highest-rez tiles!
+        Because this operation involves reading the complete image data set,
+        it offers a convenient opportunity to do some statistics on the data.
+        This motivates the presence of the *percentiles* feature.
 
-        print('Tiling images ...')
+        """
+        crxofs = (self._p2w - self._width) // 2
+        cryofs = (self._p2h - self._height) // 2
 
-        percentiles = {p: [] for p in PERCENTILES}
+        percentile_data = {p: [] for p in percentiles}
 
-        for path, hdu in input_hdus(settings.fitspaths):
+        for path, hdu in self._input_hdus():
             crpix1 = hdu.header['CRPIX1']
             crpix2 = hdu.header['CRPIX2']
 
             # (inclusive) image bounds in global pixel coords, which range
             # from 0 to p2{w,h} (non-inclusive), and have y=0 at the top. The FITS
             # data have y=0 at the bottom, so we need to flip them vertically.
-            img_gx0 = int((crxofs - crxmin) - crpix1)
+            img_gx0 = int((crxofs - self._crxmin) - crpix1)
             img_gx1 = img_gx0 + hdu.shape[1] - 1
-            img_gy1 = p2h - int((cryofs - crymin) - crpix2)
+            img_gy1 = self._p2h - int((cryofs - self._crymin) - crpix2)
             img_gy0 = img_gy1 - (hdu.shape[0] - 1)
 
             assert img_gx0 >= 0
             assert img_gy0 >= 0
-            assert img_gx1 < p2w
-            assert img_gy1 < p2h
+            assert img_gx1 < self._p2w
+            assert img_gy1 < self._p2h
 
             # Tile indices at the highest resolution.
 
@@ -354,9 +367,9 @@ class MultiTanDataSource(object):
             data = hdu.data[::-1]
             n_tiles = 0
 
-            pvals = np.nanpercentile(data, PERCENTILES)
-            for pct, pv in zip(PERCENTILES, pvals):
-                percentiles[pct].append(pv)
+            pvals = np.nanpercentile(data, percentiles)
+            for pct, pv in zip(percentiles, pvals):
+                percentile_data[pct].append(pv)
 
             for iy in range(iy0, iy1 + 1):
                 for ix in range(ix0, ix1 + 1):
@@ -392,18 +405,20 @@ class MultiTanDataSource(object):
                     ###      f'{tile_overlap_x0} {tile_overlap_y0} {tile_overlap_x1} {tile_overlap_y1} -- '
                     ###      f'{img_overlap_x0} {img_overlap_y0} {img_overlap_x1} {img_overlap_y1}')
 
-                    p = tile_path(tile_levels, ix, iy, 'npy')
-                    a = np.load(p)
+                    pos = Pos(self._tile_levels, ix, iy)
+                    p = pio.tile_path(pos, extension='npy')
+
+                    try:
+                        a = np.load(p)
+                    except IOError as e:
+                        if e.errno == 2:
+                            a = np.empty((256, 256))
+                            a.fill(np.nan)
+                        else:
+                            raise
+
                     a[tile_overlap_yslice,tile_overlap_xslice] = data[img_overlap_yslice,img_overlap_xslice]
                     np.save(p, a)
 
-                    n_tiles += 1
-
-            print(f'   {path} => {n_tiles} tiles')
-
-        percentiles = {p: np.median(a) for p, a in percentiles.items()}
-
-        print('Median percentiles:')
-
-        for p in PERCENTILES:
-            print(f'   {p:2d}% = {percentiles[p]}')
+        percentile_data = {p: np.median(a) for p, a in percentile_data.items()}
+        return percentile_data

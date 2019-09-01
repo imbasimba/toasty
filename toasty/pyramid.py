@@ -17,9 +17,11 @@ depth2tiles
 is_subtile
 Pos
 pos_parent
+PyramidIO
 '''.split()
 
 from collections import namedtuple
+import os.path
 
 Pos = namedtuple('Pos', 'n x y')
 
@@ -80,3 +82,55 @@ def pos_parent(pos):
         y = pos.y // 2
     )
     return parent, pos.x % 2, pos.y % 2
+
+
+class PyramidIO(object):
+    """Manage I/O on a tile pyramid."""
+
+    def __init__(self, base_dir):
+        self._base_dir = base_dir
+
+    def tile_path(self, pos, extension='png'):
+        """Get the path for a tile, creating its containing directories.
+
+        Parameters
+        ----------
+        pos : Pos
+          The tile to get a path for.
+        extension : str, default: "png"
+          The file extension to use in the path.
+
+        Returns
+        -------
+        The path as a string.
+
+        Notes
+        -----
+        This function does I/O itself — it creates the parent directories
+        containing the tile path. It is not an error for the parent
+        directories to already exist.
+
+        """
+        level = str(pos.n)
+        ix = str(pos.x)
+        iy = str(pos.y)
+
+        d = os.path.join(level, iy)
+        os.makedirs(d, exist_ok=True)
+
+        return os.path.join(d, '{}_{}.{}'.format(iy, ix, extension))
+
+    def get_path_scheme(self):
+        """Get the scheme for buiding tile paths as used in the WTML standard.
+
+        Returns
+        -------
+        The naming scheme, a string resembling ``{1}/{3}/{3}_{2}``.
+
+        Notes
+        -----
+        The naming scheme is currently hardcoded to be the format given above,
+        but in the future other options might become available.
+
+        """
+        return '{1}/{3}/{3}_{2}'

@@ -9,6 +9,10 @@ API Documentation
    :no-inheritance-diagram:
    :no-inherited-members:
 
+.. automodapi:: toasty.multi_tan
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
 .. automodapi:: toasty.norm
    :no-inheritance-diagram:
    :no-inherited-members:

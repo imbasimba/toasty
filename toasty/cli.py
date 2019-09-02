@@ -21,6 +21,32 @@ def warn(msg):
     print('warning:', msg, file=sys.stderr)
 
 
+def indent_xml(elem, level=0):
+    """A dumb XML indenter.
+
+    We create XML files using xml.etree.ElementTree, which is careful about
+    spacing and so by default creates ugly files with no linewraps or
+    indentation. This function is copied from `ElementLib
+    <http://effbot.org/zone/element-lib.htm#prettyprint>`_ and implements
+    basic, sensible indentation using "tail" text.
+
+    """
+    i = "\n" + level * "  "
+
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + "  "
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+        for elem in elem:  # intentionally updating "elem" here!
+            indent_xml(elem, level + 1)
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
+
+
 # "multi_tan_make_data_tiles" subcommand
 
 def multi_tan_make_data_tiles_getparser(parser):
@@ -38,11 +64,6 @@ def multi_tan_make_data_tiles_getparser(parser):
         help = 'The root directory of the output tile pyramid',
     )
     parser.add_argument(
-        '--wtml',
-        metavar = 'PATH',
-        help = 'If specified, write an appropriate WTML specification to this path',
-    )
-    parser.add_argument(
         'paths',
         metavar = 'PATHS',
         nargs = '+',
@@ -58,12 +79,38 @@ def multi_tan_make_data_tiles_impl(settings):
     ds = MultiTanDataSource(settings.paths, hdu_index=settings.hdu_index)
     ds.compute_global_pixelization()
 
-    if settings.wtml is not None:
-        wtml = ds.create_wtml()
-        with open(settings.wtml, 'wb') as f:
-            f.write(etree.tostring(wtml))  # tostring() yields bytes
-
     ###percentiles = ds.generate_deepest_layer_numpy(pio)
+
+
+# "multi_tan_make_wtml" subcommand
+
+def multi_tan_make_wtml_getparser(parser):
+    parser.add_argument(
+        '--hdu-index',
+        metavar = 'INDEX',
+        type = int,
+        default = 0,
+        help = 'Which HDU to load in each input FITS file',
+    )
+    parser.add_argument(
+        'paths',
+        metavar = 'PATHS',
+        nargs = '+',
+        help = 'The FITS files with image data',
+    )
+
+def multi_tan_make_wtml_impl(settings):
+    from xml.etree import ElementTree as etree
+    from .multi_tan import MultiTanDataSource
+
+    ds = MultiTanDataSource(settings.paths, hdu_index=settings.hdu_index)
+    ds.compute_global_pixelization()
+
+    folder = ds.create_wtml()
+    indent_xml(folder)
+    doc = etree.ElementTree(folder)
+    doc.write(sys.stdout, encoding='unicode', xml_declaration=True)
+
 
 # The CLI driver:
 

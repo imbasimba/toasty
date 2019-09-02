@@ -79,7 +79,14 @@ def multi_tan_make_data_tiles_impl(settings):
     ds = MultiTanDataSource(settings.paths, hdu_index=settings.hdu_index)
     ds.compute_global_pixelization()
 
-    ###percentiles = ds.generate_deepest_layer_numpy(pio)
+    print('Generating Numpy-formatted data tiles in directory {!r} ...'.format(settings.outdir))
+    percentiles = ds.generate_deepest_layer_numpy(pio)
+
+    if len(percentiles):
+        print()
+        print('Median percentiles in the data:')
+        for p in sorted(percentiles.keys()):
+            print('   {} = {}'.format(p, percentiles[p]))
 
 
 # "multi_tan_make_wtml" subcommand

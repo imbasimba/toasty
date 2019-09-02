@@ -226,8 +226,8 @@ class MultiTanDataSource(object):
           A URL with additional image credit information, or the empty string
           if no such URL is available.
         thumbnail_url : str, defaults to ""
-          A URL of a thumbnail image representing this image data set, or the
-          empty string for a default to be used.
+          A URL of a thumbnail image (96x45 JPEG) representing this image data
+          set, or the empty string for a default to be used.
 
         Returns
         -------

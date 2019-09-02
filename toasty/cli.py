@@ -100,6 +100,55 @@ def multi_tan_make_wtml_getparser(parser):
         help = 'Which HDU to load in each input FITS file',
     )
     parser.add_argument(
+        '--name',
+        metavar = 'NAME',
+        default = 'MultiTan',
+        help = 'The dataset name to embed in the WTML file',
+    )
+    parser.add_argument(
+        '--url-prefix',
+        metavar = 'PREFIX',
+        default = './',
+        help = 'The prefix to the tile URL that will be embedded in the WTML',
+    )
+    parser.add_argument(
+        '--fov-factor',
+        metavar = 'NUMBER',
+        type = float,
+        default = 1.7,
+        help = 'How tall the FOV should be (ie the zoom level) when viewing this image, in units of the image height',
+    )
+    parser.add_argument(
+        '--bandpass',
+        metavar = 'BANDPASS-NAME',
+        default = 'Visible',
+        help = 'The bandpass of the image data: "Gamma", "HydrogenAlpha", "IR", "Microwave", "Radio", "Ultraviolet", "Visible", "VisibleNight", "XRay"',
+    )
+    parser.add_argument(
+        '--description',
+        metavar = 'TEXT',
+        default = '',
+        help = 'Free text describing what this image is',
+    )
+    parser.add_argument(
+        '--credits-text',
+        metavar = 'TEXT',
+        default = 'Created by toasty, part of the AAS WorldWide Telescope.',
+        help = 'A brief credit of who created and processed the image data',
+    )
+    parser.add_argument(
+        '--credits-url',
+        metavar = 'URL',
+        default = '',
+        help = 'A URL with additional credit information',
+    )
+    parser.add_argument(
+        '--thumbnail-url',
+        metavar = 'URL',
+        default = '',
+        help = 'A URL of a thumbnail image (96x45 JPEG) representing this dataset',
+    )
+    parser.add_argument(
         'paths',
         metavar = 'PATHS',
         nargs = '+',
@@ -113,7 +162,16 @@ def multi_tan_make_wtml_impl(settings):
     ds = MultiTanDataSource(settings.paths, hdu_index=settings.hdu_index)
     ds.compute_global_pixelization()
 
-    folder = ds.create_wtml()
+    folder = ds.create_wtml(
+        name = settings.name,
+        url_prefix = settings.url_prefix,
+        fov_factor = settings.fov_factor,
+        bandpass = settings.bandpass,
+        description_text = settings.description,
+        credits_text = settings.credits_text,
+        credits_url = settings.credits_url,
+        thumbnail_url = settings.thumbnail_url,
+    )
     indent_xml(folder)
     doc = etree.ElementTree(folder)
     doc.write(sys.stdout, encoding='unicode', xml_declaration=True)

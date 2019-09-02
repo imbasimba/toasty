@@ -101,7 +101,6 @@ class MultiTanDataSource(object):
         WWT study.
 
         """
-        n_hdus = 0
         ref_headers = None
         crxmin = None
 
@@ -128,8 +127,8 @@ class MultiTanDataSource(object):
                         raise Exception('inputs are not on uniform WCS grid; in file {}, expected '
                                         'value {} for header {} but observed {}'.format(path, expected, header, observed))
 
-            crpix1 = hdu.header['CRPIX1']
-            crpix2 = hdu.header['CRPIX2']
+            crpix1 = hdu.header['CRPIX1'] - 1
+            crpix2 = hdu.header['CRPIX2'] - 1
 
             this_crxmin = 0 - crpix1
             this_crxmax = (hdu.shape[1] - 1) - crpix1
@@ -146,8 +145,6 @@ class MultiTanDataSource(object):
                 crxmax = max(crxmax, this_crxmax)
                 crymin = min(crymin, this_crymin)
                 crymax = max(crymax, this_crymax)
-
-            n_hdus += 1
 
         # Figure out the global properties of the tiled TAN representation
         self._crxmin = crxmin
@@ -288,7 +285,7 @@ class MultiTanDataSource(object):
         credurl.text = credits_url
 
         thumburl = etree.SubElement(imgset, 'ThumbnailUrl')
-        thumburl = thumbnail_url
+        thumburl.text = thumbnail_url
 
         desc = etree.SubElement(imgset, 'Description')
         desc.text = description_text
@@ -324,7 +321,7 @@ class MultiTanDataSource(object):
 
         Notes
         -----
-        The impementation assumes that if individual images overlap, we can
+        The implementation assumes that if individual images overlap, we can
         just use the pixels from any one of them without caring which
         particular one we choose.
 
@@ -339,15 +336,15 @@ class MultiTanDataSource(object):
         percentile_data = {p: [] for p in percentiles}
 
         for path, hdu in self._input_hdus():
-            crpix1 = hdu.header['CRPIX1']
-            crpix2 = hdu.header['CRPIX2']
+            crpix1 = hdu.header['CRPIX1'] - 1
+            crpix2 = hdu.header['CRPIX2'] - 1
 
             # (inclusive) image bounds in global pixel coords, which range
             # from 0 to p2{w,h} (non-inclusive), and have y=0 at the top. The FITS
             # data have y=0 at the bottom, so we need to flip them vertically.
             img_gx0 = int((crxofs - self._crxmin) - crpix1)
             img_gx1 = img_gx0 + hdu.shape[1] - 1
-            img_gy1 = self._p2h - int((cryofs - self._crymin) - crpix2)
+            img_gy1 = self._p2h - 1 - int((cryofs - self._crymin) - crpix2)
             img_gy0 = img_gy1 - (hdu.shape[0] - 1)
 
             assert img_gx0 >= 0

@@ -116,7 +116,7 @@ class PyramidIO(object):
         ix = str(pos.x)
         iy = str(pos.y)
 
-        d = os.path.join(level, iy)
+        d = os.path.join(self._base_dir, level, iy)
         os.makedirs(d, exist_ok=True)
 
         return os.path.join(d, '{}_{}.{}'.format(iy, ix, extension))

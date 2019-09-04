@@ -12,7 +12,6 @@ MultiTanDataSource
 '''.split()
 
 import argparse
-from astropy.io import fits
 import numpy as np
 import os.path
 
@@ -88,6 +87,8 @@ class MultiTanDataSource(object):
 
 
     def _input_hdus(self):
+        from astropy.io import fits
+
         for path in self._paths:
             with fits.open(path) as hdu_list:
                 yield path, hdu_list[self._hdu_index]

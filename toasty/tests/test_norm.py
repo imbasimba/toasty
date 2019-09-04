@@ -1,3 +1,7 @@
+# -*- mode: python; coding: utf-8 -*-
+# Copyright 2013-2019 Chris Beaumont and the AAS WorldWide Telescope project
+# Licensed under the MIT License.
+
 import numpy as np
 import pytest
 

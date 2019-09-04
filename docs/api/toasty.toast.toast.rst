@@ -1,6 +1,6 @@
 toast
 =====
 
-.. currentmodule:: toasty
+.. currentmodule:: toasty.toast
 
 .. autofunction:: toast

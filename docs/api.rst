@@ -5,7 +5,15 @@ API Documentation
    :no-inheritance-diagram:
    :no-inherited-members:
 
+.. automodapi:: toasty.cli
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
 .. automodapi:: toasty.io
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
+.. automodapi:: toasty.multi_tan
    :no-inheritance-diagram:
    :no-inherited-members:
 
@@ -13,7 +21,15 @@ API Documentation
    :no-inheritance-diagram:
    :no-inherited-members:
 
-.. automodapi:: toasty.tile
+.. automodapi:: toasty.pyramid
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
+.. automodapi:: toasty.samplers
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
+.. automodapi:: toasty.toast
    :no-inheritance-diagram:
    :no-inherited-members:
 

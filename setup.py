@@ -62,6 +62,12 @@ setup_args = dict(
     ],
     include_package_data = True,
 
+    entry_points = {
+        'console_scripts': [
+            'toasty=toasty.cli:entrypoint',
+        ],
+    },
+
     install_requires = [
         'cython',
         'numpy',

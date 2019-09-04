@@ -13,7 +13,8 @@ Toasting a Cartesian, all-sky PNG image
 This script processes an existing all-sky PNG image that uses a Cartesian
 projection, using scikit-image_ to load the data::
 
-  from toasty import toast, cartesian_sampler
+  from toasty.toast import toast
+  from toasty.samplers import cartesian_sampler
   from skimage.io import imread
 
   data = imread('allsky.png')
@@ -33,15 +34,16 @@ Toasting subsets of the sky
 You don’t have to build the full pyramid for the full sky all at once::
 
   # Toast a specific region of the sky defined by RA/Dec bounds
-  toast(sampler, depth, output_directory,
-        ra_range = [208.8, 212.2],  # degrees
-        dec_range = [52.5, 56.8],  # degrees
-  )
+  from toasty.toast import minmax_tile_filter
+  ra_range = [0.17, 0.19],  # radians
+  dec_range = [1.22, 1.24],  # radians
+  filter = minmax_tile_filter(ra_range, dec_range)
+  toast(sampler, depth, output_directory, tile_filter=filter)
 
   # Toast a specific region of the sky defined by a higher-level TOAST tile
-  toast(sampler, depth, output_directory,
-        toast_tile = [4, 5, 9],
-  )
+  from toasty.toast import nxy_tile_filter
+  filter = nxy_tile_filter(4, 5, 9)  # depth=4, ix=5, iy=9
+  toast(sampler, depth, output_directory, tile_filter=filter)
 
   # Create only the bottom layer of toast tiles
   toast(sampler, depth, output_directory,
@@ -59,7 +61,8 @@ Controlling how data are turned into RGB
 
 Here we apply a log-stretch to an all sky FITS image::
 
-  from toasty import toast, cartesian_sampler, normalizer
+  from toasty.toast import toast
+  from toasty.sampler import cartesian_sampler, normalizer
   from astropy.io import fits
 
   data = fits.open('allsky.fits')[0].data
@@ -84,7 +87,7 @@ Non-Cartesian coordinate transformations
 A custom “sampler” can be used to tell toasty_ what image values
 correspond to what locations on the sky::
 
-  from toasty import toast
+  from toasty.toast import toast
 
   def sampler(x, y):
       """
@@ -97,7 +100,7 @@ correspond to what locations on the sky::
   depth = 8
   toast(sampler, depth, output_directory)
 
-See :meth:`toasty.tile` for documentation on sampler functions.
+See :meth:`toasty.toast.toast` for documentation on sampler functions.
 
 
 Previewing toasts with AAS WorldWide Telescope

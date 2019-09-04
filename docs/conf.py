@@ -26,7 +26,13 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 pygments_style = 'sphinx'
 todo_include_todos = False
 
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'bootstrap-astropy'
+html_theme_options = {
+    'logotext1': 'toasty',
+    'logotext2': '',
+    'logotext3': ':docs',
+    'astropy_project_menubar': False,
+}
 html_static_path = ['_static']
 htmlhelp_basename = 'toastydoc'
 

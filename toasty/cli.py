@@ -179,7 +179,17 @@ def multi_tan_make_wtml_impl(settings):
 
 # The CLI driver:
 
-def entrypoint():
+def entrypoint(args=None):
+    """The entrypoint for the \"toasty\" command-line interface.
+
+    Parameters
+    ----------
+    args : iterable of str, or None (the default)
+      The arguments on the command line. The first argument should be
+      a subcommand name or global option; there is no ``argv[0]``
+      parameter.
+
+    """
     # Set up the subcommands from globals()
 
     parser = argparse.ArgumentParser()
@@ -195,7 +205,7 @@ def entrypoint():
 
     # What did we get?
 
-    settings = parser.parse_args()
+    settings = parser.parse_args(args)
 
     if settings.subcommand is None:
         print('Run me with --help for help. Allowed subcommands are:')

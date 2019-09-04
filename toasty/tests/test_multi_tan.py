@@ -8,7 +8,9 @@ import numpy as np
 from numpy import testing as nt
 import os.path
 import pytest
+import sys
 
+from .. import cli
 from .. import multi_tan
 
 
@@ -65,22 +67,7 @@ def assert_xml_elements_equal(observed, expected):
 
 
 class TestMultiTan(object):
-    def setup_method(self, method):
-        from tempfile import mkdtemp
-        self.work_dir = mkdtemp()
-
-    def teardown_method(self, method):
-        from shutil import rmtree
-        rmtree(self.work_dir)
-
-    def work_path(self, *pieces):
-        return os.path.join(self.work_dir, *pieces)
-
-    def test_basic(self):
-        ds = multi_tan.MultiTanDataSource([make_path('wcs512.fits.gz')])
-        ds.compute_global_pixelization()
-
-        WTML = """
+    WTML = """
 <Folder Group="Explorer" Name="TestName">
   <Place Angle="0" DataSetType="Sky" Dec="0.74380165289257" Name="TestName"
          Opacity="100" RA="14.419753086419734" Rotation="0.0"
@@ -101,8 +88,24 @@ class TestMultiTan(object):
     </ForegroundImageSet>
   </Place>
 </Folder>"""
+
+    def setup_method(self, method):
+        from tempfile import mkdtemp
+        self.work_dir = mkdtemp()
+
+    def teardown_method(self, method):
+        from shutil import rmtree
+        rmtree(self.work_dir)
+
+    def work_path(self, *pieces):
+        return os.path.join(self.work_dir, *pieces)
+
+    def test_basic(self):
+        ds = multi_tan.MultiTanDataSource([make_path('wcs512.fits.gz')])
+        ds.compute_global_pixelization()
+
         from xml.etree import ElementTree as etree
-        expected = etree.fromstring(WTML)
+        expected = etree.fromstring(self.WTML)
 
         folder = ds.create_wtml(
             name = 'TestName',
@@ -148,3 +151,50 @@ class TestMultiTan(object):
             nt.assert_almost_equal(data[10,-10], expected[TRC])
             nt.assert_almost_equal(data[-10,10], expected[BLC])
             nt.assert_almost_equal(data[-10,-10], expected[BRC])
+
+
+    def test_basic_cli(self):
+        """Test the CLI interface. We don't go out of our way to validate the
+        computations in detail -- that's for the unit tests that probe the
+        module directly.
+
+        """
+        args = [
+            'multi-tan-make-data-tiles',
+            '--hdu-index', '0',
+            '--outdir', self.work_path('basic_cli'),
+            make_path('wcs512.fits.gz')
+        ]
+        cli.entrypoint(args)
+
+
+    def test_basic_wtml_cli(self):
+        from xml.etree import ElementTree as etree
+        expected = etree.fromstring(self.WTML)
+
+        prev_stdout = sys.stdout
+        from io import StringIO
+        output = StringIO()
+
+        try:
+            sys.stdout = output
+            args = [
+                'multi-tan-make-wtml',
+                '--hdu-index', '0',
+                '--name', 'TestName',
+                '--url-prefix', 'UP',
+                '--fov-factor', '1.0',
+                '--bandpass', 'Gamma',
+                '--description', 'DT',
+                '--credits-text', 'CT',
+                '--credits-url', 'CU',
+                '--thumbnail-url', 'TU',
+                make_path('wcs512.fits.gz')
+            ]
+            cli.entrypoint(args)
+        finally:
+            sys.stdout = prev_stdout
+
+        observed = etree.fromstring(output.getvalue())
+        output.close()
+        assert_xml_elements_equal(observed, expected)

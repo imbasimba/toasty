@@ -117,7 +117,13 @@ class PyramidIO(object):
         iy = str(pos.y)
 
         d = os.path.join(self._base_dir, level, iy)
-        os.makedirs(d, exist_ok=True)
+
+        # We can't use the `exist_ok` kwarg because it's not available in Python 2.
+        try:
+            os.makedirs(d)
+        except OSError as e:
+            if e.errno != 17:
+                raise  # not EEXIST
 
         return os.path.join(d, '{}_{}.{}'.format(iy, ix, extension))
 

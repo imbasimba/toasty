@@ -174,7 +174,7 @@ def multi_tan_make_wtml_impl(settings):
     )
     indent_xml(folder)
     doc = etree.ElementTree(folder)
-    doc.write(sys.stdout, encoding='unicode', xml_declaration=True)
+    doc.write(sys.stdout, encoding='utf-8', xml_declaration=True)
 
 
 # The CLI driver:

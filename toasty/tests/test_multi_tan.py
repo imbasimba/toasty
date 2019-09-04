@@ -89,6 +89,22 @@ class TestMultiTan(object):
   </Place>
 </Folder>"""
 
+    # Gross workaround for Python 2.7, where the XML serialization is
+    # apparently slightly different from Python >=3 (for Numpy types only, I
+    # think?). Fun times. We could avoid this by comparing floats as floats,
+    # not text, but then we basically have to learn how to deserialize WTML
+    # with the full semantics of the format.
+
+    if sys.version_info.major == 2:
+        WTML = (WTML
+                .replace('Dec="0.74380165289257"', 'Dec="0.743801652893"')
+                .replace('RA="14.419753086419734"', 'RA="14.4197530864"')
+                .replace('CenterX="216.296296296296"', 'CenterX="216.296296296"')
+                .replace('CenterY="0.74380165289257"', 'CenterY="0.743801652893"')
+        )
+
+    # Back to the non-gross stuff.
+
     def setup_method(self, method):
         from tempfile import mkdtemp
         self.work_dir = mkdtemp()
@@ -173,8 +189,8 @@ class TestMultiTan(object):
         expected = etree.fromstring(self.WTML)
 
         prev_stdout = sys.stdout
-        from io import StringIO
-        output = StringIO()
+        from io import BytesIO
+        output = BytesIO()
 
         try:
             sys.stdout = output

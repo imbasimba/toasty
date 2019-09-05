@@ -22,7 +22,7 @@ except ImportError:
 from .. import toast
 from .._libtoasty import mid
 from ..io import read_png, save_png
-from ..samplers import cartesian_sampler, healpix_fits_file_sampler
+from ..samplers import plate_carree_sampler, healpix_fits_file_sampler
 from ..toast import generate_images, gen_wtml
 
 
@@ -106,7 +106,7 @@ def test_wwt_compare_sky():
     direc = cwd()
 
     im = read_png(os.path.join(direc, 'test.png'))
-    sampler = cartesian_sampler(im)
+    sampler = plate_carree_sampler(im)
 
     for pth, result in generate_images(sampler, depth=1):
         expected = read_png(os.path.join(direc, 'test_sky', pth))
@@ -146,7 +146,7 @@ def test_merge():
     def null_merge(mosaic):
         return np.zeros((256, 256, 3), dtype=np.uint8)
 
-    sampler = cartesian_sampler(im)
+    sampler = plate_carree_sampler(im)
 
     for pth, im in generate_images(sampler, 2, null_merge):
         if pth[0] != '2':
@@ -162,7 +162,7 @@ class TestToaster(object):
         self.cwd = cwd()
 
         im = read_png(os.path.join(self.cwd, 'test.png'))
-        self.sampler = cartesian_sampler(im)
+        self.sampler = plate_carree_sampler(im)
 
     def teardown_method(self, method):
         rmtree(self.base)

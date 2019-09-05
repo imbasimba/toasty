@@ -50,6 +50,18 @@ def test_mid():
     np.testing.assert_array_almost_equal(result, expected)
 
 
+def test_area():
+    MAX_DEPTH = 6
+    areas = {}
+
+    for t in toast.generate_tiles(MAX_DEPTH, bottom_only=False):
+        a = areas.get(t.pos.n, 0)
+        areas[t.pos.n] = a + toast.toast_tile_area(t)
+
+    for d in range(1, MAX_DEPTH + 1):
+        np.testing.assert_almost_equal(areas[d], 4 * np.pi)
+
+
 def image_test(expected, actual, err_msg):
     resid = np.abs(1. * actual - expected)
     if np.median(resid) < 15:

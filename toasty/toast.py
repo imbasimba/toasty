@@ -15,6 +15,7 @@ minmax_tile_filter
 nxy_tile_filter
 Tile
 toast
+toast_tile_area
 '''.split()
 
 from collections import defaultdict, namedtuple
@@ -38,6 +39,61 @@ level1 = [
 ]
 
 Tile = namedtuple('Tile', 'pos corners increasing')
+
+
+def _arclength(lat1, lon1, lat2, lon2):
+    """Compute the length of an arc along the great circle defined by spherical
+    latitude and longitude coordinates. Inputs and return value are all in
+    radians.
+
+    """
+    c = np.sin(lat1) * np.sin(lat2) + np.cos(lon1 - lon2) * np.cos(lat1) * np.cos(lat2)
+    return np.arccos(c)
+
+
+def _spherical_triangle_area(lat1, lon1, lat2, lon2, lat3, lon3):
+    """Compute the area of the specified spherical triangle in steradians. Inputs
+    are in radians. From https://math.stackexchange.com/a/66731 . My initial
+    implementation used unit vectors on the sphere instead of latitudes and
+    longitudes; there might be a faster way to do things in lat/lon land.
+
+    """
+    c = _arclength(lat1, lon1, lat2, lon2)
+    a = _arclength(lat2, lon2, lat3, lon3)
+    b = _arclength(lat3, lon3, lat1, lon1)
+    s = 0.5 * (a + b + c)
+    tane4 = np.sqrt(np.tan(0.5 * s) * np.tan(0.5 * (s - a)) * np.tan(0.5 * (s - b)) * np.tan(0.5 * (s - c)))
+    e = 4 * np.arctan(tane4)
+    return e
+
+
+def toast_tile_area(tile):
+    """Calculate the area of a TOAST tile in steradians.
+
+    Parameters
+    ----------
+    tile : :class:`Tile`
+      A TOAST tile.
+
+    Returns
+    -------
+    The area of the tile in steradians.
+
+    Notes
+    -----
+    This computation is not very fast.
+
+    """
+    ul, ur, lr, ll = tile.corners
+
+    if tile.increasing:
+        a1 = _spherical_triangle_area(ul[1], ul[0], ur[1], ur[0], ll[1], ll[0])
+        a2 = _spherical_triangle_area(ur[1], ur[0], lr[1], lr[0], ll[1], ll[0])
+    else:
+        a1 = _spherical_triangle_area(ul[1], ul[0], ur[1], ur[0], lr[1], lr[0])
+        a2 = _spherical_triangle_area(ul[1], ul[0], ll[1], ll[0], lr[1], lr[0])
+
+    return a1 + a2
 
 
 def _minmax(arr):

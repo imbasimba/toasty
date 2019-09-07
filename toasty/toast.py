@@ -252,7 +252,6 @@ def generate_images(
         merge = True,
         base_level_only = False,
         tile_filter = None,
-        restart_dir = None,
         top = 0
 ):
     """
@@ -288,9 +287,6 @@ def generate_images(
     tile_filter: callable (optional)
       A function that takes a tile and determines if it is in toasting range.
       If not given default_tile_filter will be used which simply returns True.
-    restart_dir: string (optional)
-      For restart jobs, the directory in which to check for toast tiles
-      before toasting (if tile is found, the toasting step is skipped)
     top: int (optional)
       The topmost layer of toast tiles to create (only relevant if
       base_level_only is False), default is 0.
@@ -317,16 +313,13 @@ def generate_images(
                 img = read_png(img_dir + str(y) + '/' + str(y) + '_' + str(x) + '.png')
             except: # could not read image
                 img = None
-        elif restart_dir and os.path.isfile(restart_dir + '/' + str(n) + '/' + str(y) + '/' + str(y) + '_' + str(x) + '.png'):
-            img = None
         else:
             l, b = subsample(tile.corners[0], tile.corners[1], tile.corners[2], tile.corners[3], 256, tile.increasing)
             img = data_sampler(l, b)
 
-        # No image was returned by the sampler,
-        # either image data was not availible for the given ra/dec range
-        # or it is a restart job, and that image was already computed
-        if (img is None) and  base_level_only:
+        # No image was returned by the sampler -- looks like either image data
+        # was not available for this position
+        if img is None and base_level_only:
                 continue
 
         if not base_level_only:
@@ -476,7 +469,7 @@ def gen_wtml(base_dir, depth, **kwargs):
 
 def toast(data_sampler, depth, base_dir,
           wtml_file=None, merge=True, base_level_only=False,
-          tile_filter=None, restart=False, top_layer=0):
+          tile_filter=None, top_layer=0):
     """Build a directory of toast tiles
 
     Parameters
@@ -524,13 +517,8 @@ def toast(data_sampler, depth, base_dir,
     if base_level_only:
         merge = True
 
-    if restart:
-        restart_dir = base_dir
-    else:
-        restart_dir = None
-
     num = 0
-    for pth, tile in generate_images(data_sampler, depth, merge, base_level_only, tile_filter, restart_dir, top_layer):
+    for pth, tile in generate_images(data_sampler, depth, merge, base_level_only, tile_filter, top_layer):
         num += 1
         if num % 10 == 0:
             logging.getLogger(__name__).info("Finished %i of %i tiles" %

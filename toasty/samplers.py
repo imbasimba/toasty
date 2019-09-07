@@ -163,12 +163,17 @@ def plate_carree_sampler(data):
     data = np.asarray(data)
     ny, nx = data.shape[:2]
 
+    dx = nx / (2 * np.pi)  # pixels per radian in the X direction
+    dy = ny / np.pi  # ditto, for the Y direction
+    lon0 = np.pi - 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
+    lat0 = 0.5 * np.pi - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
+
     def vec2pix(lon, lat):
-        lon = (lon + np.pi) % (2 * np.pi)
-        ix = nx * (1 - lon / (2 * np.pi))
+        lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
+        ix = (lon0 - lon) * dx
         ix = np.clip(ix.astype(np.int), 0, nx - 1)
 
-        iy = ny * (1 - (lat + 0.5 * np.pi) / np.pi)
+        iy = (lat0 - lat) * dy  # *assume* in range [-pi/2, pi/2]
         iy = np.clip(iy.astype(np.int), 0, ny - 1)
 
         return data[iy, ix]

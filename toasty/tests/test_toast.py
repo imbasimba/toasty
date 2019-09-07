@@ -116,9 +116,21 @@ def test_wwt_compare_sky():
 
 
 @pytest.mark.skipif('not HAS_ASTRO')
-def test_healpix_sampler():
+def test_healpix_sampler_equ():
     direc = cwd()
     sampler = healpix_fits_file_sampler(os.path.join(direc, 'earth_healpix_equ.fits'))
+
+    for pth, result in generate_images(sampler, depth=1):
+        expected = read_png(os.path.join(direc, 'earth_toasted_sky', pth))
+        expected = expected.sum(axis=2) // 3
+
+        image_test(expected, result, "Failed for %s" % pth)
+
+
+@pytest.mark.skipif('not HAS_ASTRO')
+def test_healpix_sampler_gal():
+    direc = cwd()
+    sampler = healpix_fits_file_sampler(os.path.join(direc, 'earth_healpix_gal.fits'))
 
     for pth, result in generate_images(sampler, depth=1):
         expected = read_png(os.path.join(direc, 'earth_toasted_sky', pth))

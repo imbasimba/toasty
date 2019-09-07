@@ -13,6 +13,7 @@ generate_tiles
 gen_wtml
 minmax_tile_filter
 nxy_tile_filter
+SamplingToastDataSource
 Tile
 toast
 toast_tile_area
@@ -535,3 +536,77 @@ def toast(data_sampler, depth, base_dir,
         except:
             print(pth)
             print(type(tile))
+
+
+class SamplingToastDataSource(object):
+    """Generate tiles for a TOAST projection from a "sampler" function."""
+
+    _sampler = None
+    "The sampler callable that will produce data for tiling."
+
+    def __init__(self, sampler):
+        self._sampler = sampler
+
+    def sample_data_layer(self, pio, depth):
+        """Generate a data layer of the TOAST tile pyramid through direct sampling.
+
+        Parameters
+        ----------
+        pio : :class:`toasty.pyramid.PyramidIO`
+          A :class:`~toasty.pyramid.PyramidIO` instance to manage the I/O with
+          the tiles in the tile pyramid.
+        depth : int
+          The depth of the layer of the TOAST tile pyramid to generate. The
+          number of tiles in each layer is ``4**depth``. Each tile is 256×256
+          TOAST pixels, so the resolution of the pixelization at which the
+          data will be sampled is a refinement level of ``2**(depth + 8)``.
+
+        Notes
+        -----
+        This function will create Numpy save files, which will then have to be
+        converted to PNG files through some kind of colormapping process.
+
+        """
+        for tile in generate_tiles(depth, bottom_only=True):
+            lon, lat = subsample(
+                tile.corners[0],
+                tile.corners[1],
+                tile.corners[2],
+                tile.corners[3],
+                256,
+                tile.increasing,
+            )
+            sampled_data = self._sampler(lon, lat)
+            pio.write_numpy(tile.pos, saved_data)
+
+    def sample_image_layer(self, pio, depth):
+        """Generate an image layer of the TOAST tile pyramid through direct sampling.
+
+        Parameters
+        ----------
+        pio : :class:`toasty.pyramid.PyramidIO`
+          A :class:`~toasty.pyramid.PyramidIO` instance to manage the I/O with
+          the tiles in the tile pyramid.
+        depth : int
+          The depth of the layer of the TOAST tile pyramid to generate. The
+          number of tiles in each layer is ``4**depth``. Each tile is 256×256
+          TOAST pixels, so the resolution of the pixelization at which the
+          data will be sampled is a refinement level of ``2**(depth + 8)``.
+
+        Notes
+        -----
+        The sampler must produce data that can be converted to a PNG image via
+        the :func:`toasty.io.save_png` function.
+
+        """
+        for tile in generate_tiles(depth, bottom_only=True):
+            lon, lat = subsample(
+                tile.corners[0],
+                tile.corners[1],
+                tile.corners[2],
+                tile.corners[3],
+                256,
+                tile.increasing,
+            )
+            sampled_data = self._sampler(lon, lat)
+            pio.write_image(tile.pos, sampled_data)

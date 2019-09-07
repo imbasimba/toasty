@@ -22,7 +22,7 @@ def cwd():
 
 class TestViewer(object):
     def setup_class(cls):
-        sys.argv.append(os.path.join(cwd(), 'test_sky'))
+        sys.argv.append(os.path.join(cwd(), 'earth_toasted_sky'))
         PORT = 8000
         # configure to immediately release the socket on close
         # http://stackoverflow.com/questions/17659334

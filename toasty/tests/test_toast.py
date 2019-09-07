@@ -105,11 +105,11 @@ def test_wwt_compare_sky():
     """Assert that the toast tiling looks similar to the WWT tiles"""
     direc = cwd()
 
-    im = read_png(os.path.join(direc, 'test.png'))
+    im = read_png(os.path.join(direc, 'Equirectangular_projection_SW-tweaked.jpg'))
     sampler = plate_carree_sampler(im)
 
     for pth, result in generate_images(sampler, depth=1):
-        expected = read_png(os.path.join(direc, 'test_sky', pth))
+        expected = read_png(os.path.join(direc, 'earth_toasted_sky', pth))
         expected = expected[:, :, :3]
 
         image_test(expected, result, "Failed for %s" % pth)
@@ -118,30 +118,18 @@ def test_wwt_compare_sky():
 @pytest.mark.skipif('not HAS_ASTRO')
 def test_healpix_sampler():
     direc = cwd()
-    sampler = healpix_fits_file_sampler(os.path.join(direc, 'test.hpx'))
+    sampler = healpix_fits_file_sampler(os.path.join(direc, 'earth_healpix_equ.fits'))
 
     for pth, result in generate_images(sampler, depth=1):
-        expected = read_png(os.path.join(direc, 'test_sky', pth))
-        expected = expected[:, :, 0]
-
-        image_test(expected, result, "Failed for %s" % pth)
-
-
-@pytest.mark.skipif('not HAS_ASTRO')
-def test_healpix_sampler_galactic():
-    direc = cwd()
-    sampler = healpix_fits_file_sampler(os.path.join(direc, 'test_gal.hpx'))
-
-    for pth, result in generate_images(sampler, depth=1):
-        expected = read_png(os.path.join(direc, 'test_sky', pth))
-        expected = expected[:, :, 0]
+        expected = read_png(os.path.join(direc, 'earth_toasted_sky', pth))
+        expected = expected.sum(axis=2) // 3
 
         image_test(expected, result, "Failed for %s" % pth)
 
 
 def test_merge():
     # test that merge function called on non-terminal nodes
-    im = read_png(os.path.join(cwd(), 'test.png'))
+    im = read_png(os.path.join(cwd(), 'Equirectangular_projection_SW-tweaked.jpg'))
 
     def null_merge(mosaic):
         return np.zeros((256, 256, 3), dtype=np.uint8)
@@ -161,7 +149,7 @@ class TestToaster(object):
         self.base = mkdtemp()
         self.cwd = cwd()
 
-        im = read_png(os.path.join(self.cwd, 'test.png'))
+        im = read_png(os.path.join(self.cwd, 'Equirectangular_projection_SW-tweaked.jpg'))
         self.sampler = plate_carree_sampler(im)
 
     def teardown_method(self, method):
@@ -173,7 +161,7 @@ class TestToaster(object):
                         (1, 1, 0), (1, 1, 1)]:
             subpth = os.path.join(str(n), str(y), "%i_%i.png" % (y, x))
             a = read_png(os.path.join(self.base, subpth))[:, :, :3]
-            b = read_png(os.path.join(self.cwd, 'test_sky', subpth))[:, :, :3]
+            b = read_png(os.path.join(self.cwd, 'earth_toasted_sky', subpth))[:, :, :3]
             image_test(b, a, 'Failed for %s' % subpth)
 
     def test_default(self):

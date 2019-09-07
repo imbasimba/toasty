@@ -13,6 +13,10 @@ API Documentation
    :no-inheritance-diagram:
    :no-inherited-members:
 
+.. automodapi:: toasty.merge
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
 .. automodapi:: toasty.multi_tan
    :no-inheritance-diagram:
    :no-inherited-members:

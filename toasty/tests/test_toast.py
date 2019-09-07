@@ -22,8 +22,8 @@ except ImportError:
 from .. import toast
 from .._libtoasty import mid
 from ..io import read_png, save_png
-from ..samplers import cartesian_sampler, healpix_fits_file_sampler
-from ..toast import generate_images, gen_wtml
+from ..samplers import plate_carree_sampler, healpix_fits_file_sampler
+from ..toast import generate_images, gen_wtml, SamplingToastDataSource
 
 
 def mock_sampler(x, y):
@@ -105,48 +105,48 @@ def test_wwt_compare_sky():
     """Assert that the toast tiling looks similar to the WWT tiles"""
     direc = cwd()
 
-    im = read_png(os.path.join(direc, 'test.png'))
-    sampler = cartesian_sampler(im)
+    im = read_png(os.path.join(direc, 'Equirectangular_projection_SW-tweaked.jpg'))
+    sampler = plate_carree_sampler(im)
 
     for pth, result in generate_images(sampler, depth=1):
-        expected = read_png(os.path.join(direc, 'test_sky', pth))
+        expected = read_png(os.path.join(direc, 'earth_toasted_sky', pth))
         expected = expected[:, :, :3]
 
         image_test(expected, result, "Failed for %s" % pth)
 
 
 @pytest.mark.skipif('not HAS_ASTRO')
-def test_healpix_sampler():
+def test_healpix_sampler_equ():
     direc = cwd()
-    sampler = healpix_fits_file_sampler(os.path.join(direc, 'test.hpx'))
+    sampler = healpix_fits_file_sampler(os.path.join(direc, 'earth_healpix_equ.fits'))
 
     for pth, result in generate_images(sampler, depth=1):
-        expected = read_png(os.path.join(direc, 'test_sky', pth))
-        expected = expected[:, :, 0]
+        expected = read_png(os.path.join(direc, 'earth_toasted_sky', pth))
+        expected = expected.sum(axis=2) // 3
 
         image_test(expected, result, "Failed for %s" % pth)
 
 
 @pytest.mark.skipif('not HAS_ASTRO')
-def test_healpix_sampler_galactic():
+def test_healpix_sampler_gal():
     direc = cwd()
-    sampler = healpix_fits_file_sampler(os.path.join(direc, 'test_gal.hpx'))
+    sampler = healpix_fits_file_sampler(os.path.join(direc, 'earth_healpix_gal.fits'))
 
     for pth, result in generate_images(sampler, depth=1):
-        expected = read_png(os.path.join(direc, 'test_sky', pth))
-        expected = expected[:, :, 0]
+        expected = read_png(os.path.join(direc, 'earth_toasted_sky', pth))
+        expected = expected.sum(axis=2) // 3
 
         image_test(expected, result, "Failed for %s" % pth)
 
 
 def test_merge():
     # test that merge function called on non-terminal nodes
-    im = read_png(os.path.join(cwd(), 'test.png'))
+    im = read_png(os.path.join(cwd(), 'Equirectangular_projection_SW-tweaked.jpg'))
 
     def null_merge(mosaic):
         return np.zeros((256, 256, 3), dtype=np.uint8)
 
-    sampler = cartesian_sampler(im)
+    sampler = plate_carree_sampler(im)
 
     for pth, im in generate_images(sampler, 2, null_merge):
         if pth[0] != '2':
@@ -161,8 +161,8 @@ class TestToaster(object):
         self.base = mkdtemp()
         self.cwd = cwd()
 
-        im = read_png(os.path.join(self.cwd, 'test.png'))
-        self.sampler = cartesian_sampler(im)
+        im = read_png(os.path.join(self.cwd, 'Equirectangular_projection_SW-tweaked.jpg'))
+        self.sampler = plate_carree_sampler(im)
 
     def teardown_method(self, method):
         rmtree(self.base)
@@ -173,7 +173,7 @@ class TestToaster(object):
                         (1, 1, 0), (1, 1, 1)]:
             subpth = os.path.join(str(n), str(y), "%i_%i.png" % (y, x))
             a = read_png(os.path.join(self.base, subpth))[:, :, :3]
-            b = read_png(os.path.join(self.cwd, 'test_sky', subpth))[:, :, :3]
+            b = read_png(os.path.join(self.cwd, 'earth_toasted_sky', subpth))[:, :, :3]
             image_test(b, a, 'Failed for %s' % subpth)
 
     def test_default(self):
@@ -199,3 +199,31 @@ reference_wtml = """
 </ImageSet>
 </Folder>
 """
+
+
+class TestSamplingToastDataSource(object):
+    def setup_method(self, method):
+        self.base = mkdtemp()
+        self.cwd = cwd()
+        im = read_png(os.path.join(self.cwd, 'Equirectangular_projection_SW-tweaked.jpg'))
+        self.sampler = plate_carree_sampler(im)
+
+        from ..pyramid import PyramidIO
+        self.pio = PyramidIO(self.base)
+
+    def teardown_method(self, method):
+        rmtree(self.base)
+
+    def verify_toast(self):
+        """ Zip the expected and actual tiles """
+        for n, x, y in [(1, 0, 0), (1, 0, 1),
+                        (1, 1, 0), (1, 1, 1)]:
+            subpth = os.path.join(str(n), str(y), "%i_%i.png" % (y, x))
+            a = read_png(os.path.join(self.base, subpth))[:, :, :3]
+            b = read_png(os.path.join(self.cwd, 'earth_toasted_sky', subpth))[:, :, :3]
+            image_test(b, a, 'Failed for %s' % subpth)
+
+    def test_default(self):
+        stds = SamplingToastDataSource(self.sampler)
+        stds.sample_image_layer(self.pio, 1)
+        self.verify_toast()

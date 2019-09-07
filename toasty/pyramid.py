@@ -15,13 +15,16 @@ from __future__ import absolute_import, division, print_function
 
 __all__ = '''
 depth2tiles
+generate_pos
 is_subtile
 Pos
+pos_children
 pos_parent
 PyramidIO
 '''.split()
 
 from collections import namedtuple
+import numpy as np
 import os.path
 
 Pos = namedtuple('Pos', 'n x y')
@@ -53,7 +56,7 @@ def is_subtile(deeper_pos, shallower_pos):
     if deeper_pos.n == shallower_pos.n:
         return deeper_pos.x == shallower_pos.x and deeper_pos.y == shallower_pos.y
 
-    return is_subtile(_parent(deeper_pos)[0], shallower_pos)
+    return is_subtile(pos_parent(deeper_pos)[0], shallower_pos)
 
 
 def pos_parent(pos):
@@ -83,6 +86,67 @@ def pos_parent(pos):
         y = pos.y // 2
     )
     return parent, pos.x % 2, pos.y % 2
+
+
+def pos_children(pos):
+    """Return the children of a tile position.
+
+    Parameters
+    ----------
+    pos : :class:`Pos`
+      A tile position.
+
+    Returns
+    -------
+    A list of four child :class:`Pos` instances. The return value is
+    guaranteed to always be a list, and the order of the children will always
+    be: top left, top right, bottom left, bottom right.
+
+    """
+    n, x, y = pos.n, pos.x, pos.y
+    n += 1
+    x *= 2
+    y *= 2
+
+    return [
+        Pos(n=n, x=x,     y=y    ),
+        Pos(n=n, x=x + 1, y=y    ),
+        Pos(n=n, x=x,     y=y + 1),
+        Pos(n=n, x=x + 1, y=y + 1),
+    ]
+
+
+def _postfix_pos(pos, depth):
+    if pos.n > depth:
+        return
+
+    for immed_child in pos_children(pos):
+        for item in _postfix_pos(immed_child, depth):
+            yield item
+
+    yield pos
+
+
+def generate_pos(depth):
+    """Generate a pyramid of tile positions.
+
+    The generate proceeds in a broadly deeper-first fashion. In particular, if
+    a position *p* is yielded, you can assume that its four children have been
+    yielded previously, unless the depth of *p* is equal to *depth*.
+
+    Parameters
+    ----------
+    depth : int
+      The tile depth to recurse to.
+
+    Yields
+    ------
+    pos : :class:`Pos`
+      An individual position to process.
+
+    """
+    for item in _postfix_pos(Pos(0, 0, 0), depth):
+        yield item
 
 
 class PyramidIO(object):
@@ -141,3 +205,115 @@ class PyramidIO(object):
 
         """
         return '{1}/{3}/{3}_{2}'
+
+    def read_image(self, pos, extension='png', default='none'):
+        """Read an image file for the specified tile position.
+
+        Parameters
+        ----------
+        pos : :class:`Pos`
+          The tile position to read.
+        extension : str, defaults to "png"
+          The file extension to use when constructing the path to read.
+        default : str, defaults to "none"
+          What to do if the specified tile file does not exist. If this is
+          "none", ``None`` will be returned instead of an array. If this is
+          "zeros", an array of zeros with shape ``(256, 256, 3)`` and dtype
+          ``np.uint8`` will be returned. Otherwise, :exc:`ValueError` will be
+          raised.
+
+        Returns
+        -------
+        The image data as a numpy array, or one of the values as specified
+        based on the parameter *default*. For a typical PNG image, the
+        returned array will have shape ``(256, 256, 3)`` and dtype
+        ``np.uint8``.
+
+        """
+        from .io import read_png
+
+        try:
+            return read_png(self.tile_path(pos, extension))
+        except IOError as e:
+            if e.errno != 2:
+                raise  # not EEXIST
+
+            if default == 'none':
+                return None
+            elif default == 'zeros':
+                return np.zeros((256, 256, 3), dtype=np.uint8)
+            else:
+                raise ValueError('unexpected value for "default": {!r}'.format(default))
+
+    def write_image(self, pos, data, extension='png'):
+        """Write an image file for the specified tile position.
+
+        The conversion of the array into an image is handled by the
+        :func:`toasty.io.save_png` function — see its documentation for
+        specifics. Generally, *data* should be an array of shape ``(256, 256,
+        3)`` and dtype ``np.uint8``.
+
+        Parameters
+        ----------
+        pos : :class:`Pos`
+          The tile position to write.
+        data : array-like
+          The image data to write.
+        extension : str, defaults to "png"
+          The file extension to use when constructing the path to write.
+
+        """
+        from .io import save_png
+        save_png(self.tile_path(pos, extension), data)
+
+    def read_numpy(self, pos, extension='npy', default='nan'):
+        """Read a Numpy file for the specified tile position.
+
+        Parameters
+        ----------
+        pos : :class:`Pos`
+          The tile position to read.
+        extension : str, defaults to "npy"
+          The file extension to use when constructing the path to read.
+        default : str, defaults to "nan"
+          What to do if the specified tile file does not exist. If this is
+          "none", ``None`` will be returned instead of an array. If this is
+          "nan", an array of NaNs with shape ``(256, 256)`` and dtype
+          ``np.double`` will be returned. Otherwise, :exc:`ValueError` will be
+          raised.
+
+        Returns
+        -------
+        The saved numpy array, or one of the values as specified based on the
+        parameter *default*.
+
+        """
+        try:
+            return np.load(self.tile_path(pos, extension))
+        except IOError as e:
+            if e.errno != 2:
+                raise  # not EEXIST
+
+            if default == 'none':
+                return None
+            elif default == 'nan':
+                arr = np.empty((256, 256), dtype=np.double)
+                arr.fill(np.nan)
+                return arr
+            else:
+                raise ValueError('unexpected value for "default": {!r}'.format(default))
+
+    def write_numpy(self, pos, data, extension='npy'):
+        """Write a numpy file for the specified tile position.
+
+        Parameters
+        ----------
+        pos : :class:`Pos`
+          The tile position to write.
+        data : array-like
+          The numpy data to write.
+        extension : str, defaults to "npy"
+          The file extension to use when constructing the path to write.
+
+        """
+        np.save(self.tile_path(pos, extension), data)

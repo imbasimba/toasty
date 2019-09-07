@@ -7,18 +7,19 @@ Here we’ll summarize some of the ways that you can use toasty_.
 .. _toasty: https://toasty.readthedocs.io/
 
 
-Toasting a Cartesian, all-sky PNG image
-=======================================
+Toasting a plate-carrée, all-sky PNG image
+==========================================
 
-This script processes an existing all-sky PNG image that uses a Cartesian
-projection, using scikit-image_ to load the data::
+This script processes an existing all-sky PNG image that uses a `plate carrée
+<https://en.wikipedia.org/wiki/Equirectangular_projection>`_ projection, using
+scikit-image_ to load the data::
 
   from toasty.toast import toast
-  from toasty.samplers import cartesian_sampler
+  from toasty.samplers import plate_carree_sampler
   from skimage.io import imread
 
   data = imread('allsky.png')
-  sampler = cartesian_sampler(data)
+  sampler = plate_carree_sampler(data)
   output_directory = 'toast'
   depth = 8  # approximately 0.165"/pixel at highest resolution
 
@@ -62,7 +63,7 @@ Controlling how data are turned into RGB
 Here we apply a log-stretch to an all sky FITS image::
 
   from toasty.toast import toast
-  from toasty.sampler import cartesian_sampler, normalizer
+  from toasty.sampler import plate_carree_sampler, normalizer
   from astropy.io import fits
 
   data = fits.open('allsky.fits')[0].data
@@ -71,7 +72,7 @@ Here we apply a log-stretch to an all sky FITS image::
   scaling = 'log'
   contrast = 1
   sampler = normalizer(
-    cartesian_sampler(data),
+    plate_carree_sampler(data),
     vmin, vmax
     scaling, bias, contrast
   )
@@ -81,8 +82,8 @@ Here we apply a log-stretch to an all sky FITS image::
   toast(sampler, depth, output_directory)
 
 
-Non-Cartesian coordinate transformations
-========================================
+Arbitrary coordinate transformations
+====================================
 
 A custom “sampler” can be used to tell toasty_ what image values
 correspond to what locations on the sky::

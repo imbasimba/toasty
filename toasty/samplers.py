@@ -4,11 +4,24 @@
 
 """“Sampler” functions that fetch image data as a function of sky coordinates.
 
+The Sampler Protocol
+--------------------
+
+A sampler is a callable object that obeys the following signature: ``func(lon,
+lat) -> data``, where *lon* and *lat* are 2D numpy arrays of spherical
+coordinates measured in radians, and the returned *data* array is a numpy
+array of at least two dimensions whose first two axes have the same shape as
+*lon* and *lat*. The *data* array gives the map values sampled at the
+corresponding coordinates. Its additional dimensions can be used to encode
+color information: one standard is for *data* to have a dtype of
+``np.uint8`` and a shape of ``(ny, nx, 3)``, where the final axis samples
+RGB colors.
+
 """
 from __future__ import absolute_import, division, print_function
 
 __all__ = '''
-cartesian_sampler
+plate_carree_sampler
 healpix_fits_file_sampler
 healpix_sampler
 normalizer
@@ -123,16 +136,22 @@ def healpix_fits_file_sampler(path, extension=None, interpolation='nearest'):
     return healpix_sampler(data, nest, coord, interpolation)
 
 
-def cartesian_sampler(data):
-    """Create a sampler function for all-sky data in a Cartesian projection.
+def plate_carree_sampler(data):
+    """Create a sampler function for all-sky data in a “plate carrée” projection.
 
-    The image is assumed to be oriented with longitude increasing to the left,
-    with (l,b) = (0,0) at the center pixel
+    In this projection, the X and Y axes of the image correspond to the
+    longitude and latitude spherical coordinates, respectively. Both axes map
+    linearly, the X axis to the longitude range [2pi, 0] (i.e., longitude
+    increases to the left), and the Y axis to the latitude range [pi/2,
+    -pi/2]. Therefore the point with lat = lon = 0 corresponds to the image
+    center and ``data[0,0]`` is the pixel touching lat = pi/2, lon=pi, one of
+    a row adjacent to the North Pole. Typically the image is twice as wide as
+    it is tall.
 
     Parameters
     ----------
-    data : 2D array-like
-      The map to sample. The height of the map must be exactly twice its with.
+    data : array-like, at least 2D
+      The map to sample in plate carrée projection.
 
     Returns
     -------
@@ -144,17 +163,20 @@ def cartesian_sampler(data):
     data = np.asarray(data)
     ny, nx = data.shape[:2]
 
-    if ny * 2 != nx:
-        raise ValueError("Map must be twice as wide as it is tall")
+    dx = nx / (2 * np.pi)  # pixels per radian in the X direction
+    dy = ny / np.pi  # ditto, for the Y direction
+    lon0 = np.pi - 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
+    lat0 = 0.5 * np.pi - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
 
-    def vec2pix(l, b):
-        l = (l + np.pi) % (2 * np.pi)
-        l[l < 0] += 2 * np.pi
-        l = nx * (1 - l / (2 * np.pi))
-        l = np.clip(l.astype(np.int), 0, nx - 1)
-        b = ny * (1 - (b + 0.5 * np.pi) / np.pi)
-        b = np.clip(b.astype(np.int), 0, ny - 1)
-        return data[b, l]
+    def vec2pix(lon, lat):
+        lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
+        ix = (lon0 - lon) * dx
+        ix = np.clip(ix.astype(np.int), 0, nx - 1)
+
+        iy = (lat0 - lat) * dy  # *assume* in range [-pi/2, pi/2]
+        iy = np.clip(iy.astype(np.int), 0, ny - 1)
+
+        return data[iy, ix]
 
     return vec2pix
 

@@ -23,7 +23,7 @@ from .. import toast
 from .._libtoasty import mid
 from ..io import read_png, save_png
 from ..samplers import plate_carree_sampler, healpix_fits_file_sampler
-from ..toast import generate_images, gen_wtml
+from ..toast import generate_images, gen_wtml, SamplingToastDataSource
 
 
 def mock_sampler(x, y):
@@ -199,3 +199,31 @@ reference_wtml = """
 </ImageSet>
 </Folder>
 """
+
+
+class TestSamplingToastDataSource(object):
+    def setup_method(self, method):
+        self.base = mkdtemp()
+        self.cwd = cwd()
+        im = read_png(os.path.join(self.cwd, 'Equirectangular_projection_SW-tweaked.jpg'))
+        self.sampler = plate_carree_sampler(im)
+
+        from ..pyramid import PyramidIO
+        self.pio = PyramidIO(self.base)
+
+    def teardown_method(self, method):
+        rmtree(self.base)
+
+    def verify_toast(self):
+        """ Zip the expected and actual tiles """
+        for n, x, y in [(1, 0, 0), (1, 0, 1),
+                        (1, 1, 0), (1, 1, 1)]:
+            subpth = os.path.join(str(n), str(y), "%i_%i.png" % (y, x))
+            a = read_png(os.path.join(self.base, subpth))[:, :, :3]
+            b = read_png(os.path.join(self.cwd, 'earth_toasted_sky', subpth))[:, :, :3]
+            image_test(b, a, 'Failed for %s' % subpth)
+
+    def test_default(self):
+        stds = SamplingToastDataSource(self.sampler)
+        stds.sample_image_layer(self.pio, 1)
+        self.verify_toast()

@@ -577,7 +577,7 @@ class SamplingToastDataSource(object):
                 tile.increasing,
             )
             sampled_data = self._sampler(lon, lat)
-            pio.write_numpy(tile.pos, saved_data)
+            pio.write_numpy(tile.pos, sampled_data)
 
     def sample_image_layer(self, pio, depth):
         """Generate an image layer of the TOAST tile pyramid through direct sampling.

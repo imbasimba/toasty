@@ -24,6 +24,7 @@ PyramidIO
 '''.split()
 
 from collections import namedtuple
+import numpy as np
 import os.path
 
 Pos = namedtuple('Pos', 'n x y')
@@ -55,7 +56,7 @@ def is_subtile(deeper_pos, shallower_pos):
     if deeper_pos.n == shallower_pos.n:
         return deeper_pos.x == shallower_pos.x and deeper_pos.y == shallower_pos.y
 
-    return is_subtile(_parent(deeper_pos)[0], shallower_pos)
+    return is_subtile(pos_parent(deeper_pos)[0], shallower_pos)
 
 
 def pos_parent(pos):

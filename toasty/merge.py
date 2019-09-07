@@ -45,7 +45,7 @@ def averaging_merger(data):
     A downsampled array. See the Merger Protocol specification.
 
     """
-    s = (256, 2, 256, 2) + data.shape[2:]
+    s = (data.shape[0] // 2, 2, data.shape[1] // 2, 2) + data.shape[2:]
     return np.nanmean(data.reshape(s), axis=(1, 3)).astype(data.dtype)
 
 

@@ -47,6 +47,114 @@ def indent_xml(elem, level=0):
             elem.tail = i
 
 
+# "cascade" subcommand
+
+def cascade_getparser(parser):
+    parser.add_argument(
+        '--start',
+        metavar = 'DEPTH',
+        type = int,
+        help = 'The depth of the TOAST layer to start the cascade',
+    )
+    parser.add_argument(
+        'pyramid_dir',
+        metavar = 'DIR',
+        help = 'The directory containg the tile pyramid to cascade',
+    )
+
+
+def cascade_impl(settings):
+    from .merge import averaging_merger, cascade_images
+    from .pyramid import PyramidIO
+
+    pio = PyramidIO(settings.pyramid_dir)
+
+    start = settings.start
+    if start is None:
+        die('currently, you must specify the start layer with the --start option')
+
+    cascade_images(pio, start, averaging_merger)
+
+
+# "healpix_sample_data_tiles" subcommand
+
+def healpix_sample_data_tiles_getparser(parser):
+    parser.add_argument(
+        '--outdir',
+        metavar = 'PATH',
+        default = '.',
+        help = 'The root directory of the output tile pyramid',
+    )
+    parser.add_argument(
+        'fitspath',
+        metavar = 'PATH',
+        help = 'The HEALPix FITS file to be tiled',
+    )
+    parser.add_argument(
+        'depth',
+        metavar = 'DEPTH',
+        type = int,
+        help = 'The depth of the TOAST layer to sample',
+    )
+
+
+def healpix_sample_data_tiles_impl(settings):
+    from .pyramid import PyramidIO
+    from .samplers import healpix_fits_file_sampler
+    from .toast import SamplingToastDataSource
+
+    pio = PyramidIO(settings.outdir)
+    sampler = healpix_fits_file_sampler(settings.fitspath)
+    ds = SamplingToastDataSource(sampler)
+    ds.sample_data_layer(pio, settings.depth)
+
+
+# "image_sample_tiles" subcommand
+
+def image_sample_tiles_getparser(parser):
+    parser.add_argument(
+        '--outdir',
+        metavar = 'PATH',
+        default = '.',
+        help = 'The root directory of the output tile pyramid',
+    )
+    parser.add_argument(
+        '--projection',
+        metavar = 'PROJTYPE',
+        default = 'plate-carree',
+        help = 'The projection of the image; "plate-carree" is the only allowed choice',
+    )
+    parser.add_argument(
+        'imgpath',
+        metavar = 'PATH',
+        help = 'The image file to be tiled',
+    )
+    parser.add_argument(
+        'depth',
+        metavar = 'DEPTH',
+        type = int,
+        help = 'The depth of the TOAST layer to sample',
+    )
+
+
+def image_sample_tiles_impl(settings):
+    from .io import read_png
+    from .pyramid import PyramidIO
+    from .toast import SamplingToastDataSource
+
+    pio = PyramidIO(settings.outdir)
+    data = read_png(settings.imgpath)
+
+    if settings.projection == 'plate-carree':
+        from .samplers import plate_carree_sampler
+        sampler = plate_carree_sampler(data)
+    else:
+        die('the image projection type {!r} is not recognized'.format(settings.projection))
+
+    ds = SamplingToastDataSource(sampler)
+    ds.sample_image_layer(pio, settings.depth)
+
+
 # "multi_tan_make_data_tiles" subcommand
 
 def multi_tan_make_data_tiles_getparser(parser):
@@ -71,7 +179,6 @@ def multi_tan_make_data_tiles_getparser(parser):
     )
 
 def multi_tan_make_data_tiles_impl(settings):
-    from xml.etree import ElementTree as etree
     from .multi_tan import MultiTanDataSource
     from .pyramid import PyramidIO
 

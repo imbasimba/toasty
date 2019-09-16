@@ -34,6 +34,18 @@ GitHub repository <https://github.com/WorldWideTelescope/toasty/issues>`_.
 Acknowledgments
 ===============
 
-Work on toasty_ is funded through the American Astronomical Society
-(`AAS`_) `WorldWide Telescope`_ project. The first version of toasty_ was
-written by Chris Beaumont.
+The first version of toasty_ was written by Chris Beaumont.
+
+toasty_ is part of the `AAS`_ `WorldWide Telescope`_ system, a `.NET
+Foundation`_ project managed by the non-profit `American Astronomical
+Society`_ (AAS). Work on WWT has been supported by the AAS, the US `National
+Science Foundation`_ (grants 1550701_ and 1642446_), the `Gordon and Betty
+Moore Foundation`_, and `Microsoft`_.
+
+.. _.NET Foundation: https://dotnetfoundation.org/
+.. _American Astronomical Society: https://aas.org/
+.. _National Science Foundation: https://www.nsf.gov/
+.. _1550701: https://www.nsf.gov/awardsearch/showAward?AWD_ID=1550701
+.. _1642446: https://www.nsf.gov/awardsearch/showAward?AWD_ID=1642446
+.. _Gordon and Betty Moore Foundation: https://www.moore.org/
+.. _Microsoft: https://www.microsoft.com/

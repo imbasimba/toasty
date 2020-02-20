@@ -73,6 +73,7 @@ well as release listings maintained by
 - [numpy]
 - [pillow]
 - [pytest] to run the test suite
+- [wwt_data_formats]
 
 [astropy]: https://www.astropy.org/
 [cython]: https://cython.org/
@@ -81,6 +82,7 @@ well as release listings maintained by
 [numpy]: https://numpy.org/
 [pillow]: https://pillow.readthedocs.io/
 [pytest]: https://docs.pytest.org/
+[wwt_data_formats]: https://github.com/WorldWideTelescope/wwt_data_formats
 
 
 ## Legalities

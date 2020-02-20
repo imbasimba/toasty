@@ -72,6 +72,7 @@ setup_args = dict(
         'cython',
         'numpy',
         'pillow',
+        'wwt_data_formats',
     ],
 
     extras_require = {

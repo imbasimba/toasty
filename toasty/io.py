@@ -1,8 +1,13 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2013-2019 Chris Beaumont and the AAS WorldWide Telescope project
+# Copyright 2013-2020 Chris Beaumont and the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 from __future__ import absolute_import, division, print_function
+
+__all__ = '''
+read_image
+save_png
+'''.split()
 
 from PIL import Image
 import numpy as np
@@ -22,13 +27,17 @@ def save_png(pth, array):
     Image.fromarray(array).save(pth)
 
 
-def read_png(pth):
-    """
-    load a PNG image into an array
+def read_image(path):
+    """Load a bitmap image into a Numpy array.
+
+    The loading is done using PIL (the Python Imaging Library, usually the
+    "pillow" implementation these days) so it supports whatever image formats
+    PIL does.
 
     Parameters
     ----------
-    pth : str
-       Path to write read
+    path : str
+       The path of the image to read
+
     """
-    return np.asarray(Image.open(pth))
+    return np.asarray(Image.open(path))

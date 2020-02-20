@@ -138,12 +138,12 @@ def image_sample_tiles_getparser(parser):
 
 
 def image_sample_tiles_impl(settings):
-    from .io import read_png
+    from .io import read_image
     from .pyramid import PyramidIO
     from .toast import SamplingToastDataSource
 
     pio = PyramidIO(settings.outdir)
-    data = read_png(settings.imgpath)
+    data = read_image(settings.imgpath)
 
     if settings.projection == 'plate-carree':
         from .samplers import plate_carree_sampler

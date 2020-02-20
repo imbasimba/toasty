@@ -230,10 +230,10 @@ class PyramidIO(object):
         ``np.uint8``.
 
         """
-        from .io import read_png
+        from .io import read_image
 
         try:
-            return read_png(self.tile_path(pos, extension))
+            return read_image(self.tile_path(pos, extension))
         except IOError as e:
             if e.errno != 2:
                 raise  # not EEXIST

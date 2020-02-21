@@ -8,6 +8,7 @@
 from __future__ import absolute_import, division, print_function
 
 import argparse
+import os.path
 import sys
 
 
@@ -21,6 +22,7 @@ def warn(msg):
     print('warning:', msg, file=sys.stderr)
 
 
+# TODO: This should be superseded by wwt_data_formats
 def indent_xml(elem, level=0):
     """A dumb XML indenter.
 
@@ -45,6 +47,24 @@ def indent_xml(elem, level=0):
     else:
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
+
+
+def stub_wtml(imgset, wtml_path):
+    """Given an ImageSet object, save its information into a stub WTML file.
+
+    """
+    from wwt_data_formats import write_xml_doc
+    from wwt_data_formats.folder import Folder
+    from wwt_data_formats.place import Place
+
+    folder = Folder()
+    place = Place()
+    place.data_set_type = 'Sky'
+    place.foreground_image_set = imgset
+    folder.children = [place]
+
+    with open(wtml_path, 'wt') as f:
+        write_xml_doc(folder.to_xml(), dest_stream=f)
 
 
 # "cascade" subcommand
@@ -282,6 +302,44 @@ def multi_tan_make_wtml_impl(settings):
     indent_xml(folder)
     doc = etree.ElementTree(folder)
     doc.write(sys.stdout, encoding='utf-8', xml_declaration=True)
+
+
+# "study_sample_image_tiles" subcommand
+
+def study_sample_image_tiles_getparser(parser):
+    parser.add_argument(
+        '--outdir',
+        metavar = 'PATH',
+        default = '.',
+        help = 'The root directory of the output tile pyramid',
+    )
+    parser.add_argument(
+        'imgpath',
+        metavar = 'PATH',
+        help = 'The study image file to be tiled',
+    )
+
+
+def study_sample_image_tiles_impl(settings):
+    from wwt_data_formats.imageset import ImageSet
+    from .io import read_image
+    from .pyramid import PyramidIO
+    from .study import tile_study_image
+
+    # Create the base tiles.
+
+    pio = PyramidIO(settings.outdir)
+    img = read_image(settings.imgpath)
+    tiling = tile_study_image(img, pio)
+
+    # Write out a stub WTML file. The only information this will actually
+    # contain is the number of tile levels. Other information can be filled
+    # in as processing continues.
+    imgset = ImageSet()
+    tiling.apply_to_imageset(imgset)
+    imgset.base_degrees_per_tile = 1.0  # random default to make it viewable
+    imgset.url = pio.get_path_scheme() + '.png'
+    stub_wtml(imgset, os.path.join(settings.outdir, 'toasty.wtml'))
 
 
 # The CLI driver:

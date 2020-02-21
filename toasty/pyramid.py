@@ -218,15 +218,16 @@ class PyramidIO(object):
         default : str, defaults to "none"
           What to do if the specified tile file does not exist. If this is
           "none", ``None`` will be returned instead of an array. If this is
-          "zeros", an array of zeros with shape ``(256, 256, 3)`` and dtype
-          ``np.uint8`` will be returned. Otherwise, :exc:`ValueError` will be
-          raised.
+          "zeros3", an array of zeros with shape ``(256, 256, 3)`` and dtype
+          ``np.uint8`` will be returned. If it is "zeros4", a similar array
+          of shape ``(256, 256, 4)`` will be returned. Otherwise,
+          :exc:`ValueError` will be raised.
 
         Returns
         -------
         The image data as a numpy array, or one of the values as specified
         based on the parameter *default*. For a typical PNG image, the
-        returned array will have shape ``(256, 256, 3)`` and dtype
+        returned array will have shape ``(256, 256, 4)`` and dtype
         ``np.uint8``.
 
         """
@@ -240,8 +241,10 @@ class PyramidIO(object):
 
             if default == 'none':
                 return None
-            elif default == 'zeros':
+            elif default == 'zeros3':
                 return np.zeros((256, 256, 3), dtype=np.uint8)
+            elif default == 'zeros4':
+                return np.zeros((256, 256, 4), dtype=np.uint8)
             else:
                 raise ValueError('unexpected value for "default": {!r}'.format(default))
 

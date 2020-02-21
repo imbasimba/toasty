@@ -49,7 +49,7 @@ def averaging_merger(data):
     return np.nanmean(data.reshape(s), axis=(1, 3)).astype(data.dtype)
 
 
-def cascade_images(pio, start, merger, default='zeros'):
+def cascade_images(pio, start, merger):
     """Downsample image tiles all the way to the top of the pyramid.
 
     This function will walk the tiles in the tile pyramid, merging child tile
@@ -66,14 +66,15 @@ def cascade_images(pio, start, merger, default='zeros'):
     merger : a merger function
       The method used to create a parent tile from its child tiles. This
       is a callable that follows the Merger Protocol.
-    default : str, defaults to "zeros"
-      This argument is forwarded to
-      :meth:`toasty.pyramid.PyramidIO.read_image` and specifies what should
-      happen when a necessary tile is unavailable. The default behavior is to
-      treat the tile as zeros, i.e. an all-black image.
 
     """
-    buf = np.empty((512, 512, 3), dtype=np.uint8)
+    buf = None
+    SLICES = [
+        (slice(None, 256), slice(None, 256)),
+        (slice(None, 256), slice(256, None)),
+        (slice(256, None), slice(None, 256)),
+        (slice(256, None), slice(256, None)),
+    ]
 
     for pos in pyramid.generate_pos(start):
         if pos.n == start:
@@ -83,10 +84,23 @@ def cascade_images(pio, start, merger, default='zeros'):
         # processed.
         children = pyramid.pos_children(pos)
 
-        buf[:256,:256] = pio.read_image(children[0], default=default)
-        buf[:256,256:] = pio.read_image(children[1], default=default)
-        buf[256:,:256] = pio.read_image(children[2], default=default)
-        buf[256:,256:] = pio.read_image(children[3], default=default)
+        img0 = pio.read_image(children[0], default='none')
+        img1 = pio.read_image(children[1], default='none')
+        img2 = pio.read_image(children[2], default='none')
+        img3 = pio.read_image(children[3], default='none')
+
+        if img0 is None and img1 is None and img2 is None and img3 is None:
+            continue  # No data here; ignore
+
+        if buf is not None:
+            buf.fill(0)
+
+        for slidx, subimg in zip(SLICES, (img0, img1, img2, img3)):
+            if subimg is not None:
+                if buf is None:
+                    buf = np.zeros((512, 512) + subimg.shape[2:], dtype=np.uint8)
+
+                buf[slidx] = subimg
 
         merged = merger(buf)
         pio.write_image(pos, merged)

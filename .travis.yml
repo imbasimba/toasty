@@ -21,7 +21,6 @@ env:
     - CONDA_DEPENDENCIES="astropy coveralls cython healpy numpydoc pillow pytest-cov sphinx sphinx-automodapi"
     - PIP_DEPENDENCIES="astropy-sphinx-theme wwt_data_formats"
   matrix:
-    - PYTHON_VERSION=2.7
     - PYTHON_VERSION=3.6
     - PYTHON_VERSION=3.7
 

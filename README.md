@@ -6,9 +6,9 @@
 [![Documentation Status](https://readthedocs.org/projects/toasty/badge/?version=latest)](https://toasty.readthedocs.io/en/latest/?badge=latest)
 
 <!--pypi-begin-->
-[toasty] is a Python library that helps you create [TOAST] “tile pyramids”
-from astronomical image data. These multi-resolution all-sky maps can be
-viewed in software such as the [AAS] [WorldWide Telescope].
+[toasty] is a Python library that helps you create “tile pyramids” from
+astronomical image data as used in the [TOAST] format. These multi-resolution
+maps can be viewed in software such as the [AAS] [WorldWide Telescope].
 
 [toasty]: https://toasty.readthedocs.io/
 [TOAST]: https://doi.org/10.3847/1538-4365/aaf79e

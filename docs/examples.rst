@@ -6,6 +6,8 @@ Here we’ll summarize some of the ways that you can use toasty_.
 
 .. _toasty: https://toasty.readthedocs.io/
 
+*NOTE*: these examples need to be updated as we refine the toasty_ API!
+
 
 Toasting a plate-carrée, all-sky PNG image
 ==========================================

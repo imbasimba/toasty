@@ -25,7 +25,7 @@ import logging
 import numpy as np
 
 from ._libtoasty import subsample, mid
-from .io import save_png, read_png
+from .io import save_png, read_image
 from .norm import normalize
 from .pyramid import Pos, depth2tiles, is_subtile, pos_parent
 
@@ -311,7 +311,7 @@ def generate_images(
         if type(data_sampler) == str:
             img_dir = data_sampler + '/' + str(n) + '/'
             try:
-                img = read_png(img_dir + str(y) + '/' + str(y) + '_' + str(x) + '.png')
+                img = read_image(img_dir + str(y) + '/' + str(y) + '_' + str(x) + '.png')
             except: # could not read image
                 img = None
         else:

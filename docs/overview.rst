@@ -1,101 +1,110 @@
-===========================
-Overview: What is Toasting?
-===========================
+========================
+Overview: Uses of toasty
+========================
 
-So, toasty_ is for toasting. What does that even mean?
+The toasty_ package can be used to create “tile pyramids” of astronomical
+image data, particularly ones targeting the “TOAST” format. What does that
+even mean?
 
 .. _toasty: https://toasty.readthedocs.io/
 
-This documentation will *not* go into detail because there are plans to
-provide comprehensive information in a separate document that is not specific
-to this particular library.
 
-Alas, that documentation has not been written yet. In the meantime, the best
-detailed reference is `McGlynn et al. 2019`_, which explains and justifies the
-Tesselated Octahedral Adaptive Spherical Transformation (TOAST) projection
-that toasty_ is concerned with. See also the `WorldWide Telescope Projection
-Reference`_, although that document is a bit out of date. (Which shouldn’t
-matter, in principle, but its current Web expression may be a bit busted.) The
-following text aims to give a quick overview of the concepts that these
-documents work out in detail.
+The first problem
+=================
 
-.. _McGlynn et al. 2019: https://ui.adsabs.harvard.edu/abs/2019ApJS..240...22M/abstract
-.. _WorldWide Telescope Projection Reference: https://worldwidetelescope.gitbook.io/projection-reference/
+Say that you are writing a piece of software that aims to let users
+interactively explore high-resolution imagery. The user may want to zoom out
+and view large swathes of an image all at once, or they may want to zoom way
+in and see extremely fine detail. The user will probably be accessing the
+images over a network, and the images may be far too large to transmit in over
+the network in their entirety. How do we provide a smooth user experience?
 
 
-The problem(s)
-==============
+The first solution
+==================
 
-Say that you are writing a piece of software that aim to let users
-interactively explore a map of the Earth, the sky, or another planet. For the
-purposes of this discussion, the key thing is that these are all spherical
-entities. The user may want to zoom out and view large swathes of these
-spheres at once, or they may want to zoom way in and see extremely fine
-detail. The user will probably be accessing the maps over a network, and the
-maps may be far too large to transmit in over the network in their entirety.
+Pretty much everyone who has faced the above problem — say, the engineers of
+Google Maps — has converged on a common solution. You process your
+high-resolution image to create a “tile pyramid.” First, the full-resolution
+image is broken into a set of modestly-sized sub-images, “tiles.” Then, you
+create lower-resolution tiles by downsampling clusters of these tiles, and you
+downsample *those* tiles until the entire image is downsampled into a small
+number of base tiles. As a user zooms in or out, or pans around the image,
+their computer is sent the tiles needed to produce a visually acceptable view.
+Each individual tile file is small enough that the data transfer remains
+tractable. If you group the tiles by their resolutions and think of them as
+forming a layered stack, there are fewer tiles in each layer as you move
+towards lower resolutions — hence the “pyramid.”
 
-There are two problems to solve here. First, we need some way to store image
-data covering an entire sphere. There is no unique best way to map the curved
-surface of a sphere into a two-dimensional representation; in particular, many
-common projections perform poorly at the poles.
-
-Second, once we have some image data that we can map onto a sphere in some
-satisfactory way, we need a way to transmit pieces of it to the user
-incrementally. If they zoom out, it won't be practical to send them a huge
-chunk of the full-resolution map.
+In toasty_, a few invariants are maintained. Each tile is 256 pixels on a
+side. The number of tiles on each side of the full-resolution map must be a
+power of 2. Tiles are downsampled in 2×2 pixel blocks, yielding derived images
+that are half as large as their parents along each axis. (Each downsampled
+image therefore has 1/4 as many pixels as its parent.) By construction, each
+lower-resolution map can also be broken into 256×256 tiles. This process
+continues until a “level 0” map is created consisting of a single tile.
 
 
-The solution(s)
-===============
+The second problem
+==================
 
-Our solution to the above problems is to construct “tile pyramids” using the
-TOAST spherical projection.
+If you’re writing a piece of software that aims to let users interactively
+explore a map of the Earth, the sky, or another planet, you have another
+problem. These are all spherical entities, and there is no unique best way to
+map the curved surface of a sphere into a two-dimensional representation; in
+particular, many common projections perform poorly at the poles. If you want
+to apply the tile-pyramid approach to spherical map data, you have to choose a
+projection that meshes well with the tiling scheme.
 
-The TOAST projection does exactly what we need for the first problem: it maps
-the entire sphere onto a 2D image that can easily be represented digitally.
-While TOAST is not perfect in every way, it performs well at the poles and
+
+The second solution
+===================
+
+The Tesselated Octahedral Adaptive Spherical Transformation (TOAST) projection
+does exactly this: it maps the entire sphere onto a square 2D image. While
+TOAST is not perfect for all applications, it performs well at the poles and
 maintains approximately uniform resolution at all locations on the sphere. If
 you’re familiar with this topic, you may know that the HEALPix_ projection
 also operates in this problem space. We won’t go into details here, but
 suffice it to say that TOAST has some nice technical properties that make it
 the preferred choice for software such as the AAS_ `WorldWide Telescope`_. In
 particular, TOAST maps the sphere onto a square image, rather than the jagged
-shape required by HEALPix.
+shape required by HEALPix, and pixels at different resolutions share common
+great-circle edges, allowing gap-free rendering when tiles of varying
+resolutions are available.
 
 .. _HEALPix: https://healpix.jpl.nasa.gov/
 .. _AAS: https://aas.org/
 .. _WorldWide Telescope: http://www.worldwidetelescope.org/home
 
+Currently, the best detailed TOAST reference is `McGlynn et al. 2019`_. See
+also the `WorldWide Telescope Projection Reference`_, although that document
+is a bit out of date. (Which shouldn’t matter, in principle, but its current
+Web expression may be a bit busted.)
+
+.. _McGlynn et al. 2019: https://ui.adsabs.harvard.edu/abs/2019ApJS..240...22M/abstract
+.. _WorldWide Telescope Projection Reference: https://worldwidetelescope.gitbook.io/projection-reference/
+
 A high-resolution full-sphere TOAST map may weigh in at a million pixels *on a
-side*, or a trillion pixels total — far too large to manipulate in a
-user-facing scenario. Creating a “tile pyramid” of the image makes it possible
-to actually do useful things with a full-scale TOAST map. First, the
-high-resolution map is broken into a set of square sub-images, “tiles,” each
-256 pixels on a side. By the requirements of the TOAST standard, the number of
-tiles on each side must be a power of 2. Then, lower-resolution maps are
-created by downsampling the high-resolution map in 2×2 pixel blocks, yielding
-derived images that are half as large as their parents along each axis. (Each
-downsampled image therefore has 1/4 as many pixels as its parent.) By
-construction, each of these lower-resolution maps can also be broken into
-256×256 tiles. This process continues until a “level 0” map is created
-consisting of a single tile that represents the full sphere. With a full
-sphere having a solid angle of 4π steradians, each pixel in this level-0 map
-covers about 0.0002 steradians or 0.6 square degrees. As a user zooms in or
-out, or pans around the sphere, their computer is sent the tiles needed to
-produce a visually acceptable view. Each individual tile file is small enough
-that the data transfer remains tractable.
+side*, or a trillion pixels total, which is why tiling is essential. With a
+full sphere having a solid angle of 4π steradians, each pixel in a level-0
+TOAST map (256×256 pixels) map covers about 0.0002 steradians or 0.6 square
+degrees.
 
 
 The role of toasty
 ==================
 
-The toasty_ module helps create these TOAST tile pyramids from astronomical
-image data. There are essentially three problems that it tackles:
+The toasty_ module helps create these tile pyramids from astronomical image
+data, with special support for the TOAST projection. There are essentially
+three problems that it tackles:
 
-1. Transforming image data from their native projection to the TOAST one.
+1. Breaking large image assets into tiles, potentially transforming them into
+   the TOAST projection.
 2. Mapping scalar data values into RGB color images for user display.
-3. Downsampling the high-resolution TOAST map all the way down to the level-0
-   map.
+3. Downsampling a set of tiles all the way down to a level-0 root tile.
 
 The process of creating TOAST tile pyramids from some input data is
-colloquially referred to as “toasting.”
+colloquially referred to as “toasting.” While toasty_ was originally written
+to target only all-sky maps in the TOAST projection, it now also supports
+other kinds of tile pyramids as well.

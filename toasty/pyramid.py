@@ -17,6 +17,7 @@ __all__ = '''
 depth2tiles
 generate_pos
 is_subtile
+next_highest_power_of_2
 Pos
 pos_children
 pos_parent
@@ -28,6 +29,20 @@ import numpy as np
 import os.path
 
 Pos = namedtuple('Pos', 'n x y')
+
+
+def next_highest_power_of_2(n):
+    """Ugh, this implementation is so dumb.
+
+    We also assume that we are being called in a tiling context, in which case
+    numbers less than 256 should be bumped up to 256 (the number of pixels in
+    a single tile).
+
+    """
+    p = 256
+    while p < n:
+        p *= 2
+    return p
 
 
 def depth2tiles(depth):
@@ -218,30 +233,33 @@ class PyramidIO(object):
         default : str, defaults to "none"
           What to do if the specified tile file does not exist. If this is
           "none", ``None`` will be returned instead of an array. If this is
-          "zeros", an array of zeros with shape ``(256, 256, 3)`` and dtype
-          ``np.uint8`` will be returned. Otherwise, :exc:`ValueError` will be
-          raised.
+          "zeros3", an array of zeros with shape ``(256, 256, 3)`` and dtype
+          ``np.uint8`` will be returned. If it is "zeros4", a similar array
+          of shape ``(256, 256, 4)`` will be returned. Otherwise,
+          :exc:`ValueError` will be raised.
 
         Returns
         -------
         The image data as a numpy array, or one of the values as specified
         based on the parameter *default*. For a typical PNG image, the
-        returned array will have shape ``(256, 256, 3)`` and dtype
+        returned array will have shape ``(256, 256, 4)`` and dtype
         ``np.uint8``.
 
         """
-        from .io import read_png
+        from .io import read_image
 
         try:
-            return read_png(self.tile_path(pos, extension))
+            return read_image(self.tile_path(pos, extension))
         except IOError as e:
             if e.errno != 2:
                 raise  # not EEXIST
 
             if default == 'none':
                 return None
-            elif default == 'zeros':
+            elif default == 'zeros3':
                 return np.zeros((256, 256, 3), dtype=np.uint8)
+            elif default == 'zeros4':
+                return np.zeros((256, 256, 4), dtype=np.uint8)
             else:
                 raise ValueError('unexpected value for "default": {!r}'.format(default))
 

@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2019 the AAS WorldWide Telescope project
+# Copyright 2019-2020 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 import numpy as np
@@ -7,14 +7,9 @@ import numpy.testing as nt
 import os.path
 import pytest
 
+from . import test_path
 from .. import cli
 from .. import samplers
-
-
-TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-
-def make_path(*pieces):
-    return os.path.join(TESTS_DIR, *pieces)
 
 
 class TestSamplers(object):
@@ -38,7 +33,7 @@ class TestSamplers(object):
         args = [
             'healpix-sample-data-tiles',
             '--outdir', self.work_path('basic_cli'),
-            make_path('earth_healpix_equ.fits'),
+            test_path('earth_healpix_equ.fits'),
             '1',
         ]
         cli.entrypoint(args)

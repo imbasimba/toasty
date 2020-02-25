@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2019 the AAS WorldWide Telescope project
+# Copyright 2019-2020 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 import numpy as np
@@ -7,14 +7,9 @@ import numpy.testing as nt
 import os.path
 import pytest
 
+from . import test_path
 from .. import cli
 from .. import merge
-
-
-TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-
-def make_path(*pieces):
-    return os.path.join(TESTS_DIR, *pieces)
 
 
 def test_averaging_merger():
@@ -45,7 +40,7 @@ class TestCascade(object):
         args = [
             'image-sample-tiles',
             '--outdir', self.work_path('basic_cli'),
-            make_path('Equirectangular_projection_SW-tweaked.jpg'),
+            test_path('Equirectangular_projection_SW-tweaked.jpg'),
             '1',
         ]
         cli.entrypoint(args)

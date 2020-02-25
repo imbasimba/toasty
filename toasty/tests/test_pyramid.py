@@ -9,6 +9,12 @@ from .. import pyramid
 from ..pyramid import Pos
 
 
+def test_next_highest_power_of_2():
+    assert pyramid.next_highest_power_of_2(1) == 256
+    assert pyramid.next_highest_power_of_2(256) == 256
+    assert pyramid.next_highest_power_of_2(257) == 512
+
+
 def test_depth2tiles():
     assert pyramid.depth2tiles(0) == 1
     assert pyramid.depth2tiles(1) == 5

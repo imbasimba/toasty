@@ -20,12 +20,6 @@ def make_path(*pieces):
     return os.path.join(TESTS_DIR, *pieces)
 
 
-def test_next_highest_power_of_2():
-    assert multi_tan.next_highest_power_of_2(1) == 256
-    assert multi_tan.next_highest_power_of_2(256) == 256
-    assert multi_tan.next_highest_power_of_2(257) == 512
-
-
 def check_xml_elements_equal(observed, expected):
     """See if two XML elements are equal through recursive comparison. We do *not*
     check the "tail" text item, and we strip whitespace in "text".

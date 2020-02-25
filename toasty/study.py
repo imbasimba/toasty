@@ -16,15 +16,7 @@ import argparse
 import numpy as np
 import os.path
 
-from .pyramid import Pos
-
-
-def next_highest_power_of_2(n):
-    """Ugh, this implementation is so dumb."""
-    p = 256
-    while p < n:
-        p *= 2
-    return p
+from .pyramid import Pos, next_highest_power_of_2
 
 
 class StudyTiling(object):

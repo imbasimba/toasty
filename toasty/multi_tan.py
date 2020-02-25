@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2019 the AAS WorldWide Telescope project
+# Copyright 2019-2020 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 """Generate tiles from a collection of images on a common TAN projection.
@@ -15,7 +15,7 @@ import argparse
 import numpy as np
 import os.path
 
-from .pyramid import Pos
+from .pyramid import Pos, next_highest_power_of_2
 
 MATCH_HEADERS = [
     'CTYPE1', 'CTYPE2',
@@ -28,14 +28,6 @@ MATCH_HEADERS = [
 SAVE_HEADERS = [
     'CD1_1', 'CD2_2',
 ]
-
-
-def next_highest_power_of_2(n):
-    """Ugh, this implementation is so dumb."""
-    p = 256
-    while p < n:
-        p *= 2
-    return p
 
 
 class MultiTanDataSource(object):

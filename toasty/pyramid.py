@@ -17,6 +17,7 @@ __all__ = '''
 depth2tiles
 generate_pos
 is_subtile
+next_highest_power_of_2
 Pos
 pos_children
 pos_parent
@@ -28,6 +29,20 @@ import numpy as np
 import os.path
 
 Pos = namedtuple('Pos', 'n x y')
+
+
+def next_highest_power_of_2(n):
+    """Ugh, this implementation is so dumb.
+
+    We also assume that we are being called in a tiling context, in which case
+    numbers less than 256 should be bumped up to 256 (the number of pixels in
+    a single tile).
+
+    """
+    p = 256
+    while p < n:
+        p *= 2
+    return p
 
 
 def depth2tiles(depth):

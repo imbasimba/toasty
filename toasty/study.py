@@ -14,9 +14,7 @@ make_thumbnail_bitmap
 tile_study_image
 '''.split()
 
-import argparse
 import numpy as np
-import os.path
 
 from .pyramid import Pos, next_highest_power_of_2
 

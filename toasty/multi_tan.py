@@ -4,6 +4,8 @@
 
 """Generate tiles from a collection of images on a common TAN projection.
 
+TODO: shuld be migrated to wwt_data_formats.
+
 """
 from __future__ import absolute_import, division, print_function
 
@@ -11,9 +13,7 @@ __all__ = '''
 MultiTanDataSource
 '''.split()
 
-import argparse
 import numpy as np
-import os.path
 
 from .pyramid import Pos, next_highest_power_of_2
 

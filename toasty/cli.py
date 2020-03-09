@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2019 the AAS WorldWide Telescope project.
+# Copyright 2019-2020 the AAS WorldWide Telescope project.
 # Licensed under the MIT License.
 
 """Entrypoint for the "toasty" command-line interface.
@@ -302,6 +302,95 @@ def multi_tan_make_wtml_impl(settings):
     indent_xml(folder)
     doc = etree.ElementTree(folder)
     doc.write(sys.stdout, encoding='utf-8', xml_declaration=True)
+
+
+# "pipeline_fetch_inputs" subcommand
+
+def _pipeline_add_io_args(parser):
+    parser.add_argument(
+        '--azure-conn-env',
+        metavar = 'ENV-VAR-NAME',
+        help = 'The name of an environment variable contain an Azure Storage '
+                'connection string'
+    )
+    parser.add_argument(
+        '--azure-container',
+        metavar = 'CONTAINER-NAME',
+        help = 'The name of a blob container in the Azure storage account'
+    )
+    parser.add_argument(
+        '--azure-path-prefix',
+        metavar = 'PATH-PREFIX',
+        help = 'A slash-separated path prefix for blob I/O within the container'
+    )
+    parser.add_argument(
+        '--local',
+        metavar = 'PATH',
+        help = 'Use the local testing I/O backend'
+    )
+
+def _pipeline_io_from_settings(settings):
+    from .pipeline import AzureBlobPipelineIo, LocalTestPipelineIo
+
+    if settings.local:
+        return LocalTestPipelineIo(settings.local)
+
+    if settings.azure_conn_env:
+        conn_str = os.environ.get(settings.azure_conn_env)
+        if not conn_str:
+            die('--azure-conn-env=%s provided, but that environment variable is unset'
+                % settings.azure_conn_env)
+
+        if not settings.azure_container_name:
+            die('--azure-container-name must be provided if --azure-conn-env is')
+
+        path_prefix = settings.azure_path_prefix
+        if not path_prefix:
+            path_prefix = ''
+
+        return AzureBlobPipelineIo(
+            conn_str,
+            settings.azure_container_name,
+            path_prefix
+        )
+
+    die('An I/O backend must be specified with the arguments --local or --azure-*')
+
+
+def pipeline_fetch_inputs_getparser(parser):
+    _pipeline_add_io_args(parser)
+    parser.add_argument(
+        'workdir',
+        metavar = 'PATH',
+        default = '.',
+        help = 'The local working directory',
+    )
+
+def pipeline_fetch_inputs_impl(settings):
+    from .pipeline import PipelineManager
+
+    pipeio = _pipeline_io_from_settings(settings)
+    mgr = PipelineManager(pipeio, settings.workdir)
+    mgr.fetch_inputs()
+
+
+# "pipeline_process_todos" subcommand
+
+def pipeline_process_todos_getparser(parser):
+    _pipeline_add_io_args(parser)
+    parser.add_argument(
+        'workdir',
+        metavar = 'PATH',
+        default = '.',
+        help = 'The local working directory',
+    )
+
+def pipeline_process_todos_impl(settings):
+    from .pipeline import PipelineManager
+
+    pipeio = _pipeline_io_from_settings(settings)
+    mgr = PipelineManager(pipeio, settings.workdir)
+    mgr.process_todos()
 
 
 # "study_sample_image_tiles" subcommand

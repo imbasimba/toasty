@@ -341,7 +341,7 @@ def _pipeline_io_from_settings(settings):
             die('--azure-conn-env=%s provided, but that environment variable is unset'
                 % settings.azure_conn_env)
 
-        if not settings.azure_container_name:
+        if not settings.azure_container:
             die('--azure-container-name must be provided if --azure-conn-env is')
 
         path_prefix = settings.azure_path_prefix
@@ -350,7 +350,7 @@ def _pipeline_io_from_settings(settings):
 
         return AzureBlobPipelineIo(
             conn_str,
-            settings.azure_container_name,
+            settings.azure_container,
             path_prefix
         )
 

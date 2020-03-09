@@ -539,8 +539,9 @@ class InputImage(ABC):
         Returns
         -------
         A :class:`wwt_data_formats.place.Place` object containing a single
-        "foreground image set" with data about the processed image. Any URLs
-        will be relative with respect to *baseoutdir*.
+        "foreground image set" with data about the processed image. URLs for
+        any locally-generated data will be relative to the image-specific
+        subdirectory.
 
         """
         place = Place()
@@ -556,12 +557,6 @@ class InputImage(ABC):
 
         place.name = imgset.name
         place.description = imgset.description
-
-        # Rewrite the URLs to be relative to baseoutdir.
-        pfx = urlquote(self._unique_id) + '/'
-        imgset.url = maybe_prefix_url(imgset.url, pfx)
-        imgset.credits_url = maybe_prefix_url(imgset.credits_url, pfx)
-        imgset.thumbnail_url = maybe_prefix_url(imgset.thumbnail_url, pfx)
         place.thumbnail = imgset.thumbnail_url
 
         return place
@@ -751,6 +746,7 @@ class AstroPixInputImage(BitmapInputImage):
 # The PipelineManager class that orchestrates it all
 
 class PipelineManager(object):
+    _config = None
     _pipeio = None
     _workdir = None
     _img_source = None
@@ -767,9 +763,9 @@ class PipelineManager(object):
         os.makedirs(path, exist_ok=True)
         return path
 
-    def get_image_source(self):
-        if self._img_source is not None:
-            return self._img_source
+    def ensure_config(self):
+        if self._config is not None:
+            return self._config
 
         self._ensure_dir()
         cfg_path = self._path('toasty-pipeline-config.yaml')
@@ -784,7 +780,16 @@ class PipelineManager(object):
         if config is None:
             raise Exception('no toasty-pipeline-config.yaml found in the storage')
 
-        source_type = config.get('source_type')
+        self._config = config
+        return self._config
+
+    def get_image_source(self):
+        if self._img_source is not None:
+            return self._img_source
+
+        self.ensure_config()
+
+        source_type = self._config.get('source_type')
         if not source_type:
             raise Exception('toasty pipeline configuration must have a source_type key')
 
@@ -793,7 +798,7 @@ class PipelineManager(object):
             raise Exception('unrecognized image source type %s' % source_type)
 
         cfg_key = cls.get_config_key()
-        source_config = config.get(cfg_key)
+        source_config = self._config.get(cfg_key)
         if source_config is None:
             raise Exception('no image source configuration key %s in the config file' % cfg_key)
 
@@ -822,6 +827,11 @@ class PipelineManager(object):
         self._ensure_dir('cache_done')
         baseoutdir = self._ensure_dir('out_todo')
 
+        pub_url_prefix = self._config.get('publish_url_prefix')
+        if pub_url_prefix:
+            if pub_url_prefix[-1] != '/':
+                pub_url_prefix += '/'
+
         for uniq_id in os.listdir(self._path('cache_todo')):
             cachedir = self._path('cache_todo', uniq_id)
             inp_img = src.open_input(uniq_id, cachedir)
@@ -832,8 +842,26 @@ class PipelineManager(object):
             folder.name = uniq_id
             folder.children = [place]
 
-            with open(self._path('out_todo', uniq_id, 'index.wtml'), 'w') as f:
+            # We potentially generate two WTML files. `index_rel.wtml` may
+            # contain URLs that are relative to the `index_rel.wtml` file for
+            # local data. `index.wtml` contains only absolute URLs, which
+            # requires us to use some configuration data. The `place` that we
+            # get out of the processing stage has relative URLs.
+
+            with open(self._path('out_todo', uniq_id, 'index_rel.wtml'), 'w') as f:
                 write_xml_doc(folder.to_xml(), dest_stream=f)
+
+            if pub_url_prefix:
+                pfx = pub_url_prefix + uniq_id + '/'
+                place.foreground_image_set.url = maybe_prefix_url(place.foreground_image_set.url, pfx)
+                place.foreground_image_set.credits_url = maybe_prefix_url(place.foreground_image_set.credits_url, pfx)
+                place.foreground_image_set.thumbnail_url = maybe_prefix_url(place.foreground_image_set.thumbnail_url, pfx)
+                place.thumbnail = maybe_prefix_url(place.thumbnail, pfx)
+
+                with open(self._path('out_todo', uniq_id, 'index.wtml'), 'w') as f:
+                    write_xml_doc(folder.to_xml(), dest_stream=f)
+
+            # All done here.
 
             os.rename(cachedir, self._path('cache_done', uniq_id))
 
@@ -854,6 +882,8 @@ class PipelineManager(object):
                 temp = filenames[-1]
                 filenames[-1] = 'index.wtml'
                 filenames[index_index] = temp
+
+            print(f'publishing {dirpath} ...')
 
             for filename in filenames:
                 # Get the components of the item path relative to todo_dir.

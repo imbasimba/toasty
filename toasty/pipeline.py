@@ -22,6 +22,7 @@ PipelineIo
 '''.split()
 
 from abc import ABC, abstractclassmethod, abstractmethod
+from datetime import datetime
 import numpy as np
 import os.path
 import shutil
@@ -508,7 +509,7 @@ class InputImage(ABC):
         pass
 
     @abstractmethod
-    def _process_image_metadata(self, imgset):
+    def _process_image_metadata(self, imgset, place):
         """Fill the ImageSet object with metadata.
 
         Parameters
@@ -517,6 +518,8 @@ class InputImage(ABC):
            An object representing metadata about the resulting WWT-compatible
            imagery. Fields inside this object should be filled in as
            appropriate to correspond to the image metadata.
+        place : :class:`wwt_data_formats.place.Place`
+           A "Place" object that will contain the imgset.
 
         Returns
         -------
@@ -553,7 +556,7 @@ class InputImage(ABC):
 
         self._process_image_data(imgset, outdir)
         self._process_image_coordinates(imgset, place)
-        self._process_image_metadata(imgset)
+        self._process_image_metadata(imgset, place)
 
         place.name = imgset.name
         place.description = imgset.description
@@ -736,11 +739,15 @@ class AstroPixInputImage(BitmapInputImage):
             urlquote(self.image_id),
         )
 
-    def _process_image_metadata(self, imgset):
+    def _process_image_metadata(self, imgset, place):
         imgset.name = self.title
         imgset.description = self.description
         imgset.credits = self.image_credit
         imgset.credits_url = self._get_credit_url()
+
+        # Check if the last-updated text parses as an ISO8601 datetime:
+        datetime.fromisoformat(self.last_updated)
+        place.meta['LastUpdated'] = self.last_updated
 
 
 # The PipelineManager class that orchestrates it all

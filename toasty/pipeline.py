@@ -46,6 +46,28 @@ def maybe_prefix_url(url, prefix):
         return prefix + url
     return url
 
+def splitall(path):
+    """Split a path into individual components.
+
+    E.g.: "/a/b" => ["/", "a", "b"]; "b/c" => ["b", "c"]
+
+    From https://www.oreilly.com/library/view/python-cookbook/0596001673/ch04s16.html.
+    """
+    allparts = []
+
+    while True:
+        parts = os.path.split(path)
+        if parts[0] == path:  # sentinel for absolute paths
+            allparts.insert(0, parts[0])
+            break
+        elif parts[1] == path: # sentinel for relative paths
+            allparts.insert(0, parts[1])
+            break
+        else:
+            path = parts[0]
+            allparts.insert(0, parts[1])
+    return allparts
+
 class NotActionableError(Exception):
     """Raised when an image is provided to the pipeline but for some reason we're
     not going to be able to get it into a WWT-compatible form.
@@ -798,7 +820,7 @@ class PipelineManager(object):
     def process_todos(self):
         src = self.get_image_source()
         self._ensure_dir('cache_done')
-        baseoutdir = self._ensure_dir('out')
+        baseoutdir = self._ensure_dir('out_todo')
 
         for uniq_id in os.listdir(self._path('cache_todo')):
             cachedir = self._path('cache_todo', uniq_id)
@@ -810,7 +832,41 @@ class PipelineManager(object):
             folder.name = uniq_id
             folder.children = [place]
 
-            with open(self._path('out', uniq_id, 'index.wtml'), 'w') as f:
+            with open(self._path('out_todo', uniq_id, 'index.wtml'), 'w') as f:
                 write_xml_doc(folder.to_xml(), dest_stream=f)
 
             os.rename(cachedir, self._path('cache_done', uniq_id))
+
+    def publish_todos(self):
+        done_dir = self._ensure_dir('out_done')
+        todo_dir = self._path('out_todo')
+        pfx = todo_dir + os.path.sep
+
+        for dirpath, dirnames, filenames in os.walk(todo_dir, topdown=False):
+            # If there's a index.wtml file, save it for last -- that will
+            # indicate that this directory has uploaded fully successfully.
+
+            try:
+                index_index = filenames.index('index.wtml')
+            except ValueError:
+                pass
+            else:
+                temp = filenames[-1]
+                filenames[-1] = 'index.wtml'
+                filenames[index_index] = temp
+
+            for filename in filenames:
+                # Get the components of the item path relative to todo_dir.
+                p = os.path.join(dirpath, filename)
+                assert p.startswith(pfx)
+                sub_components = splitall(p[len(pfx):])
+
+                with open(p, 'rb') as f:
+                    self._pipeio.put_item(*sub_components, source=f)
+
+                done_path = os.path.join(done_dir, *sub_components)
+                self._ensure_dir('out_done', *sub_components[:-1])
+                os.rename(p, done_path)
+
+            # All the files are gone. We can remove this directory.
+            os.rmdir(dirpath)

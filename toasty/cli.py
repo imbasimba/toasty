@@ -393,6 +393,25 @@ def pipeline_process_todos_impl(settings):
     mgr.process_todos()
 
 
+# "pipeline_publish_todos" subcommand
+
+def pipeline_publish_todos_getparser(parser):
+    _pipeline_add_io_args(parser)
+    parser.add_argument(
+        'workdir',
+        metavar = 'PATH',
+        default = '.',
+        help = 'The local working directory',
+    )
+
+def pipeline_publish_todos_impl(settings):
+    from .pipeline import PipelineManager
+
+    pipeio = _pipeline_io_from_settings(settings)
+    mgr = PipelineManager(pipeio, settings.workdir)
+    mgr.publish_todos()
+
+
 # "study_sample_image_tiles" subcommand
 
 def study_sample_image_tiles_getparser(parser):

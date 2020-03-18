@@ -22,7 +22,7 @@ PipelineIo
 '''.split()
 
 from abc import ABC, abstractclassmethod, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 import numpy as np
 import os.path
 import shutil
@@ -745,9 +745,12 @@ class AstroPixInputImage(BitmapInputImage):
         imgset.credits = self.image_credit
         imgset.credits_url = self._get_credit_url()
 
-        # Check if the last-updated text parses as an ISO8601 datetime:
-        datetime.fromisoformat(self.last_updated)
-        place.meta['LastUpdated'] = self.last_updated
+        # Parse the last-updated time and normalize it.
+        ludt = datetime.fromisoformat(self.last_updated)
+        if ludt.tzinfo is None:
+            ludt = ludt.replace(tzinfo=timezone.utc)
+
+        place.xmeta.LastUpdated = str(ludt)
 
 
 # The PipelineManager class that orchestrates it all

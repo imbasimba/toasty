@@ -54,12 +54,13 @@ def stub_wtml(imgset, wtml_path):
 
     """
     from wwt_data_formats import write_xml_doc
+    from wwt_data_formats.enums import DataSetType
     from wwt_data_formats.folder import Folder
     from wwt_data_formats.place import Place
 
     folder = Folder()
     place = Place()
-    place.data_set_type = 'Sky'
+    place.data_set_type = DataSetType.SKY
     place.foreground_image_set = imgset
     folder.children = [place]
 

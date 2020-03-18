@@ -327,14 +327,14 @@ def _pipeline_add_io_args(parser):
     parser.add_argument(
         '--local',
         metavar = 'PATH',
-        help = 'Use the local testing I/O backend'
+        help = 'Use the local-disk I/O backend'
     )
 
 def _pipeline_io_from_settings(settings):
-    from .pipeline import AzureBlobPipelineIo, LocalTestPipelineIo
+    from .pipeline import AzureBlobPipelineIo, LocalPipelineIo
 
     if settings.local:
-        return LocalTestPipelineIo(settings.local)
+        return LocalPipelineIo(settings.local)
 
     if settings.azure_conn_env:
         conn_str = os.environ.get(settings.azure_conn_env)

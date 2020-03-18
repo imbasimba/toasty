@@ -413,6 +413,25 @@ def pipeline_publish_todos_impl(settings):
     mgr.publish_todos()
 
 
+# "pipeline_reindex" subcommand
+
+def pipeline_reindex_getparser(parser):
+    _pipeline_add_io_args(parser)
+    parser.add_argument(
+        'workdir',
+        metavar = 'WORKDIR',
+        default = '.',
+        help = 'The local working directory',
+    )
+
+def pipeline_reindex_impl(settings):
+    from .pipeline import PipelineManager
+
+    pipeio = _pipeline_io_from_settings(settings)
+    mgr = PipelineManager(pipeio, settings.workdir)
+    mgr.reindex()
+
+
 # "study_sample_image_tiles" subcommand
 
 def study_sample_image_tiles_getparser(parser):

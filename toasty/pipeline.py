@@ -607,7 +607,7 @@ class InputImage(ABC):
         self._process_image_metadata(imgset, place)
 
         place.name = imgset.name
-        place.description = imgset.description
+        place.data_set_type = imgset.data_set_type
         place.thumbnail = imgset.thumbnail_url
 
         return place
@@ -958,3 +958,58 @@ class PipelineManager(object):
 
             # All the files are gone. We can remove this directory.
             os.rmdir(dirpath)
+
+    def reindex(self):
+        from io import BytesIO
+        from xml.etree import ElementTree as etree
+
+        self.ensure_config()
+
+        def get_items():
+            for stem, is_folder in self._pipeio.list_items():
+                if not is_folder:
+                    continue
+
+                wtml_data = BytesIO()
+                self._pipeio.get_item(stem, 'index.wtml', dest=wtml_data)
+                wtml_data = wtml_data.getvalue()
+                if not len(wtml_data):
+                    continue
+
+                xml = etree.fromstring(wtml_data)
+                folder = Folder.from_xml(xml)
+                pl = folder.children[0]
+                assert isinstance(pl, Place)
+                yield pl
+
+        def get_updated(pl):
+            ludt = datetime.fromisoformat(pl.xmeta.LastUpdated)
+            if ludt.tzinfo is None:
+                ludt = ludt.replace(tzinfo=timezone.utc)
+            return ludt
+
+        items = sorted(
+            get_items(),
+            key = get_updated,
+            reverse = True
+        )
+
+        folder = Folder()
+        folder.children = items
+        folder.name = self._config['folder_name']
+        folder.thumbnail = self._config['folder_thumbnail_url']
+
+        indexed = BytesIO()
+        write_xml_doc(folder.to_xml(), dest_stream=indexed, dest_wants_bytes=True)
+
+        indexed.seek(0)
+        self._pipeio.put_item('index.wtml', source=indexed)
+
+        n = len(folder.children)
+
+        pub_url_prefix = self._config.get('publish_url_prefix')
+        if pub_url_prefix:
+            if pub_url_prefix[-1] != '/':
+                pub_url_prefix += '/'
+
+        print(f'Published new index of {n} items to: {pub_url_prefix}index.wtml')

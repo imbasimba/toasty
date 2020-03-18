@@ -362,7 +362,7 @@ def pipeline_fetch_inputs_getparser(parser):
     _pipeline_add_io_args(parser)
     parser.add_argument(
         'workdir',
-        metavar = 'PATH',
+        metavar = 'WORKDIR',
         default = '.',
         help = 'The local working directory',
     )
@@ -381,7 +381,7 @@ def pipeline_process_todos_getparser(parser):
     _pipeline_add_io_args(parser)
     parser.add_argument(
         'workdir',
-        metavar = 'PATH',
+        metavar = 'WORKDIR',
         default = '.',
         help = 'The local working directory',
     )
@@ -400,7 +400,7 @@ def pipeline_publish_todos_getparser(parser):
     _pipeline_add_io_args(parser)
     parser.add_argument(
         'workdir',
-        metavar = 'PATH',
+        metavar = 'WORKDIR',
         default = '.',
         help = 'The local working directory',
     )

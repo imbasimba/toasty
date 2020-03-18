@@ -18,6 +18,7 @@ CandidateInput
 ImageSource
 InputImage
 LocalPipelineIo
+NotActionableError
 PipelineIo
 '''.split()
 
@@ -615,7 +616,7 @@ class InputImage(ABC):
 
 class BitmapInputImage(InputImage):
     """An abstract base class for an input image whose data are stored as an RGB
-    bitmap that we will read into memory all at once using the :mod:`PIL`
+    bitmap that we will read into memory all at once using the ``PIL``
     module.
 
     This ABC implements the :meth:`_process_image_data` method on the parent

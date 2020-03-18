@@ -25,6 +25,10 @@ API Documentation
    :no-inheritance-diagram:
    :no-inherited-members:
 
+.. automodapi:: toasty.pipeline
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
 .. automodapi:: toasty.pyramid
    :no-inheritance-diagram:
    :no-inherited-members:

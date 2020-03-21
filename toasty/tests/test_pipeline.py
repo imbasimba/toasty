@@ -116,3 +116,29 @@ class TestPipeline(object):
             self.work_path('work'),
         ]
         cli.entrypoint(args)
+
+    def test_args(self):
+        with pytest.raises(SystemExit):
+            args = [
+                'pipeline-fetch-inputs',
+                self.work_path('work'),
+            ]
+            cli.entrypoint(args)
+
+        with pytest.raises(SystemExit):
+            args = [
+                'pipeline-fetch-inputs',
+                '--azure-conn-env', 'NOTAVARIABLE',
+                self.work_path('work'),
+            ]
+            cli.entrypoint(args)
+
+        os.environ['FAKECONNSTRING'] = 'fake'
+
+        with pytest.raises(SystemExit):
+            args = [
+                'pipeline-fetch-inputs',
+                '--azure-conn-env', 'FAKECONNSTRING',
+                self.work_path('work'),
+            ]
+            cli.entrypoint(args)

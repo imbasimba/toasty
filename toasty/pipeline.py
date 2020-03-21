@@ -891,8 +891,11 @@ class PipelineManager(object):
 
     def fetch_inputs(self):
         src = self.get_image_source()
+        n_cand = 0
+        n_cached = 0
 
         for cand in src.query_candidates():
+            n_cand += 1
             uniq_id = cand.get_unique_id()
             if self._pipeio.check_exists(uniq_id, 'index.wtml'):
                 continue  # skip already-done inputs
@@ -905,9 +908,12 @@ class PipelineManager(object):
             try:
                 print(f'caching candidate input {uniq_id} ...')
                 cand.cache_data(cachedir)
+                n_cached += 1
             except NotActionableError as e:
                 print(f'skipping {uniq_id}: not ingestible into WWT: {e}')
                 shutil.rmtree(cachedir)
+
+        print(f'queued {n_cached} images for processing, out of {n_cand} candidates')
 
     def process_todos(self):
         src = self.get_image_source()

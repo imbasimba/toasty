@@ -1,0 +1,7 @@
+source_type: _local_test_astropix
+publish_url_prefix: //localhost/
+folder_name: LocalTestAstropix
+folder_thumbnail_url: //www.worldwidetelescope.org/wwtweb/thumbnail.aspx?name=radiostudies
+
+astropix:
+  json_query_url: https://unused.example.com/

@@ -167,8 +167,17 @@ def generate_pos(depth):
 class PyramidIO(object):
     """Manage I/O on a tile pyramid."""
 
-    def __init__(self, base_dir):
+    def __init__(self, base_dir, scheme='L/Y/YX'):
         self._base_dir = base_dir
+
+        if scheme == 'L/Y/YX':
+            self._tile_path = self._tile_path_LsYsYX
+            self._scheme = '{1}/{3}/{3}_{2}'
+        elif scheme == 'LXY':
+            self._tile_path = self._tile_path_LXY
+            self._scheme = 'L{1}X{2}Y{3}'
+        else:
+            raise ValueError(f'unsupported "scheme" option for PyramidIO: {scheme}')
 
     def tile_path(self, pos, extension='png'):
         """Get the path for a tile, creating its containing directories.
@@ -194,7 +203,9 @@ class PyramidIO(object):
         level = str(pos.n)
         ix = str(pos.x)
         iy = str(pos.y)
+        return self._tile_path(level, ix, iy, extension)
 
+    def _tile_path_LsYsYX(self, level, ix, iy, extension):
         d = os.path.join(self._base_dir, level, iy)
 
         # We can't use the `exist_ok` kwarg because it's not available in Python 2.
@@ -205,6 +216,19 @@ class PyramidIO(object):
                 raise  # not EEXIST
 
         return os.path.join(d, '{}_{}.{}'.format(iy, ix, extension))
+
+    def _tile_path_LXY(self, level, ix, iy, extension):
+        # We can't use the `exist_ok` kwarg because it's not available in Python 2.
+        try:
+            os.makedirs(self._base_dir)
+        except OSError as e:
+            if e.errno != 17:
+                raise  # not EEXIST
+
+        return os.path.join(
+            self._base_dir,
+            'L{}X{}Y{}.{}'.format(level, ix, iy, extension)
+        )
 
     def get_path_scheme(self):
         """Get the scheme for buiding tile paths as used in the WTML standard.
@@ -219,7 +243,7 @@ class PyramidIO(object):
         but in the future other options might become available.
 
         """
-        return '{1}/{3}/{3}_{2}'
+        return self._scheme
 
     def read_image(self, pos, extension='png', default='none'):
         """Read an image file for the specified tile position.

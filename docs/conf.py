@@ -42,13 +42,23 @@ intersphinx_mapping = {
         (None, 'http://data.astropy.org/intersphinx/python3.inv')
     ),
 
+    'astropy': (
+        'http://docs.astropy.org/en/stable/',
+        None
+    ),
+
     'numpy': (
         'https://docs.scipy.org/doc/numpy/',
         (None, 'http://data.astropy.org/intersphinx/numpy.inv')
     ),
 
-    'astropy': (
-        'http://docs.astropy.org/en/stable/',
+    'PIL': (
+        'https://pillow.readthedocs.io/en/stable/',
+        None
+    ),
+
+    'wwt_data_formats': (
+        'https://wwt-data-formats.readthedocs.io/en/stable/',
         None
     ),
 }
@@ -56,7 +66,9 @@ intersphinx_mapping = {
 numpydoc_show_class_members = False
 
 nitpicky = True
-nitpick_ignore = [('py:class', 'ipywidgets.widgets.domwidget.DOMWidget')]
+nitpick_ignore = [
+    ('py:class', 'ipywidgets.widgets.domwidget.DOMWidget')
+]
 
 default_role = 'obj'
 

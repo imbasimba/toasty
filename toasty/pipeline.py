@@ -75,7 +75,6 @@ class NotActionableError(Exception):
     not going to be able to get it into a WWT-compatible form.
 
     """
-    pass
 
 EXTENSION_REMAPPING = {
     'jpeg': 'jpg',
@@ -90,6 +89,21 @@ class PipelineIo(ABC):
     storage system like S3 or Azure Storage.
 
     """
+    @abstractmethod
+    def check_exists(self, *path):
+        """Test whether an item at the specified path exists.
+
+        Parameters
+        ----------
+        *path : strings
+            The path to the item, intepreted as components in a folder hierarchy.
+
+        Returns
+        -------
+        A boolean indicating whether the item in question exists.
+
+        """
+
     @abstractmethod
     def get_item(self, *path, dest=None):
         """Fetch a file-like item at the specified path, writing its contents into the
@@ -107,7 +121,6 @@ class PipelineIo(ABC):
         None.
 
         """
-        pass
 
     @abstractmethod
     def put_item(self, *path, source=None):
@@ -126,7 +139,6 @@ class PipelineIo(ABC):
         None.
 
         """
-        pass
 
     @abstractmethod
     def list_items(self, *path):
@@ -144,7 +156,6 @@ class PipelineIo(ABC):
         indicating whether this item appears to be a folder itself.
 
         """
-        pass
 
 class AzureBlobPipelineIo(PipelineIo):
     """I/O for pipeline processing that uses Microsoft Azure Blob Storage.
@@ -184,6 +195,12 @@ class AzureBlobPipelineIo(PipelineIo):
     def _make_blob_name(self, path_array):
         """TODO: is this actually correct? Escaping?"""
         return '/'.join(self._path_prefix + tuple(path_array))
+
+    def check_exists(self, *path):
+        return self._svc.exists(
+            self._container_name,
+            self._make_blob_name(path),
+        )
 
     def get_item(self, *path, dest=None):
         self._svc.get_blob_to_stream(
@@ -237,6 +254,9 @@ class LocalPipelineIo(PipelineIo):
     def _make_item_name(self, path_array):
         return os.path.join(self._path_prefix, *path_array)
 
+    def check_exists(self, *path):
+        return os.path.exists(self._make_item_name(path))
+
     def get_item(self, *path, dest=None):
         with open(self._make_item_name(path), 'rb') as f:
             shutil.copyfileobj(f, dest)
@@ -274,7 +294,6 @@ class ImageSource(ABC):
         A string giving a key name usable in a YAML file.
 
         """
-        pass
 
     @abstractclassmethod
     def deserialize(cls, data):
@@ -292,7 +311,6 @@ class ImageSource(ABC):
         An instance of *cls*
 
         """
-        pass
 
     @abstractmethod
     def query_candidates(self):
@@ -304,7 +322,6 @@ class ImageSource(ABC):
         A generator that yields a sequence of :class:`CandidateInput` instances.
 
         """
-        pass
 
     @abstractmethod
     def open_input(self, unique_id, cachedir):
@@ -324,7 +341,6 @@ class ImageSource(ABC):
         An instance of :class:`InputImage` corresponding to the cached data.
 
         """
-        pass
 
 _image_source_types = {}
 
@@ -384,7 +400,6 @@ class CandidateInput(ABC):
         characters, i.e. ASCII without spaces.
 
         """
-        pass
 
     @abstractmethod
     def cache_data(self, cachedir):
@@ -406,7 +421,6 @@ class CandidateInput(ABC):
         None.
 
         """
-        pass
 
 
 class AstroPixCandidateInput(CandidateInput):
@@ -535,7 +549,6 @@ class InputImage(ABC):
         This function should also take care of creating the thumbnail.
 
         """
-        pass
 
     @abstractmethod
     def _process_image_coordinates(self, imgset, place):
@@ -555,7 +568,6 @@ class InputImage(ABC):
         None.
 
         """
-        pass
 
     @abstractmethod
     def _process_image_metadata(self, imgset, place):
@@ -575,7 +587,6 @@ class InputImage(ABC):
         None.
 
         """
-        pass
 
     def process_image(self, baseoutdir):
         """Convert the image into WWT-compatible data and metadata.
@@ -639,7 +650,6 @@ class BitmapInputImage(InputImage):
         :meth:`InputImage.ensure_input_cached` has already been called.
 
         """
-        pass
 
     def _ensure_bitmap(self):
         """Ensure that ``self._bitmap`` is loaded."""
@@ -866,20 +876,29 @@ class PipelineManager(object):
 
     def fetch_inputs(self):
         src = self.get_image_source()
+        n_cand = 0
+        n_cached = 0
 
         for cand in src.query_candidates():
-            # TODO: skip ones that have already been processed
-
+            n_cand += 1
             uniq_id = cand.get_unique_id()
+            if self._pipeio.check_exists(uniq_id, 'index.wtml'):
+                continue  # skip already-done inputs
+            if self._pipeio.check_exists(uniq_id, 'skip.flag'):
+                continue  # skip inputs that are explicitly flagged
+
             cachedir = self._ensure_dir('cache_todo', uniq_id)
 
             # XXX printing is lame
             try:
                 print(f'caching candidate input {uniq_id} ...')
                 cand.cache_data(cachedir)
+                n_cached += 1
             except NotActionableError as e:
                 print(f'skipping {uniq_id}: not ingestible into WWT: {e}')
                 shutil.rmtree(cachedir)
+
+        print(f'queued {n_cached} images for processing, out of {n_cand} candidates')
 
     def process_todos(self):
         src = self.get_image_source()

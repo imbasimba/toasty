@@ -75,7 +75,6 @@ class NotActionableError(Exception):
     not going to be able to get it into a WWT-compatible form.
 
     """
-    pass
 
 EXTENSION_REMAPPING = {
     'jpeg': 'jpg',
@@ -104,7 +103,6 @@ class PipelineIo(ABC):
         A boolean indicating whether the item in question exists.
 
         """
-        pass
 
     @abstractmethod
     def get_item(self, *path, dest=None):
@@ -123,7 +121,6 @@ class PipelineIo(ABC):
         None.
 
         """
-        pass
 
     @abstractmethod
     def put_item(self, *path, source=None):
@@ -142,7 +139,6 @@ class PipelineIo(ABC):
         None.
 
         """
-        pass
 
     @abstractmethod
     def list_items(self, *path):
@@ -160,7 +156,6 @@ class PipelineIo(ABC):
         indicating whether this item appears to be a folder itself.
 
         """
-        pass
 
 class AzureBlobPipelineIo(PipelineIo):
     """I/O for pipeline processing that uses Microsoft Azure Blob Storage.
@@ -299,7 +294,6 @@ class ImageSource(ABC):
         A string giving a key name usable in a YAML file.
 
         """
-        pass
 
     @abstractclassmethod
     def deserialize(cls, data):
@@ -317,7 +311,6 @@ class ImageSource(ABC):
         An instance of *cls*
 
         """
-        pass
 
     @abstractmethod
     def query_candidates(self):
@@ -329,7 +322,6 @@ class ImageSource(ABC):
         A generator that yields a sequence of :class:`CandidateInput` instances.
 
         """
-        pass
 
     @abstractmethod
     def open_input(self, unique_id, cachedir):
@@ -349,7 +341,6 @@ class ImageSource(ABC):
         An instance of :class:`InputImage` corresponding to the cached data.
 
         """
-        pass
 
 _image_source_types = {}
 
@@ -409,7 +400,6 @@ class CandidateInput(ABC):
         characters, i.e. ASCII without spaces.
 
         """
-        pass
 
     @abstractmethod
     def cache_data(self, cachedir):
@@ -431,7 +421,6 @@ class CandidateInput(ABC):
         None.
 
         """
-        pass
 
 
 class AstroPixCandidateInput(CandidateInput):
@@ -560,7 +549,6 @@ class InputImage(ABC):
         This function should also take care of creating the thumbnail.
 
         """
-        pass
 
     @abstractmethod
     def _process_image_coordinates(self, imgset, place):
@@ -580,7 +568,6 @@ class InputImage(ABC):
         None.
 
         """
-        pass
 
     @abstractmethod
     def _process_image_metadata(self, imgset, place):
@@ -600,7 +587,6 @@ class InputImage(ABC):
         None.
 
         """
-        pass
 
     def process_image(self, baseoutdir):
         """Convert the image into WWT-compatible data and metadata.
@@ -664,7 +650,6 @@ class BitmapInputImage(InputImage):
         :meth:`InputImage.ensure_input_cached` has already been called.
 
         """
-        pass
 
     def _ensure_bitmap(self):
         """Ensure that ``self._bitmap`` is loaded."""

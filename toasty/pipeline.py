@@ -91,6 +91,22 @@ class PipelineIo(ABC):
 
     """
     @abstractmethod
+    def check_exists(self, *path):
+        """Test whether an item at the specified path exists.
+
+        Parameters
+        ----------
+        *path : strings
+            The path to the item, intepreted as components in a folder hierarchy.
+
+        Returns
+        -------
+        A boolean indicating whether the item in question exists.
+
+        """
+        pass
+
+    @abstractmethod
     def get_item(self, *path, dest=None):
         """Fetch a file-like item at the specified path, writing its contents into the
         specified file-like object *dest*.
@@ -185,6 +201,12 @@ class AzureBlobPipelineIo(PipelineIo):
         """TODO: is this actually correct? Escaping?"""
         return '/'.join(self._path_prefix + tuple(path_array))
 
+    def check_exists(self, *path):
+        return self._svc.exists(
+            self._container_name,
+            self._make_blob_name(path),
+        )
+
     def get_item(self, *path, dest=None):
         self._svc.get_blob_to_stream(
             self._container_name,
@@ -236,6 +258,9 @@ class LocalPipelineIo(PipelineIo):
 
     def _make_item_name(self, path_array):
         return os.path.join(self._path_prefix, *path_array)
+
+    def check_exists(self, *path):
+        return os.path.exists(self._make_item_name(path))
 
     def get_item(self, *path, dest=None):
         with open(self._make_item_name(path), 'rb') as f:
@@ -868,9 +893,10 @@ class PipelineManager(object):
         src = self.get_image_source()
 
         for cand in src.query_candidates():
-            # TODO: skip ones that have already been processed
-
             uniq_id = cand.get_unique_id()
+            if self._pipeio.check_exists(uniq_id, 'index.wtml'):
+                continue  # skip already-done inputs
+
             cachedir = self._ensure_dir('cache_todo', uniq_id)
 
             # XXX printing is lame

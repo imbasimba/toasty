@@ -140,7 +140,9 @@ The current directory (``.``) is a fine choice.
 
 The data will be downloaded into a subdirectory ``cache_todo`` of the work
 directory. Within this directory, there will be one subdirectory for each
-image to process.
+image to process. Images that have already been processed, as determined by
+checking for an ``index.wtml`` in the data repository inside a folder with
+each image’s unique ID, will be skipped.
 
 
 Stage 2: Data Processing

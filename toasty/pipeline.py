@@ -896,6 +896,8 @@ class PipelineManager(object):
             uniq_id = cand.get_unique_id()
             if self._pipeio.check_exists(uniq_id, 'index.wtml'):
                 continue  # skip already-done inputs
+            if self._pipeio.check_exists(uniq_id, 'skip.flag'):
+                continue  # skip inputs that are explicitly flagged
 
             cachedir = self._ensure_dir('cache_todo', uniq_id)
 

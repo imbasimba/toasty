@@ -142,7 +142,9 @@ The data will be downloaded into a subdirectory ``cache_todo`` of the work
 directory. Within this directory, there will be one subdirectory for each
 image to process. Images that have already been processed, as determined by
 checking for an ``index.wtml`` in the data repository inside a folder with
-each image’s unique ID, will be skipped.
+each image’s unique ID, will be skipped. Images can be forced to be skipped by
+creating a file named ``skip.flag`` in the subfolder where the ``index.wtml``
+would go.
 
 
 Stage 2: Data Processing

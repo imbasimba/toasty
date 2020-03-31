@@ -989,6 +989,8 @@ class PipelineManager(object):
             for stem, is_folder in self._pipeio.list_items():
                 if not is_folder:
                     continue
+                if not self._pipeio.check_exists(stem, 'index.wtml'):
+                    continue
 
                 wtml_data = BytesIO()
                 self._pipeio.get_item(stem, 'index.wtml', dest=wtml_data)

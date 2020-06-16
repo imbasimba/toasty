@@ -20,9 +20,9 @@ def save_png(pth, array):
     Parameters
     ----------
     pth : str
-       Path to write to
+        Path to write to
     array : array-like
-       Image to save
+        Image to save
     """
     Image.fromarray(array).save(pth)
 
@@ -37,7 +37,14 @@ def read_image(path):
     Parameters
     ----------
     path : str
-       The path of the image to read
+        The path of the image to read
+
+    Returns
+    -------
+    data : :class:`numpy.ndarray`
+        The image data. The array will have shape ``(height, width, planes)``, where
+        the first two axes are the image shape and the third is the number of color planes:
+        3 for RGB or potentially 4 for ARGB. The data type will be ``uint8``.
 
     """
     return np.asarray(Image.open(path))

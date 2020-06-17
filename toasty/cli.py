@@ -49,8 +49,9 @@ def indent_xml(elem, level=0):
             elem.tail = i
 
 
-def stub_wtml(imgset, wtml_path):
-    """Given an ImageSet object, save its information into a stub WTML file.
+def stub_wtml(imgset, wtml_path, place=None):
+    """Given an ImageSet object and potential a Place, save its information into a
+    stub WTML file.
 
     """
     from wwt_data_formats import write_xml_doc
@@ -59,12 +60,15 @@ def stub_wtml(imgset, wtml_path):
     from wwt_data_formats.place import Place
 
     folder = Folder()
-    place = Place()
-    place.data_set_type = DataSetType.SKY
-    place.foreground_image_set = imgset
-    place.name = 'Toasty'
-    place.thumbnail = imgset.thumbnail_url
-    place.zoom_level = 1.0
+
+    if place is None:
+        place = Place()
+        place.data_set_type = DataSetType.SKY
+        place.foreground_image_set = imgset
+        place.name = 'Toasty'
+        place.thumbnail = imgset.thumbnail_url
+        place.zoom_level = 1.0
+
     folder.children = [place]
 
     with open(wtml_path, 'wt') as f:
@@ -481,6 +485,92 @@ def study_sample_image_tiles_impl(settings):
     imgset.thumbnail_url = 'thumb.jpg'
     imgset.url = pio.get_path_scheme() + '.png'
     stub_wtml(imgset, os.path.join(settings.outdir, 'index_rel.wtml'))
+
+
+# "wwtl_sample_image_tiles" subcommand
+
+def wwtl_sample_image_tiles_getparser(parser):
+    parser.add_argument(
+        '--outdir',
+        metavar = 'PATH',
+        default = '.',
+        help = 'The root directory of the output tile pyramid',
+    )
+    parser.add_argument(
+        'wwtl_path',
+        metavar = 'WWTL-PATH',
+        help = 'The WWTL layer file to be processed',
+    )
+
+
+def wwtl_sample_image_tiles_impl(settings):
+    from io import BytesIO
+    import numpy as np
+    import PIL.Image
+
+    from wwt_data_formats.enums import DataSetType, ProjectionType
+    from wwt_data_formats.layers import ImageSetLayer, LayerContainerReader
+    from wwt_data_formats.place import Place
+
+    from .io import read_image_as_pil
+    from .pyramid import PyramidIO
+    from .study import make_thumbnail_bitmap, tile_study_image
+
+    # Prevent max image size aborts:
+    PIL.Image.MAX_IMAGE_PIXELS = None
+
+    # Load WWTL and see if it matches expectations
+    lc = LayerContainerReader.from_file(settings.wwtl_path)
+
+    if len(lc.layers) != 1:
+        die('WWTL file must contain exactly one layer')
+
+    layer = lc.layers[0]
+    if not isinstance(layer, ImageSetLayer):
+        die('WWTL file must contain an imageset layer')
+
+    imgset = layer.image_set
+    if imgset.projection != ProjectionType.SKY_IMAGE:
+        die('WWTL imageset layer must have "SkyImage" projection type')
+
+    # Looks OK. Read and parse the image.
+    img_data = lc.read_layer_file(layer, layer.extension)
+    img = PIL.Image.open(BytesIO(img_data))
+
+    # Tile it!
+    pio = PyramidIO(settings.outdir)
+    tiling = tile_study_image(np.asarray(img), pio)
+
+    # Thumbnail.
+    thumb = make_thumbnail_bitmap(img)
+    thumb.save(os.path.join(settings.outdir, 'thumb.jpg'), format='JPEG')
+
+    # Write a WTML file. We reuse the existing imageset as much as possible,
+    # but update the parameters that change in the tiling process.
+
+    place = Place()
+    wcs_keywords = imgset.wcs_headers_from_position()
+    tiling.apply_to_imageset(imgset)
+    imgset.set_position_from_wcs(wcs_keywords, img.width, img.height, place=place)
+
+    if not imgset.name:
+        imgset.name = 'Toasty'
+    imgset.thumbnail_url = 'thumb.jpg'
+    imgset.url = pio.get_path_scheme() + '.png'
+
+    place.data_set_type = DataSetType.SKY
+    place.foreground_image_set = imgset
+    place.name = imgset.name
+    place.thumbnail = imgset.thumbnail_url
+
+    stub_wtml(imgset, os.path.join(settings.outdir, 'index_rel.wtml'), place=place)
+
+    # Helpful hint:
+
+    print(f'Successfully tiled input "{settings.wwtl_path}" at level {imgset.tile_levels}.')
+    print('To create parent tiles, consider running:')
+    print()
+    print(f'   toasty cascade --start {imgset.tile_levels} {settings.outdir}')
 
 
 # The CLI driver:

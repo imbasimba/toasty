@@ -131,35 +131,3 @@ class TestMultiTan(object):
             test_path('wcs512.fits.gz')
         ]
         cli.entrypoint(args)
-
-
-    def test_basic_wtml_cli(self):
-        from xml.etree import ElementTree as etree
-        expected = etree.fromstring(self.WTML)
-
-        prev_stdout = sys.stdout
-        from io import BytesIO
-        output = BytesIO()
-
-        try:
-            sys.stdout = output
-            args = [
-                'multi-tan-make-wtml',
-                '--hdu-index', '0',
-                '--name', 'TestName',
-                '--url-prefix', 'UP',
-                '--fov-factor', '1.0',
-                '--bandpass', 'Gamma',
-                '--description', 'DT',
-                '--credits-text', 'CT',
-                '--credits-url', 'CU',
-                '--thumbnail-url', 'TU',
-                test_path('wcs512.fits.gz')
-            ]
-            cli.entrypoint(args)
-        finally:
-            sys.stdout = prev_stdout
-
-        observed = etree.fromstring(output.getvalue())
-        output.close()
-        assert_xml_elements_equal(observed, expected)

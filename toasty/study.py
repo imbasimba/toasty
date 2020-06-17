@@ -97,10 +97,18 @@ class StudyTiling(object):
 
         Remarks
         -------
-        The only setting currently transferred is the number of tile levels.
+        The settings currently transferred are the number of tile levels and
+        the projection type.
 
         """
+        from wwt_data_formats.enums import ProjectionType
+
         imgset.tile_levels = self._tile_levels
+
+        if self._tile_levels == 0:
+          imgset.projection = ProjectionType.SKY_IMAGE
+        else:
+          imgset.projection = ProjectionType.TAN
 
 
     def image_to_tile(self, im_ix, im_iy):

@@ -62,6 +62,9 @@ def stub_wtml(imgset, wtml_path):
     place = Place()
     place.data_set_type = DataSetType.SKY
     place.foreground_image_set = imgset
+    place.name = 'Toasty'
+    place.thumbnail = imgset.thumbnail_url
+    place.zoom_level = 1.0
     folder.children = [place]
 
     with open(wtml_path, 'wt') as f:
@@ -449,16 +452,24 @@ def study_sample_image_tiles_getparser(parser):
 
 
 def study_sample_image_tiles_impl(settings):
+    import numpy as np
+    import PIL.Image
     from wwt_data_formats.imageset import ImageSet
-    from .io import read_image
+    from .io import read_image_as_pil
     from .pyramid import PyramidIO
-    from .study import tile_study_image
+    from .study import make_thumbnail_bitmap, tile_study_image
 
-    # Create the base tiles.
+    # Prevent max image size aborts:
+    PIL.Image.MAX_IMAGE_PIXELS = None
 
+    # Load image.
     pio = PyramidIO(settings.outdir)
-    img = read_image(settings.imgpath)
-    tiling = tile_study_image(img, pio)
+    img = read_image_as_pil(settings.imgpath)
+    tiling = tile_study_image(np.asarray(img), pio)
+
+    # Thumbnail.
+    thumb = make_thumbnail_bitmap(img)
+    thumb.save(os.path.join(settings.outdir, 'thumb.jpg'), format='JPEG')
 
     # Write out a stub WTML file. The only information this will actually
     # contain is the number of tile levels. Other information can be filled
@@ -466,8 +477,10 @@ def study_sample_image_tiles_impl(settings):
     imgset = ImageSet()
     tiling.apply_to_imageset(imgset)
     imgset.base_degrees_per_tile = 1.0  # random default to make it viewable
+    imgset.name = 'Toasty'
+    imgset.thumbnail_url = 'thumb.jpg'
     imgset.url = pio.get_path_scheme() + '.png'
-    stub_wtml(imgset, os.path.join(settings.outdir, 'toasty.wtml'))
+    stub_wtml(imgset, os.path.join(settings.outdir, 'index_rel.wtml'))
 
 
 # The CLI driver:

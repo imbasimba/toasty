@@ -42,7 +42,7 @@ def read_image_as_pil(path):
 
     Returns
     -------
-    img : :class:`PIL.Image`
+    img : :class:`PIL.Image.Image`
         The image data.
     """
     if path.endswith('.psd') or path.endswith('.psb'):

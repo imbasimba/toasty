@@ -95,8 +95,8 @@ class StudyTiling(object):
         imgset : ``wwt_data_formats.imageset.ImageSet``
             The object to modify
 
-        Remarks
-        -------
+        Notes
+        -----
         The settings currently transferred are the number of tile levels and
         the projection type.
 
@@ -121,8 +121,8 @@ class StudyTiling(object):
         im_iy : integer
           A 0-based vertical pixel position in the image coordinate system.
 
-        Remarks
-        -------
+        Notes
+        -----
         ``(0, 0)`` is the top-left corner of the image. The input values need
         not lie on the image. (I.e., they may be negative.)
 

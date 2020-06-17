@@ -69,10 +69,10 @@ setup_args = dict(
     },
 
     install_requires = [
-        'cython',
-        'numpy',
-        'pillow',
-        'wwt_data_formats',
+        'cython>=0.20',
+        'numpy>=1.7',
+        'pillow>=7.0',
+        'wwt_data_formats>=0.2.0',
     ],
 
     extras_require = {

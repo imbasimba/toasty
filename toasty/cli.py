@@ -373,6 +373,12 @@ def study_sample_image_tiles_impl(settings):
     imgset.url = pio.get_path_scheme() + '.png'
     stub_wtml(imgset, os.path.join(settings.outdir, 'index_rel.wtml'))
 
+    # Helpful hint:
+    print(f'Successfully tiled input "{settings.imgpath}" at level {imgset.tile_levels}.')
+    print('To create parent tiles, consider running:')
+    print()
+    print(f'   toasty cascade --start {imgset.tile_levels} {settings.outdir}')
+
 
 # "wwtl_sample_image_tiles" subcommand
 

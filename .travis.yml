@@ -1,3 +1,6 @@
+### XXX DOCS SHOULD INCLUDE LINKCHECK BUT IT'S BUSTED ON CURRENT SPHINX (3.1, 2020-Jun-17):
+### https://github.com/sphinx-doc/sphinx/issues/7806
+
 language: c
 
 os:
@@ -34,7 +37,7 @@ script:
   - python setup.py build_ext --inplace
   - py.test --cov toasty toasty
   # Different stdlib organization breaks API doc files on Python 2:
-  - if [[ $PYTHON_VERSION == 3.7 ]] ; then make -C docs html linkcheck ; fi
+  - if [[ $PYTHON_VERSION == 3.7 ]] ; then make -C docs html ; fi
 
 after_success:
   - coveralls

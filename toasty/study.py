@@ -95,12 +95,20 @@ class StudyTiling(object):
         imgset : ``wwt_data_formats.imageset.ImageSet``
             The object to modify
 
-        Remarks
-        -------
-        The only setting currently transferred is the number of tile levels.
+        Notes
+        -----
+        The settings currently transferred are the number of tile levels and
+        the projection type.
 
         """
+        from wwt_data_formats.enums import ProjectionType
+
         imgset.tile_levels = self._tile_levels
+
+        if self._tile_levels == 0:
+          imgset.projection = ProjectionType.SKY_IMAGE
+        else:
+          imgset.projection = ProjectionType.TAN
 
 
     def image_to_tile(self, im_ix, im_iy):
@@ -113,8 +121,8 @@ class StudyTiling(object):
         im_iy : integer
           A 0-based vertical pixel position in the image coordinate system.
 
-        Remarks
-        -------
+        Notes
+        -----
         ``(0, 0)`` is the top-left corner of the image. The input values need
         not lie on the image. (I.e., they may be negative.)
 

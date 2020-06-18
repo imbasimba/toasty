@@ -1,0 +1,32 @@
+﻿<?xml version='1.0' encoding='UTF-8'?>
+<!-- Note these values are not correct for the image we use! -->
+<LayerContainer ID="55cb0cce-c44a-4a44-a509-ea66fce643a5">
+  <Layers>
+    <Layer Id="7ecb6411-e4ee-4dfa-90ef-77d6f486c7d2"
+           Type="TerraViewer.ImageSetLayer"
+           Name="Toasty Test"
+           ReferenceFrame="Sky"
+           Color="NamedColor:White" Opacity="1"
+           StartTime="1/1/0001 12:00:00 AM" EndTime="12/31/9999 11:59:59 PM"
+           FadeSpan="00:00:00" FadeType="None"
+           Extension=".jpg"
+           OverrideDefault="False">
+      <ImageSet DataSetType="Sky" BandPass="Visible" Name="Toasty Test"
+                Projection="SkyImage" ReferenceFrame=""
+                CenterX="85.5" CenterY="-2.5"
+                OffsetX="22.2" OffsetY="15.5"
+                Rotation="-89.99"
+                BaseDegreesPerTile="0.002"
+                QuadTreeMap=""
+                Url="X:\InternalPath.jpg" DemUrl=""
+                FileType=".jpg"
+                BaseTileLevel="0"
+                TileLevels="0"
+                WidthFactor="1"
+                MeanRadius="0"
+                BottomsUp="False" Sparse="False" ElevationModel="False" StockSet="False" Generic="False">
+        <ThumbnailUrl />
+      </ImageSet>
+    </Layer>
+  </Layers>
+</LayerContainer>

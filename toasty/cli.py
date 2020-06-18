@@ -22,35 +22,9 @@ def warn(msg):
     print('warning:', msg, file=sys.stderr)
 
 
-# TODO: This should be superseded by wwt_data_formats
-def indent_xml(elem, level=0):
-    """A dumb XML indenter.
-
-    We create XML files using xml.etree.ElementTree, which is careful about
-    spacing and so by default creates ugly files with no linewraps or
-    indentation. This function is copied from `ElementLib
-    <http://effbot.org/zone/element-lib.htm#prettyprint>`_ and implements
-    basic, sensible indentation using "tail" text.
-
-    """
-    i = "\n" + level * "  "
-
-    if len(elem):
-        if not elem.text or not elem.text.strip():
-            elem.text = i + "  "
-        if not elem.tail or not elem.tail.strip():
-            elem.tail = i
-        for elem in elem:  # intentionally updating "elem" here!
-            indent_xml(elem, level + 1)
-        if not elem.tail or not elem.tail.strip():
-            elem.tail = i
-    else:
-        if level and (not elem.tail or not elem.tail.strip()):
-            elem.tail = i
-
-
-def stub_wtml(imgset, wtml_path):
-    """Given an ImageSet object, save its information into a stub WTML file.
+def stub_wtml(imgset, wtml_path, place=None):
+    """Given an ImageSet object and potential a Place, save its information into a
+    stub WTML file.
 
     """
     from wwt_data_formats import write_xml_doc
@@ -59,9 +33,15 @@ def stub_wtml(imgset, wtml_path):
     from wwt_data_formats.place import Place
 
     folder = Folder()
-    place = Place()
-    place.data_set_type = DataSetType.SKY
-    place.foreground_image_set = imgset
+
+    if place is None:
+        place = Place()
+        place.data_set_type = DataSetType.SKY
+        place.foreground_image_set = imgset
+        place.name = 'Toasty'
+        place.thumbnail = imgset.thumbnail_url
+        place.zoom_level = 1.0
+
     folder.children = [place]
 
     with open(wtml_path, 'wt') as f:
@@ -216,93 +196,7 @@ def multi_tan_make_data_tiles_impl(settings):
         for p in sorted(percentiles.keys()):
             print('   {} = {}'.format(p, percentiles[p]))
 
-
-# "multi_tan_make_wtml" subcommand
-
-def multi_tan_make_wtml_getparser(parser):
-    parser.add_argument(
-        '--hdu-index',
-        metavar = 'INDEX',
-        type = int,
-        default = 0,
-        help = 'Which HDU to load in each input FITS file',
-    )
-    parser.add_argument(
-        '--name',
-        metavar = 'NAME',
-        default = 'MultiTan',
-        help = 'The dataset name to embed in the WTML file',
-    )
-    parser.add_argument(
-        '--url-prefix',
-        metavar = 'PREFIX',
-        default = './',
-        help = 'The prefix to the tile URL that will be embedded in the WTML',
-    )
-    parser.add_argument(
-        '--fov-factor',
-        metavar = 'NUMBER',
-        type = float,
-        default = 1.7,
-        help = 'How tall the FOV should be (ie the zoom level) when viewing this image, in units of the image height',
-    )
-    parser.add_argument(
-        '--bandpass',
-        metavar = 'BANDPASS-NAME',
-        default = 'Visible',
-        help = 'The bandpass of the image data: "Gamma", "HydrogenAlpha", "IR", "Microwave", "Radio", "Ultraviolet", "Visible", "VisibleNight", "XRay"',
-    )
-    parser.add_argument(
-        '--description',
-        metavar = 'TEXT',
-        default = '',
-        help = 'Free text describing what this image is',
-    )
-    parser.add_argument(
-        '--credits-text',
-        metavar = 'TEXT',
-        default = 'Created by toasty, part of the AAS WorldWide Telescope.',
-        help = 'A brief credit of who created and processed the image data',
-    )
-    parser.add_argument(
-        '--credits-url',
-        metavar = 'URL',
-        default = '',
-        help = 'A URL with additional credit information',
-    )
-    parser.add_argument(
-        '--thumbnail-url',
-        metavar = 'URL',
-        default = '',
-        help = 'A URL of a thumbnail image (96x45 JPEG) representing this dataset',
-    )
-    parser.add_argument(
-        'paths',
-        metavar = 'PATHS',
-        nargs = '+',
-        help = 'The FITS files with image data',
-    )
-
-def multi_tan_make_wtml_impl(settings):
-    from xml.etree import ElementTree as etree
-    from .multi_tan import MultiTanDataSource
-
-    ds = MultiTanDataSource(settings.paths, hdu_index=settings.hdu_index)
-    ds.compute_global_pixelization()
-
-    folder = ds.create_wtml(
-        name = settings.name,
-        url_prefix = settings.url_prefix,
-        fov_factor = settings.fov_factor,
-        bandpass = settings.bandpass,
-        description_text = settings.description,
-        credits_text = settings.credits_text,
-        credits_url = settings.credits_url,
-        thumbnail_url = settings.thumbnail_url,
-    )
-    indent_xml(folder)
-    doc = etree.ElementTree(folder)
-    doc.write(sys.stdout, encoding='utf-8', xml_declaration=True)
+    # TODO: this should populate and emit a stub index_rel.wtml file.
 
 
 # "pipeline_fetch_inputs" subcommand
@@ -449,16 +343,24 @@ def study_sample_image_tiles_getparser(parser):
 
 
 def study_sample_image_tiles_impl(settings):
+    import numpy as np
+    import PIL.Image
     from wwt_data_formats.imageset import ImageSet
-    from .io import read_image
+    from .io import read_image_as_pil
     from .pyramid import PyramidIO
-    from .study import tile_study_image
+    from .study import make_thumbnail_bitmap, tile_study_image
 
-    # Create the base tiles.
+    # Prevent max image size aborts:
+    PIL.Image.MAX_IMAGE_PIXELS = None
 
+    # Load image.
     pio = PyramidIO(settings.outdir)
-    img = read_image(settings.imgpath)
-    tiling = tile_study_image(img, pio)
+    img = read_image_as_pil(settings.imgpath)
+    tiling = tile_study_image(np.asarray(img), pio)
+
+    # Thumbnail.
+    thumb = make_thumbnail_bitmap(img)
+    thumb.save(os.path.join(settings.outdir, 'thumb.jpg'), format='JPEG')
 
     # Write out a stub WTML file. The only information this will actually
     # contain is the number of tile levels. Other information can be filled
@@ -466,8 +368,96 @@ def study_sample_image_tiles_impl(settings):
     imgset = ImageSet()
     tiling.apply_to_imageset(imgset)
     imgset.base_degrees_per_tile = 1.0  # random default to make it viewable
+    imgset.name = 'Toasty'
+    imgset.thumbnail_url = 'thumb.jpg'
     imgset.url = pio.get_path_scheme() + '.png'
-    stub_wtml(imgset, os.path.join(settings.outdir, 'toasty.wtml'))
+    stub_wtml(imgset, os.path.join(settings.outdir, 'index_rel.wtml'))
+
+
+# "wwtl_sample_image_tiles" subcommand
+
+def wwtl_sample_image_tiles_getparser(parser):
+    parser.add_argument(
+        '--outdir',
+        metavar = 'PATH',
+        default = '.',
+        help = 'The root directory of the output tile pyramid',
+    )
+    parser.add_argument(
+        'wwtl_path',
+        metavar = 'WWTL-PATH',
+        help = 'The WWTL layer file to be processed',
+    )
+
+
+def wwtl_sample_image_tiles_impl(settings):
+    from io import BytesIO
+    import numpy as np
+    import PIL.Image
+
+    from wwt_data_formats.enums import DataSetType, ProjectionType
+    from wwt_data_formats.layers import ImageSetLayer, LayerContainerReader
+    from wwt_data_formats.place import Place
+
+    from .io import read_image_as_pil
+    from .pyramid import PyramidIO
+    from .study import make_thumbnail_bitmap, tile_study_image
+
+    # Prevent max image size aborts:
+    PIL.Image.MAX_IMAGE_PIXELS = None
+
+    # Load WWTL and see if it matches expectations
+    lc = LayerContainerReader.from_file(settings.wwtl_path)
+
+    if len(lc.layers) != 1:
+        die('WWTL file must contain exactly one layer')
+
+    layer = lc.layers[0]
+    if not isinstance(layer, ImageSetLayer):
+        die('WWTL file must contain an imageset layer')
+
+    imgset = layer.image_set
+    if imgset.projection != ProjectionType.SKY_IMAGE:
+        die('WWTL imageset layer must have "SkyImage" projection type')
+
+    # Looks OK. Read and parse the image.
+    img_data = lc.read_layer_file(layer, layer.extension)
+    img = PIL.Image.open(BytesIO(img_data))
+
+    # Tile it!
+    pio = PyramidIO(settings.outdir)
+    tiling = tile_study_image(np.asarray(img), pio)
+
+    # Thumbnail.
+    thumb = make_thumbnail_bitmap(img)
+    thumb.save(os.path.join(settings.outdir, 'thumb.jpg'), format='JPEG')
+
+    # Write a WTML file. We reuse the existing imageset as much as possible,
+    # but update the parameters that change in the tiling process.
+
+    place = Place()
+    wcs_keywords = imgset.wcs_headers_from_position()
+    tiling.apply_to_imageset(imgset)
+    imgset.set_position_from_wcs(wcs_keywords, img.width, img.height, place=place)
+
+    if not imgset.name:
+        imgset.name = 'Toasty'
+    imgset.thumbnail_url = 'thumb.jpg'
+    imgset.url = pio.get_path_scheme() + '.png'
+
+    place.data_set_type = DataSetType.SKY
+    place.foreground_image_set = imgset
+    place.name = imgset.name
+    place.thumbnail = imgset.thumbnail_url
+
+    stub_wtml(imgset, os.path.join(settings.outdir, 'index_rel.wtml'), place=place)
+
+    # Helpful hint:
+
+    print(f'Successfully tiled input "{settings.wwtl_path}" at level {imgset.tile_levels}.')
+    print('To create parent tiles, consider running:')
+    print()
+    print(f'   toasty cascade --start {imgset.tile_levels} {settings.outdir}')
 
 
 # The CLI driver:

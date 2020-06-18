@@ -544,8 +544,8 @@ class InputImage(ABC):
         -------
         None.
 
-        Remarks
-        -------
+        Notes
+        -----
         This function should also take care of creating the thumbnail.
 
         """
@@ -644,8 +644,8 @@ class BitmapInputImage(InputImage):
         -------
         A :class:`PIL.Image` of the image data.
 
-        Remarks
-        -------
+        Notes
+        -----
         This function will only be called once. It can assume that
         :meth:`InputImage.ensure_input_cached` has already been called.
 
@@ -988,6 +988,8 @@ class PipelineManager(object):
         def get_items():
             for stem, is_folder in self._pipeio.list_items():
                 if not is_folder:
+                    continue
+                if not self._pipeio.check_exists(stem, 'index.wtml'):
                     continue
 
                 wtml_data = BytesIO()

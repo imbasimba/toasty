@@ -86,6 +86,11 @@ class StudyTiling(object):
         self._img_gy0 = (self._p2n - self._height) // 2
 
 
+    def n_deepest_layer_tiles(self):
+        """Return the number of tiles in the highest-resolution layer."""
+        return 4**self._tile_levels
+
+
     def apply_to_imageset(self, imgset):
         """Fill the specific ``wwt_data_formats.imageset.ImageSet`` object
         with parameters defined by this tiling,
@@ -232,6 +237,56 @@ class StudyTiling(object):
                 )
 
 
+    def tile_image(self, img_data, pio):
+        """Tile an in-memory image as a study.
+
+        Parameters
+        ----------
+        img_data : array-like
+            An array of image data, of shape ``(height, width, nchan)``,
+            where nchan is 3 (RGB) or 4 (RGBA). The dtype should be compatible
+            with :class:`np.uint8`. The array's dimensions must match the ones
+            for which this tiling was computed.
+        pio : :class:`toasty.pyramid.PyramidIO`
+            A handle for doing I/O on the tile pyramid
+
+        Returns
+        -------
+        Self.
+
+        """
+        img_data = np.asarray(img_data)
+
+        if img_data.shape[0] != self._height:
+            raise ValueError('height of image to be sampled does not match tiling')
+        if img_data.shape[1] != self._width:
+            raise ValueError('width of image to be sampled does not match tiling')
+
+        buffer = np.empty((256, 256, 4), dtype=np.uint8)
+
+        if img_data.shape[2] == 3:
+            has_alpha = False
+        elif img_data.shape[2] == 4:
+            has_alpha = True
+        else:
+            raise ValueError('unexpected number of image channels; shape %r' % (img_data.shape,))
+
+        for pos, width, height, image_x, image_y, tile_x, tile_y in self.generate_populated_positions():
+            buffer.fill(0)
+
+            if has_alpha:
+                buffer[tile_y:tile_y+height,tile_x:tile_x+width] = \
+                    img_data[image_y:image_y+height,image_x:image_x+width]
+            else:
+                buffer[tile_y:tile_y+height,tile_x:tile_x+width,:3] = \
+                    img_data[image_y:image_y+height,image_x:image_x+width]
+                buffer[tile_y:tile_y+height,tile_x:tile_x+width,3] = 255
+
+            pio.write_image(pos, buffer)
+
+        return self
+
+
 def tile_study_image(img_data, pio):
     """Tile an image as a study, loading the whole thing into memory.
 
@@ -251,28 +306,7 @@ def tile_study_image(img_data, pio):
     """
     img_data = np.asarray(img_data)
     tiling = StudyTiling(img_data.shape[1], img_data.shape[0])
-    buffer = np.empty((256, 256, 4), dtype=np.uint8)
-
-    if img_data.shape[2] == 3:
-        has_alpha = False
-    elif img_data.shape[2] == 4:
-        has_alpha = True
-    else:
-        raise ValueError('unexpected number of image channels; shape %r' % (img_data.shape,))
-
-    for pos, width, height, image_x, image_y, tile_x, tile_y in tiling.generate_populated_positions():
-        buffer.fill(0)
-
-        if has_alpha:
-            buffer[tile_y:tile_y+height,tile_x:tile_x+width] = \
-                img_data[image_y:image_y+height,image_x:image_x+width]
-        else:
-            buffer[tile_y:tile_y+height,tile_x:tile_x+width,:3] = \
-                img_data[image_y:image_y+height,image_x:image_x+width]
-            buffer[tile_y:tile_y+height,tile_x:tile_x+width,3] = 255
-
-        pio.write_image(pos, buffer)
-
+    tiling.tile_image(img_data, pio)
     return tiling
 
 

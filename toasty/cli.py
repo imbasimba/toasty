@@ -448,6 +448,7 @@ def wwtl_sample_image_tiles_impl(settings):
 
     if not imgset.name:
         imgset.name = 'Toasty'
+    imgset.file_type = '.png'
     imgset.thumbnail_url = 'thumb.jpg'
     imgset.url = pio.get_path_scheme() + '.png'
 

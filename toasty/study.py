@@ -307,4 +307,9 @@ def make_thumbnail_bitmap(bitmap):
 
     thumb = bitmap.crop(crop_box)
     thumb.thumbnail(THUMB_SHAPE)
+
+    # Depending on the source image, the mode might be RGBA, which can't
+    # be JPEG-ified.
+    thumb = thumb.convert('RGB')
+
     return thumb

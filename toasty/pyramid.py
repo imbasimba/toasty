@@ -56,9 +56,9 @@ def is_subtile(deeper_pos, shallower_pos):
     Parameters
     ----------
     deeper_pos : Pos
-      A tile position.
+        A tile position.
     shallower_pos : Pos
-      A tile position that is shallower than *deeper_pos*.
+        A tile position that is shallower than *deeper_pos*.
 
     Returns
     -------
@@ -80,16 +80,16 @@ def pos_parent(pos):
     Parameters
     ----------
     pos : Pos
-      A tile position.
+        A tile position.
 
     Returns
     -------
     parent : Pos
-      The tile position that is the parent of *pos*.
+        The tile position that is the parent of *pos*.
     x_index : integer, 0 or 1
-      The horizontal index of the child inside its parent.
+        The horizontal index of the child inside its parent.
     y_index : integer, 0 or 1
-      The vertical index of the child inside its parent.
+        The vertical index of the child inside its parent.
 
     """
     if pos.n < 1:
@@ -109,7 +109,7 @@ def pos_children(pos):
     Parameters
     ----------
     pos : :class:`Pos`
-      A tile position.
+        A tile position.
 
     Returns
     -------
@@ -152,12 +152,12 @@ def generate_pos(depth):
     Parameters
     ----------
     depth : int
-      The tile depth to recurse to.
+        The tile depth to recurse to.
 
     Yields
     ------
     pos : :class:`Pos`
-      An individual position to process.
+        An individual position to process.
 
     """
     for item in _postfix_pos(Pos(0, 0, 0), depth):
@@ -185,9 +185,9 @@ class PyramidIO(object):
         Parameters
         ----------
         pos : Pos
-          The tile to get a path for.
+            The tile to get a path for.
         extension : str, default: "png"
-          The file extension to use in the path.
+            The file extension to use in the path.
 
         Returns
         -------
@@ -251,16 +251,16 @@ class PyramidIO(object):
         Parameters
         ----------
         pos : :class:`Pos`
-          The tile position to read.
+            The tile position to read.
         extension : str, defaults to "png"
-          The file extension to use when constructing the path to read.
+            The file extension to use when constructing the path to read.
         default : str, defaults to "none"
-          What to do if the specified tile file does not exist. If this is
-          "none", ``None`` will be returned instead of an array. If this is
-          "zeros3", an array of zeros with shape ``(256, 256, 3)`` and dtype
-          ``np.uint8`` will be returned. If it is "zeros4", a similar array
-          of shape ``(256, 256, 4)`` will be returned. Otherwise,
-          :exc:`ValueError` will be raised.
+            What to do if the specified tile file does not exist. If this is
+            "none", ``None`` will be returned instead of an array. If this is
+            "zeros3", an array of zeros with shape ``(256, 256, 3)`` and dtype
+            ``np.uint8`` will be returned. If it is "zeros4", a similar array
+            of shape ``(256, 256, 4)`` will be returned. Otherwise,
+            :exc:`ValueError` will be raised.
 
         Returns
         -------
@@ -298,11 +298,11 @@ class PyramidIO(object):
         Parameters
         ----------
         pos : :class:`Pos`
-          The tile position to write.
+            The tile position to write.
         data : array-like
-          The image data to write.
+            The image data to write.
         extension : str, defaults to "png"
-          The file extension to use when constructing the path to write.
+            The file extension to use when constructing the path to write.
 
         """
         from .io import save_png
@@ -314,15 +314,15 @@ class PyramidIO(object):
         Parameters
         ----------
         pos : :class:`Pos`
-          The tile position to read.
+            The tile position to read.
         extension : str, defaults to "npy"
-          The file extension to use when constructing the path to read.
+            The file extension to use when constructing the path to read.
         default : str, defaults to "nan"
-          What to do if the specified tile file does not exist. If this is
-          "none", ``None`` will be returned instead of an array. If this is
-          "nan", an array of NaNs with shape ``(256, 256)`` and dtype
-          ``np.double`` will be returned. Otherwise, :exc:`ValueError` will be
-          raised.
+            What to do if the specified tile file does not exist. If this is
+            "none", ``None`` will be returned instead of an array. If this is
+            "nan", an array of NaNs with shape ``(256, 256)`` and dtype
+            ``np.double`` will be returned. Otherwise, :exc:`ValueError` will be
+            raised.
 
         Returns
         -------
@@ -351,11 +351,11 @@ class PyramidIO(object):
         Parameters
         ----------
         pos : :class:`Pos`
-          The tile position to write.
+            The tile position to write.
         data : array-like
-          The numpy data to write.
+            The numpy data to write.
         extension : str, defaults to "npy"
-          The file extension to use when constructing the path to write.
+            The file extension to use when constructing the path to write.
 
         """
         np.save(self.tile_path(pos, extension), data)

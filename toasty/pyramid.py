@@ -308,43 +308,6 @@ class PyramidIO(object):
         from .io import save_png
         save_png(self.tile_path(pos, extension), data)
 
-    def read_numpy(self, pos, extension='npy', default='nan'):
-        """Read a Numpy file for the specified tile position.
-
-        Parameters
-        ----------
-        pos : :class:`Pos`
-            The tile position to read.
-        extension : str, defaults to "npy"
-            The file extension to use when constructing the path to read.
-        default : str, defaults to "nan"
-            What to do if the specified tile file does not exist. If this is
-            "none", ``None`` will be returned instead of an array. If this is
-            "nan", an array of NaNs with shape ``(256, 256)`` and dtype
-            ``np.double`` will be returned. Otherwise, :exc:`ValueError` will be
-            raised.
-
-        Returns
-        -------
-        The saved numpy array, or one of the values as specified based on the
-        parameter *default*.
-
-        """
-        try:
-            return np.load(self.tile_path(pos, extension))
-        except IOError as e:
-            if e.errno != 2:
-                raise  # not EEXIST
-
-            if default == 'none':
-                return None
-            elif default == 'nan':
-                arr = np.empty((256, 256), dtype=np.double)
-                arr.fill(np.nan)
-                return arr
-            else:
-                raise ValueError('unexpected value for "default": {!r}'.format(default))
-
     def write_numpy(self, pos, data, extension='npy'):
         """Write a numpy file for the specified tile position.
 

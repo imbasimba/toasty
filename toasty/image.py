@@ -47,28 +47,8 @@ class ImageLoader(object):
     TODO: support FITS, Numpy, etc.
 
     """
-    path = None
     psd_single_layer = None
     colorspace_processing = 'srgb'
-
-    @classmethod
-    def for_path(cls, path):
-        """
-        Create a new loader targeting the specified filesystem path.
-
-        Parameters
-        ----------
-        path : str
-            The path that will be loaded
-
-        Returns
-        -------
-        A new :class:`ImageLoader` pointing at *path* and otherwise defaulted.
-
-        """
-        loader = cls()
-        loader.path = path
-        return loader
 
     @classmethod
     def add_arguments(cls, parser):
@@ -107,7 +87,7 @@ class ImageLoader(object):
         return cls
 
     @classmethod
-    def create_from_args(cls, settings, spec):
+    def create_from_args(cls, settings):
         """
         Process standard image-loading options to create an :class:`ImageLoader`.
 
@@ -115,9 +95,6 @@ class ImageLoader(object):
         ----------
         settings : :class:`argparse.Namespace`
             Settings from processing command-line arguments
-        spec : str
-            The non-option image specification, i.e. the path to the image. (But
-            maybe in the future URL's will be supported, etc.)
 
         Returns
         -------
@@ -126,29 +103,98 @@ class ImageLoader(object):
         loader = cls()
         loader.psd_single_layer = settings.psd_single_layer
         loader.colorspace_processing = settings.colorspace_processing
-        loader.path = spec
         return loader
 
-    def load(self):
+    def load_pil(self, pil_img):
         """
-        Load the input image into memory.
+        Load an already opened PIL image.
+
+        Parameters
+        ----------
+        pil_img : :class:`PIL.Image.Image
+            The image.
+
+        Returns
+        -------
+        A new :class:`Image`.
+
+        Notes
+        -----
+        This function should be used instead of :meth:`Image.from_pil` because
+        may postprocess the image in various ways, depending on the loader
+        configuration.
+
+        """
+        # Make sure that we end up in the right color space. From experience, some
+        # EPO images have funky colorspaces and we need to convert to sRGB to get
+        # the tiled versions to appear correctly.
+
+        if self.colorspace_processing != 'none' and 'icc_profile' in pil_img.info:
+            assert self.colorspace_processing == 'srgb' # more modes, one day?
+            from io import BytesIO
+            from PIL import ImageCms
+            in_prof = ImageCms.getOpenProfile(BytesIO(pil_img.info['icc_profile']))
+            out_prof = ImageCms.createProfile('sRGB')
+            xform = ImageCms.buildTransform(in_prof, out_prof, pil_img.mode, pil_img.mode)
+            ImageCms.applyTransform(pil_img, xform, inPlace=True)
+
+        return Image.from_pil(pil_img)
+
+    def load_stream(self, stream):
+        """
+        Load an image into memory from a file-like stream.
+
+        Parameters
+        ----------
+        stream : file-like
+            The data to load. Reads should yield bytes.
+
+        Returns
+        -------
+        A new :class:`Image`.
+
+        """
+        # TODO: one day, we'll support FITS files and whatnot and we'll have a
+        # mode where we get a Numpy array but not a PIL image. For now, just
+        # pass it off to PIL and hope for the best.
+
+        # Prevent PIL decompression-bomb aborts. Not thread-safe, of course.
+        old_max = pil_image.MAX_IMAGE_PIXELS
+
+        try:
+            pil_image.MAX_IMAGE_PIXELS = None
+            pilimg = pil_image.open(stream)
+        finally:
+            pil_image.MAX_IMAGE_PIXELS = old_max
+
+        # Now pass it off to generic PIL handling ...
+        return self.load_pil(pilimg)
+
+    def load_path(self, path):
+        """
+        Load an image into memory from a filesystem path.
+
+        Parameters
+        ----------
+        path : str
+            The filesystem path to load.
 
         Returns
         -------
         A new :class:`Image`.
         """
-        pilimg = None
+        # Special handling for Photoshop files, used for some very large mosaics
+        # with transparency (e.g. the PHAT M31/M33 images). TODO: it would be
+        # better to sniff the PSD filetype instead of just looking at
+        # extensions. But, lazy.
 
-        # Handle Photoshop files, used for some very large mosaics with
-        # transparency (e.g. the PHAT M31/M33 images).
-
-        if self.path.endswith('.psd') or self.path.endswith('.psb'):
+        if path.endswith('.psd') or path.endswith('.psb'):
             try:
                 from psd_tools import PSDImage
             except ImportError:
                 pass
             else:
-                psd = PSDImage.open(self.path)
+                psd = PSDImage.open(path)
 
                 # If the Photoshop image is a single layer, we can save a lot of
                 # memory by not using the composite() function. This has helped
@@ -158,38 +204,13 @@ class ImageLoader(object):
                 else:
                     pilimg = psd.composite()
 
-        # If still unhandled, just pass it off to PIL and hope for the best.
+                return self.load_pil(pilimg)
 
-        if pilimg is None:
-            # Prevent PIL decompression-bomb aborts. Not thread-safe, of course.
-            old_max = pil_image.MAX_IMAGE_PIXELS
+        # (One day, maybe we'll do more kinds of sniffing.) No special handling
+        # came into play; just open the file and auto-detect.
 
-            try:
-                pil_image.MAX_IMAGE_PIXELS = None
-                pilimg = pil_image.open(self.path)
-            finally:
-                pil_image.MAX_IMAGE_PIXELS = old_max
-
-        # Make sure that we end up in the right color space. From experience, some
-        # EPO images have funky colorspaces and we need to convert to sRGB to get
-        # the tiled versions to appear correctly.
-
-        if self.colorspace_processing != 'none' and 'icc_profile' in pilimg.info:
-            assert self.colorspace_processing == 'srgb' # more modes, one day?
-            from io import BytesIO
-            from PIL import ImageCms
-            in_prof = ImageCms.getOpenProfile(BytesIO(pilimg.info['icc_profile']))
-            out_prof = ImageCms.createProfile('sRGB')
-            xform = ImageCms.buildTransform(in_prof, out_prof, pilimg.mode, pilimg.mode)
-            ImageCms.applyTransform(pilimg, xform, inPlace=True)
-
-        # TODO: one day, we'll support FITS files and whatnot and we'll
-        # have a mode where we get a Numpy array but not a PIL image.
-
-        if pilimg is None:
-            raise Exception('couldn\'t figure out how to load {}'.format(self.path))
-
-        return Image.from_pil(pilimg)
+        with open(path, 'rb') as f:
+            return self.load_stream(f)
 
 
 class Image(object):

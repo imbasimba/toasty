@@ -354,7 +354,7 @@ def study_sample_image_tiles_impl(settings):
     from .study import make_thumbnail_bitmap, tile_study_image
 
     # Load image and prep tiling
-    img = ImageLoader.create_from_args(settings, settings.imgpath).load()
+    img = ImageLoader.create_from_args(settings).load_path(settings.imgpath)
     pio = PyramidIO(settings.outdir)
     tiling = tile_study_image(img, pio)
 
@@ -383,6 +383,9 @@ def study_sample_image_tiles_impl(settings):
 # "wwtl_sample_image_tiles" subcommand
 
 def wwtl_sample_image_tiles_getparser(parser):
+    from .image import ImageLoader
+    ImageLoader.add_arguments(parser)
+
     parser.add_argument(
         '--outdir',
         metavar = 'PATH',
@@ -406,13 +409,10 @@ def wwtl_sample_image_tiles_impl(settings):
     from wwt_data_formats.layers import ImageSetLayer, LayerContainerReader
     from wwt_data_formats.place import Place
 
-    from .image import Image
+    from .image import ImageLoader
     from .io import read_image_as_pil
     from .pyramid import PyramidIO
     from .study import make_thumbnail_bitmap, tile_study_image
-
-    # Prevent max image size aborts:
-    PIL.Image.MAX_IMAGE_PIXELS = None
 
     # Load WWTL and see if it matches expectations
     lc = LayerContainerReader.from_file(settings.wwtl_path)
@@ -429,8 +429,9 @@ def wwtl_sample_image_tiles_impl(settings):
         die('WWTL imageset layer must have "SkyImage" projection type')
 
     # Looks OK. Read and parse the image.
+    loader = ImageLoader.create_from_args(settings)
     img_data = lc.read_layer_file(layer, layer.extension)
-    img = Image.from_pil(PIL.Image.open(BytesIO(img_data))) # TODO CLEANUP!
+    img = loader.load_stream(BytesIO(img_data))
 
     # Tile it!
     pio = PyramidIO(settings.outdir)

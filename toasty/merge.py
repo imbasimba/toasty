@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2019 the AAS WorldWide Telescope project
+# Copyright 2019-2020 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 """General tools for merging and downsampling tiles
@@ -38,7 +38,7 @@ def averaging_merger(data):
     Parameters
     ----------
     data : array
-      See the Merger Protocol specification.
+        See the Merger Protocol specification.
 
     Returns
     -------
@@ -58,14 +58,14 @@ def cascade_images(pio, start, merger):
     Parameters
     ----------
     pio : :class:`toasty.pyramid.PyramidIO`
-      An object managing I/O on the tiles in the pyramid.
+        An object managing I/O on the tiles in the pyramid.
     start : nonnegative integer
-      The depth at which to start the cascade process. It is assumed that
-      the tiles *at this depth* are already populated by some other means.
-      This function will create new tiles at shallower depths.
+        The depth at which to start the cascade process. It is assumed that
+        the tiles *at this depth* are already populated by some other means.
+        This function will create new tiles at shallower depths.
     merger : a merger function
-      The method used to create a parent tile from its child tiles. This
-      is a callable that follows the Merger Protocol.
+        The method used to create a parent tile from its child tiles. This
+        is a callable that follows the Merger Protocol.
 
     """
     buf = None

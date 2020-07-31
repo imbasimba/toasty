@@ -359,3 +359,35 @@ class PyramidIO(object):
 
         """
         np.save(self.tile_path(pos, extension), data)
+
+    def open_metadata_for_read(self, basename):
+        """
+        Open a metadata file in read mode.
+
+        Parameters
+        ----------
+        basename : str
+            The basename of the metadata file
+
+        Returns
+        -------
+        A readable and closeable file-like object returning bytes.
+
+        """
+        return open(os.path.join(self._base_dir, basename), 'rb')
+
+    def open_metadata_for_write(self, basename):
+        """
+        Open a metadata file in write mode.
+
+        Parameters
+        ----------
+        basename : str
+            The basename of the metadata file
+
+        Returns
+        -------
+        A writable and closeable file-like object accepting bytes.
+
+        """
+        return open(os.path.join(self._base_dir, basename), 'wb')

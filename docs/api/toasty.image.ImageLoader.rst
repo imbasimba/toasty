@@ -1,0 +1,37 @@
+ImageLoader
+===========
+
+.. currentmodule:: toasty.image
+
+.. autoclass:: ImageLoader
+   :show-inheritance:
+
+   .. rubric:: Attributes Summary
+
+   .. autosummary::
+
+      ~ImageLoader.colorspace_processing
+      ~ImageLoader.psd_single_layer
+
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~ImageLoader.add_arguments
+      ~ImageLoader.create_from_args
+      ~ImageLoader.load_path
+      ~ImageLoader.load_pil
+      ~ImageLoader.load_stream
+
+   .. rubric:: Attributes Documentation
+
+   .. autoattribute:: colorspace_processing
+   .. autoattribute:: psd_single_layer
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: add_arguments
+   .. automethod:: create_from_args
+   .. automethod:: load_path
+   .. automethod:: load_pil
+   .. automethod:: load_stream

@@ -9,6 +9,10 @@ API Documentation
    :no-inheritance-diagram:
    :no-inherited-members:
 
+.. automodapi:: toasty.image
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
 .. automodapi:: toasty.io
    :no-inheritance-diagram:
    :no-inherited-members:

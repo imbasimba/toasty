@@ -111,7 +111,7 @@ class ImageLoader(object):
 
         Parameters
         ----------
-        pil_img : :class:`PIL.Image.Image
+        pil_img : :class:`PIL.Image.Image`
             The image.
 
         Returns
@@ -230,7 +230,7 @@ class Image(object):
 
         Parameters
         ----------
-        pil_img : :class:`pil.Image.Image`
+        pil_img : :class:`PIL.Image.Image`
             The source image.
 
         Returns
@@ -288,8 +288,8 @@ class Image(object):
 
         Returns
         -------
-        If the image is an RGB(A) bitmap, the array will have shape ``(height,
-        width, planes)`` and a dtype of ``uint8``, where ``planes`` is either 3
+        If the image is an RGB(A) bitmap, the array will have shape ``(height, width, planes)``
+        and a dtype of ``uint8``, where ``planes`` is either 3
         or 4 depending on whether the image has an alpha channel. If the image
         is science data, it will have shape ``(height, width)`` and have a
         floating-point dtype.
@@ -453,9 +453,9 @@ class Image(object):
 
         Returns
         -------
-        An RGB :class:`PIL.Image` representing a thumbnail of the input image.
-        WWT thumbnails are 96 pixels wide and 45 pixels tall and should be saved
-        in JPEG format.
+        An RGB :class:`PIL.Image.Image` representing a thumbnail of the input
+        image. WWT thumbnails are 96 pixels wide and 45 pixels tall and should
+        be saved in JPEG format.
 
         """
         if self.mode == ImageMode.F32:

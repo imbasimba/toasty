@@ -11,17 +11,23 @@ PyramidIO
    .. autosummary::
 
       ~PyramidIO.get_path_scheme
+      ~PyramidIO.open_metadata_for_read
+      ~PyramidIO.open_metadata_for_write
       ~PyramidIO.read_image
       ~PyramidIO.read_numpy
       ~PyramidIO.tile_path
       ~PyramidIO.write_image
       ~PyramidIO.write_numpy
+      ~PyramidIO.write_toasty_image
 
    .. rubric:: Methods Documentation
 
    .. automethod:: get_path_scheme
+   .. automethod:: open_metadata_for_read
+   .. automethod:: open_metadata_for_write
    .. automethod:: read_image
    .. automethod:: read_numpy
    .. automethod:: tile_path
    .. automethod:: write_image
    .. automethod:: write_numpy
+   .. automethod:: write_toasty_image

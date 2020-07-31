@@ -668,14 +668,15 @@ class BitmapInputImage(InputImage):
             imgset.url = 'image.jpg'
             imgset.file_type = '.jpg'
         else:
+            from .image import Image
             from .study import tile_study_image
             from .pyramid import PyramidIO
             from .merge import averaging_merger, cascade_images
 
             # Create the base layer
             pio = PyramidIO(outdir, scheme='LXY')
-            img_data = np.asarray(self._bitmap)
-            tiling = tile_study_image(img_data, pio)
+            image = Image.from_pil(self._bitmap)
+            tiling = tile_study_image(image, pio)
             tiling.apply_to_imageset(imgset)
 
             # Cascade to create the coarser tiles

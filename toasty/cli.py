@@ -329,6 +329,9 @@ def pipeline_reindex_impl(settings):
 # "study_sample_image_tiles" subcommand
 
 def study_sample_image_tiles_getparser(parser):
+    from .image import ImageLoader
+    ImageLoader.add_arguments(parser)
+
     parser.add_argument(
         '--outdir',
         metavar = 'PATH',
@@ -346,20 +349,17 @@ def study_sample_image_tiles_impl(settings):
     import numpy as np
     import PIL.Image
     from wwt_data_formats.imageset import ImageSet
-    from .io import read_image_as_pil
+    from .image import ImageLoader
     from .pyramid import PyramidIO
     from .study import make_thumbnail_bitmap, tile_study_image
 
-    # Prevent max image size aborts:
-    PIL.Image.MAX_IMAGE_PIXELS = None
-
-    # Load image.
+    # Load image and prep tiling
+    img = ImageLoader.create_from_args(settings, settings.imgpath).load()
     pio = PyramidIO(settings.outdir)
-    img = read_image_as_pil(settings.imgpath)
-    tiling = tile_study_image(np.asarray(img), pio)
+    tiling = tile_study_image(img, pio)
 
     # Thumbnail.
-    thumb = make_thumbnail_bitmap(img)
+    thumb = make_thumbnail_bitmap(img.aspil())
     thumb.save(os.path.join(settings.outdir, 'thumb.jpg'), format='JPEG')
 
     # Write out a stub WTML file. The only information this will actually
@@ -397,6 +397,7 @@ def wwtl_sample_image_tiles_getparser(parser):
 
 
 def wwtl_sample_image_tiles_impl(settings):
+    # TODO: implement WWTL loading as an Image mode.
     from io import BytesIO
     import numpy as np
     import PIL.Image
@@ -405,6 +406,7 @@ def wwtl_sample_image_tiles_impl(settings):
     from wwt_data_formats.layers import ImageSetLayer, LayerContainerReader
     from wwt_data_formats.place import Place
 
+    from .image import Image
     from .io import read_image_as_pil
     from .pyramid import PyramidIO
     from .study import make_thumbnail_bitmap, tile_study_image
@@ -428,14 +430,14 @@ def wwtl_sample_image_tiles_impl(settings):
 
     # Looks OK. Read and parse the image.
     img_data = lc.read_layer_file(layer, layer.extension)
-    img = PIL.Image.open(BytesIO(img_data))
+    img = Image.from_pil(PIL.Image.open(BytesIO(img_data))) # TODO CLEANUP!
 
     # Tile it!
     pio = PyramidIO(settings.outdir)
-    tiling = tile_study_image(np.asarray(img), pio)
+    tiling = tile_study_image(img, pio)
 
     # Thumbnail.
-    thumb = make_thumbnail_bitmap(img)
+    thumb = make_thumbnail_bitmap(img.aspil())
     thumb.save(os.path.join(settings.outdir, 'thumb.jpg'), format='JPEG')
 
     # Write a WTML file. We reuse the existing imageset as much as possible,

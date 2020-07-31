@@ -237,15 +237,13 @@ class StudyTiling(object):
                 )
 
 
-    def tile_image(self, img_data, pio):
+    def tile_image(self, image, pio):
         """Tile an in-memory image as a study.
 
         Parameters
         ----------
-        img_data : array-like
-            An array of image data, of shape ``(height, width, nchan)``,
-            where nchan is 3 (RGB) or 4 (RGBA). The dtype should be compatible
-            with :class:`np.uint8`. The array's dimensions must match the ones
+        image : :class:`toasty.image.Image`
+            In-memory image data. The image's dimensions must match the ones
             for which this tiling was computed.
         pio : :class:`toasty.pyramid.PyramidIO`
             A handle for doing I/O on the tile pyramid
@@ -255,47 +253,31 @@ class StudyTiling(object):
         Self.
 
         """
-        img_data = np.asarray(img_data)
-
-        if img_data.shape[0] != self._height:
+        if image.height != self._height:
             raise ValueError('height of image to be sampled does not match tiling')
-        if img_data.shape[1] != self._width:
+        if image.width != self._width:
             raise ValueError('width of image to be sampled does not match tiling')
 
-        buffer = np.empty((256, 256, 4), dtype=np.uint8)
-
-        if img_data.shape[2] == 3:
-            has_alpha = False
-        elif img_data.shape[2] == 4:
-            has_alpha = True
-        else:
-            raise ValueError('unexpected number of image channels; shape %r' % (img_data.shape,))
+        buffer = image.make_maskable_buffer(256, 256)
 
         for pos, width, height, image_x, image_y, tile_x, tile_y in self.generate_populated_positions():
-            buffer.fill(0)
-
-            if has_alpha:
-                buffer[tile_y:tile_y+height,tile_x:tile_x+width] = \
-                    img_data[image_y:image_y+height,image_x:image_x+width]
-            else:
-                buffer[tile_y:tile_y+height,tile_x:tile_x+width,:3] = \
-                    img_data[image_y:image_y+height,image_x:image_x+width]
-                buffer[tile_y:tile_y+height,tile_x:tile_x+width,3] = 255
-
-            pio.write_image(pos, buffer)
+            iy_idx = slice(image_y, image_y + height)
+            ix_idx = slice(image_x, image_x + width)
+            by_idx = slice(tile_y, tile_y + height)
+            bx_idx = slice(tile_x, tile_x + width)
+            image.fill_into_maskable_buffer(buffer, iy_idx, ix_idx, by_idx, bx_idx)
+            pio.write_toasty_image(pos, buffer)
 
         return self
 
 
-def tile_study_image(img_data, pio):
+def tile_study_image(image, pio):
     """Tile an image as a study, loading the whole thing into memory.
 
     Parameters
     ----------
-    img_data : array-like
-        An array of image data, of shape ``(height, width, nchan)``,
-        where nchan is 3 (RGB) or 4 (RGBA). The dtype should be compatible
-        with :class:`np.uint8`.
+    image : :class:`toasty.image.Image`
+        The image to tile.
     pio : :class:`toasty.pyramid.PyramidIO`
         A handle for doing I/O on the tile pyramid
 
@@ -304,9 +286,8 @@ def tile_study_image(img_data, pio):
     A :class:`StudyTiling` defining the tiling of the image.
 
     """
-    img_data = np.asarray(img_data)
-    tiling = StudyTiling(img_data.shape[1], img_data.shape[0])
-    tiling.tile_image(img_data, pio)
+    tiling = StudyTiling(image.width, image.height)
+    tiling.tile_image(image, pio)
     return tiling
 
 

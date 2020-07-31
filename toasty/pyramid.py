@@ -360,6 +360,20 @@ class PyramidIO(object):
         """
         np.save(self.tile_path(pos, extension), data)
 
+    def write_toasty_image(self, pos, image):
+        """Write a toasty Image for the specified tile position.
+
+        Parameters
+        ----------
+        pos : :class:`Pos`
+            The tile position to write.
+        image : :class:`toasty.image.Image`
+            The image to write.
+
+        """
+        p = self.tile_path(pos, image.get_default_save_extension())
+        image.save_default(p)
+
     def open_metadata_for_read(self, basename):
         """
         Open a metadata file in read mode.

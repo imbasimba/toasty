@@ -686,8 +686,8 @@ class BitmapInputImage(InputImage):
             imgset.file_type = '.png'
 
         # Deal with the thumbnail
-        from .study import make_thumbnail_bitmap
-        thumb = make_thumbnail_bitmap(self._bitmap)
+        from .image import Image
+        thumb = Image.from_pil(self._bitmap).make_thumbnail_bitmap()
         thumb.save(os.path.join(outdir, 'thumb.jpg'), format='JPEG')
         imgset.thumbnail_url = 'thumb.jpg'
 

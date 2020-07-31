@@ -447,3 +447,39 @@ class Image(object):
             np.save(path_or_stream, self.asarray())
         else:
             raise Exception('unhandled mode in save_default')
+
+    def make_thumbnail_bitmap(self):
+        """Create a thumbnail bitmap from the image.
+
+        Returns
+        -------
+        An RGB :class:`PIL.Image` representing a thumbnail of the input image.
+        WWT thumbnails are 96 pixels wide and 45 pixels tall and should be saved
+        in JPEG format.
+
+        """
+        if self.mode == ImageMode.F32:
+            raise Exception('cannot thumbnail-ify non-RGB Image')
+
+        THUMB_SHAPE = (96, 45)
+        THUMB_ASPECT = THUMB_SHAPE[0] / THUMB_SHAPE[1]
+
+        if self.width / self.height > THUMB_ASPECT:
+            # The image is wider than desired; we'll need to crop off the sides.
+            target_width = int(round(self.height * THUMB_ASPECT))
+            dx = (self.width - target_width) // 2
+            crop_box = (dx, 0, dx + target_width, self.height)
+        else:
+            # The image is taller than desired; crop off top and bottom.
+            target_height = int(round(self.width / THUMB_ASPECT))
+            dy = (self.height - target_height) // 2
+            crop_box = (0, dy, self.width, dy + target_height)
+
+        thumb = self.aspil().crop(crop_box)
+        thumb.thumbnail(THUMB_SHAPE)
+
+        # Depending on the source image, the mode might be RGBA, which can't
+        # be JPEG-ified.
+        thumb = thumb.convert('RGB')
+
+        return thumb

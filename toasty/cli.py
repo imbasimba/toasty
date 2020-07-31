@@ -351,7 +351,7 @@ def study_sample_image_tiles_impl(settings):
     from wwt_data_formats.imageset import ImageSet
     from .image import ImageLoader
     from .pyramid import PyramidIO
-    from .study import make_thumbnail_bitmap, tile_study_image
+    from .study import tile_study_image
 
     # Load image and prep tiling
     img = ImageLoader.create_from_args(settings).load_path(settings.imgpath)
@@ -359,7 +359,7 @@ def study_sample_image_tiles_impl(settings):
     tiling = tile_study_image(img, pio)
 
     # Thumbnail.
-    thumb = make_thumbnail_bitmap(img.aspil())
+    thumb = img.make_thumbnail_bitmap()
     thumb.save(os.path.join(settings.outdir, 'thumb.jpg'), format='JPEG')
 
     # Write out a stub WTML file. The only information this will actually
@@ -412,7 +412,7 @@ def wwtl_sample_image_tiles_impl(settings):
     from .image import ImageLoader
     from .io import read_image_as_pil
     from .pyramid import PyramidIO
-    from .study import make_thumbnail_bitmap, tile_study_image
+    from .study import tile_study_image
 
     # Load WWTL and see if it matches expectations
     lc = LayerContainerReader.from_file(settings.wwtl_path)
@@ -438,7 +438,7 @@ def wwtl_sample_image_tiles_impl(settings):
     tiling = tile_study_image(img, pio)
 
     # Thumbnail.
-    thumb = make_thumbnail_bitmap(img.aspil())
+    thumb = img.make_thumbnail_bitmap()
     thumb.save(os.path.join(settings.outdir, 'thumb.jpg'), format='JPEG')
 
     # Write a WTML file. We reuse the existing imageset as much as possible,

@@ -10,7 +10,6 @@ from __future__ import absolute_import, division, print_function
 
 __all__ = '''
 StudyTiling
-make_thumbnail_bitmap
 tile_study_image
 '''.split()
 
@@ -289,42 +288,3 @@ def tile_study_image(image, pio):
     tiling = StudyTiling(image.width, image.height)
     tiling.tile_image(image, pio)
     return tiling
-
-
-def make_thumbnail_bitmap(bitmap):
-    """Create a thumbnail bitmap from a :class:`PIL.Image`.
-
-    Parameters
-    ----------
-    bitmap : :class:`PIL.Image`
-        The image to thumbnail.
-
-    Returns
-    -------
-    A :class:`PIL.Image` representing a thumbnail of the input image. WWT
-    thumbnails are 96 pixels wide and 45 pixels tall and should be saved in
-    JPEG format.
-
-    """
-    THUMB_SHAPE = (96, 45)
-    THUMB_ASPECT = THUMB_SHAPE[0] / THUMB_SHAPE[1]
-
-    if bitmap.width / bitmap.height > THUMB_ASPECT:
-        # The image is wider than desired; we'll need to crop off the sides.
-        target_width = int(round(bitmap.height * THUMB_ASPECT))
-        dx = (bitmap.width - target_width) // 2
-        crop_box = (dx, 0, dx + target_width, bitmap.height)
-    else:
-        # The image is taller than desired; crop off top and bottom.
-        target_height = int(round(bitmap.width / THUMB_ASPECT))
-        dy = (bitmap.height - target_height) // 2
-        crop_box = (0, dy, bitmap.width, dy + target_height)
-
-    thumb = bitmap.crop(crop_box)
-    thumb.thumbnail(THUMB_SHAPE)
-
-    # Depending on the source image, the mode might be RGBA, which can't
-    # be JPEG-ified.
-    thumb = thumb.convert('RGB')
-
-    return thumb

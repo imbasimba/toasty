@@ -5,7 +5,6 @@
 from __future__ import absolute_import, division, print_function
 
 __all__ = '''
-read_image_as_pil
 read_image
 save_png
 '''.split()
@@ -28,42 +27,12 @@ def save_png(pth, array):
     Image.fromarray(array).save(pth)
 
 
-def read_image_as_pil(path):
-    """Load a bitmap image into a PIL Image.
-
-    The loading supports whatever image formats PIL does. As a special-case
-    hack, if the input path has extension ``.psd`` or ``.psb``, the
-    ``psd_tools`` module will be used if available.
-
-    Parameters
-    ----------
-    path : str
-        The path of the image to read
-
-    Returns
-    -------
-    img : :class:`PIL.Image.Image`
-        The image data.
-    """
-    if path.endswith('.psd') or path.endswith('.psb'):
-        try:
-            from psd_tools import PSDImage
-        except ImportError:
-            pass
-        else:
-            psd = PSDImage.open(path)
-            return psd.composite()
-
-    return Image.open(path)
-
-
 def read_image(path):
     """Load a bitmap image into a Numpy array.
 
     The loading is generally done using PIL (the Python Imaging Library, usually the
     "pillow" implementation these days) so it supports whatever image formats
-    PIL does. As a special-case hack, if the input path has extension ``.psd`` or ``.psb``,
-    the ``psd_tools`` module will be used if available.
+    PIL does.
 
     Parameters
     ----------
@@ -78,4 +47,4 @@ def read_image(path):
         3 for RGB or potentially 4 for RGBA. The data type will be ``uint8``.
 
     """
-    return np.asarray(read_image_as_pil(path))
+    return np.asarray(Image.open(path))

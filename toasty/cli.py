@@ -410,7 +410,6 @@ def wwtl_sample_image_tiles_impl(settings):
     from wwt_data_formats.place import Place
 
     from .image import ImageLoader
-    from .io import read_image_as_pil
     from .pyramid import PyramidIO
     from .study import tile_study_image
 

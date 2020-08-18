@@ -257,7 +257,7 @@ class StudyTiling(object):
         if image.width != self._width:
             raise ValueError('width of image to be sampled does not match tiling')
 
-        buffer = image.make_maskable_buffer(256, 256)
+        buffer = image.mode.make_maskable_buffer(256, 256)
 
         for pos, width, height, image_x, image_y, tile_x, tile_y in self.generate_populated_positions():
             iy_idx = slice(image_y, image_y + height)

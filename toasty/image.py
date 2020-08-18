@@ -36,6 +36,57 @@ class ImageMode(Enum):
     RGBA = 'RGBA'
     F32 = 'F'
 
+    def get_default_save_extension(self):
+        """
+        Get the file extension to be used in this mode's "default" save format.
+
+        Returns
+        -------
+        The extension, without a period; either "png" or "npy"
+
+        """
+        # For RGB, could use JPG? But would complexify lots of things downstream.
+
+        if self in (ImageMode.RGB, ImageMode.RGBA):
+            return 'png'
+        elif self == ImageMode.F32:
+            return 'npy'
+        else:
+            raise Exception('unhandled mode in get_default_save_extension')
+
+    def make_maskable_buffer(self, buf_height, buf_width):
+        """
+        Return a new, uninitialized buffer of the specified shape, with a mode
+        compatible with this one but able to accept undefined values.
+
+        Parameters
+        ----------
+        buf_height : int
+            The height of the new buffer
+        buf_width : int
+            The width of the new buffer
+
+        Returns
+        -------
+        An uninitialized :class:`Image` instance.
+
+        Notes
+        -----
+        "Maskable" means that the buffer can accommodate undefined values.
+        If the image is RGB or RGBA, that means that the buffer will have an
+        alpha channel. If the image is scientific, that means that the buffer
+        will be able to accept NaNs.
+
+        """
+        if self in (ImageMode.RGB, ImageMode.RGBA):
+            arr = np.empty((buf_height, buf_width, 4), dtype=np.uint8)
+        elif self == ImageMode.F32:
+            arr = np.empty((buf_height, buf_width), dtype=np.float32)
+        else:
+            raise Exception('unhandled mode in make_maskable_buffer()')
+
+        return Image.from_array(arr)
+
 
 class ImageLoader(object):
     """
@@ -266,7 +317,7 @@ class Image(object):
         strictly 2D and has a dtype of float32, it will be treated as science
         data. If it has shape ``(H, W, 3)`` and has type uint8, it will be
         treated as RGB data. If it has shape ``(H, W, 4)`` and has type uint8,
-        it will be treated as RGBA data. Other combinatiosn are not allowed.
+        it will be treated as RGBA data. Other combinations are not allowed.
 
         """
         inst = cls()
@@ -339,39 +390,6 @@ class Image(object):
     def height(self):
         return self.shape[0]
 
-    def make_maskable_buffer(self, buf_height, buf_width):
-        """
-        Return a new, uninitialized buffer of the specified shape, with a mode
-        compatible with this image but able to accept undefined values.
-
-        Parameters
-        ----------
-        buf_height : int
-            The height of the new buffer
-        buf_width : int
-            The width of the new buffer
-
-        Returns
-        -------
-        An uninitialized :class:`Image` instance.
-
-        Notes
-        -----
-        "Maskable" means that the buffer can accommodate undefined values.
-        If the image is RGB or RGBA, that means that the buffer will have an
-        alpha channel. If the image is scientific, that means that the buffer
-        will be able to accept NaNs.
-
-        """
-        if self.mode in (ImageMode.RGB, ImageMode.RGBA):
-            arr = np.empty((buf_height, buf_width, 4), dtype=np.uint8)
-        elif self.mode == ImageMode.F32:
-            arr = np.empty((buf_height, buf_width), dtype=self.dtype)
-        else:
-            raise Exception('unhandled mode in make_maskable_buffer()')
-
-        return Image.from_array(arr)
-
     def fill_into_maskable_buffer(self, buffer, iy_idx, ix_idx, by_idx, bx_idx):
         """
         Fill a maskable buffer with a rectangle of data from this image.
@@ -379,7 +397,7 @@ class Image(object):
         Parameters
         ----------
         buffer : :class:`Image`
-            The destination buffer image, created with :meth:`make_maskable_buffer`.
+            The destination buffer image, created with :meth:`ImageMode.make_maskable_buffer`.
         iy_idx : slice or other indexer
             The indexer into the Y axis of the source image (self).
         ix_idx : slice or other indexer
@@ -413,22 +431,6 @@ class Image(object):
             b[by_idx,bx_idx] = i[iy_idx,ix_idx]
         else:
             raise Exception('unhandled mode in fill_into_maskable_buffer')
-
-    def get_default_save_extension(self):
-        """
-        Get the file extension to be used in this image's "default" save format
-
-        Returns
-        -------
-        The extension, without a period; either "png" or "npy"
-
-        """
-        if self.mode in (ImageMode.RGB, ImageMode.RGBA):
-            return 'png'
-        elif self.mode == ImageMode.F32:
-            return 'npy'
-        else:
-            raise Exception('unhandled mode in get_default_save_extension')
 
     def save_default(self, path_or_stream):
         """

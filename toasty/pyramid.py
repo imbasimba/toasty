@@ -334,7 +334,7 @@ class PyramidIO(object):
             The image to write.
 
         """
-        p = self.tile_path(pos, image.get_default_save_extension())
+        p = self.tile_path(pos, image.mode.get_default_save_extension())
         image.save_default(p)
 
     def open_metadata_for_read(self, basename):

@@ -14,8 +14,20 @@ ImageMode
       ~ImageMode.RGB
       ~ImageMode.RGBA
 
+   .. rubric:: Methods Summary
+
+   .. autosummary::
+
+      ~ImageMode.get_default_save_extension
+      ~ImageMode.make_maskable_buffer
+
    .. rubric:: Attributes Documentation
 
    .. autoattribute:: F32
    .. autoattribute:: RGB
    .. autoattribute:: RGBA
+
+   .. rubric:: Methods Documentation
+
+   .. automethod:: get_default_save_extension
+   .. automethod:: make_maskable_buffer

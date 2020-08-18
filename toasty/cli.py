@@ -65,6 +65,7 @@ def cascade_getparser(parser):
 
 
 def cascade_impl(settings):
+    from .image import ImageMode
     from .merge import averaging_merger, cascade_images
     from .pyramid import PyramidIO
 
@@ -74,7 +75,7 @@ def cascade_impl(settings):
     if start is None:
         die('currently, you must specify the start layer with the --start option')
 
-    cascade_images(pio, start, averaging_merger)
+    cascade_images(pio, ImageMode.RGBA, start, averaging_merger)
 
 
 # "healpix_sample_data_tiles" subcommand

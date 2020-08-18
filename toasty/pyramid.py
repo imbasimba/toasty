@@ -28,6 +28,8 @@ from collections import namedtuple
 import numpy as np
 import os.path
 
+from .image import ImageLoader
+
 Pos = namedtuple('Pos', 'n x y')
 
 
@@ -322,6 +324,46 @@ class PyramidIO(object):
 
         """
         np.save(self.tile_path(pos, extension), data)
+
+    def read_toasty_image(self, pos, mode, default='none'):
+        """
+        Read a toasty Image for the specified tile position.
+
+        Parameters
+        ----------
+        pos : :class:`Pos`
+            The tile position to read.
+        mode : :class:`toasty.image.ImageMode`
+            The image data mode to read. This will affect the file extension probed
+            and the mode of the returned image.
+        default : str, defaults to "none"
+            What to do if the specified tile file does not exist. If this is
+            "none", ``None`` will be returned instead of an image. If this is
+            "masked", an all-masked image will be returned, using
+            :meth:`~toasty.image.ImageMode.make_maskable_buffer`.
+            Otherwise, :exc:`ValueError` will be raised.
+
+        """
+        p = self.tile_path(pos, mode.get_default_save_extension())
+
+        loader = ImageLoader()
+        loader.desired_mode = mode
+
+        try:
+            img = loader.load_path(p)
+        except IOError as e:
+            if e.errno != 2:
+                raise  # not EEXIST
+
+            if default == 'none':
+                return None
+            elif default == 'masked':
+                return mode.make_maskable_buffer(256, 256)
+            else:
+                raise ValueError('unexpected value for "default": {!r}'.format(default))
+
+        assert img.mode == mode
+        return img
 
     def write_toasty_image(self, pos, image):
         """Write a toasty Image for the specified tile position.

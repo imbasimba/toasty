@@ -78,14 +78,27 @@ class ImageMode(Enum):
         will be able to accept NaNs.
 
         """
+        mask_mode = self
+
         if self in (ImageMode.RGB, ImageMode.RGBA):
             arr = np.empty((buf_height, buf_width, 4), dtype=np.uint8)
+            mask_mode = ImageMode.RGBA
         elif self == ImageMode.F32:
             arr = np.empty((buf_height, buf_width), dtype=np.float32)
         else:
             raise Exception('unhandled mode in make_maskable_buffer()')
 
-        return Image.from_array(arr)
+        return Image.from_array(mask_mode, arr)
+
+    def try_as_pil(self):
+        """
+        Attempt to convert this mode into a PIL image mode string.
+
+        Returns
+        -------
+        A PIL image mode string, or None if there is no exact counterpart.
+        """
+        return self.value
 
 
 class ImageLoader(object):
@@ -98,8 +111,9 @@ class ImageLoader(object):
     TODO: support FITS, Numpy, etc.
 
     """
-    psd_single_layer = None
     colorspace_processing = 'srgb'
+    desired_mode = None
+    psd_single_layer = None
 
     @classmethod
     def add_arguments(cls, parser):
@@ -123,17 +137,18 @@ class ImageLoader(object):
 
         """
         parser.add_argument(
-            '--psd-single-layer',
-            type = int,
-            metavar = 'NUMBER',
-            help = 'If loading a Photoshop image, the (0-based) layer number to load -- saves memory',
-        )
-        parser.add_argument(
             '--colorspace-processing',
             metavar = 'MODE',
             default = 'srgb',
             help = 'What kind of RGB colorspace processing to perform: '
                 '"none", "srgb" to convert to sRGB (the default)',
+        )
+        # not exposing desired_mode -- shouldn't be something the for the user to deal with
+        parser.add_argument(
+            '--psd-single-layer',
+            type = int,
+            metavar = 'NUMBER',
+            help = 'If loading a Photoshop image, the (0-based) layer number to load -- saves memory',
         )
         return cls
 
@@ -188,6 +203,16 @@ class ImageLoader(object):
             out_prof = ImageCms.createProfile('sRGB')
             xform = ImageCms.buildTransform(in_prof, out_prof, pil_img.mode, pil_img.mode)
             ImageCms.applyTransform(pil_img, xform, inPlace=True)
+
+        # Make sure that we end up with the right mode, if requested.
+
+        if self.desired_mode is not None:
+            desired_pil = self.desired_mode.try_as_pil()
+            if desired_pil is None:
+                raise Exception('cannot convert PIL image to desired mode {}'.format(self.desired_mode))
+
+            if pil_img.mode != desired_pil:
+                pil_img = pil_img.convert(desired_pil)
 
         return Image.from_pil(pil_img)
 
@@ -277,7 +302,8 @@ class Image(object):
 
     @classmethod
     def from_pil(cls, pil_img):
-        """Create a new Image from a PIL image.
+        """
+        Create a new Image from a PIL image.
 
         Parameters
         ----------
@@ -288,6 +314,12 @@ class Image(object):
         -------
         A new :class:`Image` wrapping the PIL image.
         """
+        # Make sure that the image data are actually loaded from disk. Pillow
+        # lazy-loads such that sometimes `np.asarray(img)` ends up failing
+        # mysteriously if the image is loaded from a file handle that is closed
+        # promptly.
+        pil_img.load()
+
         inst = cls()
         inst._pil = pil_img
 
@@ -299,11 +331,13 @@ class Image(object):
         return inst
 
     @classmethod
-    def from_array(cls, array):
+    def from_array(cls, mode, array):
         """Create a new Image from an array-like data variable.
 
         Parameters
         ----------
+        mode : :class:`ImageMode`
+            The image mode.
         array : array-like object
             The source data.
 
@@ -313,25 +347,29 @@ class Image(object):
 
         Notes
         -----
-        The array will be converted to be at least two-dimensional. If it is
-        strictly 2D and has a dtype of float32, it will be treated as science
-        data. If it has shape ``(H, W, 3)`` and has type uint8, it will be
-        treated as RGB data. If it has shape ``(H, W, 4)`` and has type uint8,
-        it will be treated as RGBA data. Other combinations are not allowed.
+        The array will be converted to be at least two-dimensional. The data
+        array shape should match the requirements of the mode.
 
         """
-        inst = cls()
-        inst._array = array = np.atleast_2d(array)
+        array = np.atleast_2d(array)
+        array_ok = False
 
-        if array.ndim == 2 and array.dtype == np.dtype(np.float32):
-            inst._mode = ImageMode.F32
-        elif array.ndim == 3 and array.shape[2] == 3 and array.dtype == np.dtype(np.uint8):
-            inst._mode = ImageMode.RGB
-        elif array.ndim == 3 and array.shape[2] == 4 and array.dtype == np.dtype(np.uint8):
-            inst._mode = ImageMode.RGBA
+        if mode == ImageMode.F32:
+            array_ok = (array.ndim == 2 and array.dtype == np.dtype(np.float32))
+        elif mode == ImageMode.RGB:
+            array_ok = (array.ndim == 3 and array.shape[2] == 3 and array.dtype == np.dtype(np.uint8))
+        elif mode == ImageMode.RGBA:
+            array_ok = (array.ndim == 3 and array.shape[2] == 4 and array.dtype == np.dtype(np.uint8))
         else:
-            raise ValueError('unsupported shape/dtype combination {}/{}'.format(array.shape, array.dtype))
+            raise ValueError('unhandled image mode {} in from_array()'.format(mode))
 
+        if not array_ok:
+            raise ValueError('expected array compatible with mode {}, but got shape/dtype = {}/{}'
+                             .format(mode, array.shape, array.dtype))
+
+        inst = cls()
+        inst._mode = mode
+        inst._array = array
         return inst
 
     def asarray(self):
@@ -485,3 +523,20 @@ class Image(object):
         thumb = thumb.convert('RGB')
 
         return thumb
+
+    def clear(self):
+        """
+        Fill the image with whatever "empty" value is most appropriate for its mode.
+
+        Notes
+        -----
+        If the mode is RGB or RGBA, the buffer is filled with zeros. If the mode is
+        floating-point, the buffer is filled with NaNs.
+
+        """
+        if self._mode in (ImageMode.RGB, ImageMode.RGBA):
+            self.asarray().fill(0)
+        elif self._mode == ImageMode.F32:
+            self.asarray().fill(np.nan)
+        else:
+            raise Exception('unhandled mode in clear()')

@@ -247,48 +247,6 @@ class PyramidIO(object):
         """
         return self._scheme
 
-    def read_image(self, pos, extension='png', default='none'):
-        """Read an image file for the specified tile position.
-
-        Parameters
-        ----------
-        pos : :class:`Pos`
-            The tile position to read.
-        extension : str, defaults to "png"
-            The file extension to use when constructing the path to read.
-        default : str, defaults to "none"
-            What to do if the specified tile file does not exist. If this is
-            "none", ``None`` will be returned instead of an array. If this is
-            "zeros3", an array of zeros with shape ``(256, 256, 3)`` and dtype
-            ``np.uint8`` will be returned. If it is "zeros4", a similar array
-            of shape ``(256, 256, 4)`` will be returned. Otherwise,
-            :exc:`ValueError` will be raised.
-
-        Returns
-        -------
-        The image data as a numpy array, or one of the values as specified
-        based on the parameter *default*. For a typical PNG image, the
-        returned array will have shape ``(256, 256, 4)`` and dtype
-        ``np.uint8``.
-
-        """
-        from .io import read_image
-
-        try:
-            return read_image(self.tile_path(pos, extension))
-        except IOError as e:
-            if e.errno != 2:
-                raise  # not EEXIST
-
-            if default == 'none':
-                return None
-            elif default == 'zeros3':
-                return np.zeros((256, 256, 3), dtype=np.uint8)
-            elif default == 'zeros4':
-                return np.zeros((256, 256, 4), dtype=np.uint8)
-            else:
-                raise ValueError('unexpected value for "default": {!r}'.format(default))
-
     def read_toasty_image(self, pos, mode, default='none'):
         """
         Read a toasty Image for the specified tile position.

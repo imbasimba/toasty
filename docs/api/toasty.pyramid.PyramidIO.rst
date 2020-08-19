@@ -13,7 +13,6 @@ PyramidIO
       ~PyramidIO.get_path_scheme
       ~PyramidIO.open_metadata_for_read
       ~PyramidIO.open_metadata_for_write
-      ~PyramidIO.read_image
       ~PyramidIO.read_toasty_image
       ~PyramidIO.tile_path
       ~PyramidIO.write_toasty_image
@@ -23,7 +22,6 @@ PyramidIO
    .. automethod:: get_path_scheme
    .. automethod:: open_metadata_for_read
    .. automethod:: open_metadata_for_write
-   .. automethod:: read_image
    .. automethod:: read_toasty_image
    .. automethod:: tile_path
    .. automethod:: write_toasty_image

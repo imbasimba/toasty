@@ -1,8 +1,11 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2013-2019 Chris Beaumont and the AAS WorldWide Telescope project
+# Copyright 2013-2020 Chris Beaumont and the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 """Computations for the TOAST projection scheme and tile pyramid format.
+
+TODO this all needs to be ported to modern Toasty infrastructure and
+wwt_data_formats.
 
 """
 from __future__ import absolute_import, division, print_function
@@ -26,7 +29,6 @@ import numpy as np
 
 from ._libtoasty import subsample, mid
 from .image import Image
-from .io import save_png, read_image
 from .norm import normalize
 from .pyramid import Pos, depth2tiles, is_subtile, pos_parent
 
@@ -246,6 +248,18 @@ def generate_tiles(depth, bottom_only=True, tile_filter=None):
     for t in todo:
         for item in _postfix_corner(t, depth, bottom_only, tile_filter):
             yield item
+
+
+# This is where we start needing to revamp all of the I/O and pyramid-management stuff:
+
+import PIL.Image
+
+def save_png(pth, array):
+    PIL.Image.fromarray(array).save(pth)
+
+
+def read_image(path):
+    return np.asarray(PIL.Image.open(path))
 
 
 def generate_images(

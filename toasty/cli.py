@@ -65,6 +65,7 @@ def cascade_getparser(parser):
 
 
 def cascade_impl(settings):
+    from .image import ImageMode
     from .merge import averaging_merger, cascade_images
     from .pyramid import PyramidIO
 
@@ -74,7 +75,7 @@ def cascade_impl(settings):
     if start is None:
         die('currently, you must specify the start layer with the --start option')
 
-    cascade_images(pio, start, averaging_merger)
+    cascade_images(pio, ImageMode.RGBA, start, averaging_merger)
 
 
 # "healpix_sample_data_tiles" subcommand
@@ -100,19 +101,23 @@ def healpix_sample_data_tiles_getparser(parser):
 
 
 def healpix_sample_data_tiles_impl(settings):
+    from .image import ImageMode
     from .pyramid import PyramidIO
     from .samplers import healpix_fits_file_sampler
     from .toast import SamplingToastDataSource
 
     pio = PyramidIO(settings.outdir)
     sampler = healpix_fits_file_sampler(settings.fitspath)
-    ds = SamplingToastDataSource(sampler)
-    ds.sample_data_layer(pio, settings.depth)
+    ds = SamplingToastDataSource(ImageMode.F32, sampler)
+    ds.sample_layer(pio, settings.depth)
 
 
 # "image_sample_tiles" subcommand
 
 def image_sample_tiles_getparser(parser):
+    from .image import ImageLoader
+    ImageLoader.add_arguments(parser)
+
     parser.add_argument(
         '--outdir',
         metavar = 'PATH',
@@ -139,21 +144,21 @@ def image_sample_tiles_getparser(parser):
 
 
 def image_sample_tiles_impl(settings):
-    from .io import read_image
+    from .image import ImageLoader
     from .pyramid import PyramidIO
     from .toast import SamplingToastDataSource
 
+    img = ImageLoader.create_from_args(settings).load_path(settings.imgpath)
     pio = PyramidIO(settings.outdir)
-    data = read_image(settings.imgpath)
 
     if settings.projection == 'plate-carree':
         from .samplers import plate_carree_sampler
-        sampler = plate_carree_sampler(data)
+        sampler = plate_carree_sampler(img.asarray())
     else:
         die('the image projection type {!r} is not recognized'.format(settings.projection))
 
-    ds = SamplingToastDataSource(sampler)
-    ds.sample_image_layer(pio, settings.depth)
+    ds = SamplingToastDataSource(img.mode, sampler)
+    ds.sample_layer(pio, settings.depth)
 
 
 # "multi_tan_make_data_tiles" subcommand
@@ -329,6 +334,9 @@ def pipeline_reindex_impl(settings):
 # "study_sample_image_tiles" subcommand
 
 def study_sample_image_tiles_getparser(parser):
+    from .image import ImageLoader
+    ImageLoader.add_arguments(parser)
+
     parser.add_argument(
         '--outdir',
         metavar = 'PATH',
@@ -346,20 +354,17 @@ def study_sample_image_tiles_impl(settings):
     import numpy as np
     import PIL.Image
     from wwt_data_formats.imageset import ImageSet
-    from .io import read_image_as_pil
+    from .image import ImageLoader
     from .pyramid import PyramidIO
-    from .study import make_thumbnail_bitmap, tile_study_image
+    from .study import tile_study_image
 
-    # Prevent max image size aborts:
-    PIL.Image.MAX_IMAGE_PIXELS = None
-
-    # Load image.
+    # Load image and prep tiling
+    img = ImageLoader.create_from_args(settings).load_path(settings.imgpath)
     pio = PyramidIO(settings.outdir)
-    img = read_image_as_pil(settings.imgpath)
-    tiling = tile_study_image(np.asarray(img), pio)
+    tiling = tile_study_image(img, pio)
 
     # Thumbnail.
-    thumb = make_thumbnail_bitmap(img)
+    thumb = img.make_thumbnail_bitmap()
     thumb.save(os.path.join(settings.outdir, 'thumb.jpg'), format='JPEG')
 
     # Write out a stub WTML file. The only information this will actually
@@ -373,10 +378,19 @@ def study_sample_image_tiles_impl(settings):
     imgset.url = pio.get_path_scheme() + '.png'
     stub_wtml(imgset, os.path.join(settings.outdir, 'index_rel.wtml'))
 
+    # Helpful hint:
+    print(f'Successfully tiled input "{settings.imgpath}" at level {imgset.tile_levels}.')
+    print('To create parent tiles, consider running:')
+    print()
+    print(f'   toasty cascade --start {imgset.tile_levels} {settings.outdir}')
+
 
 # "wwtl_sample_image_tiles" subcommand
 
 def wwtl_sample_image_tiles_getparser(parser):
+    from .image import ImageLoader
+    ImageLoader.add_arguments(parser)
+
     parser.add_argument(
         '--outdir',
         metavar = 'PATH',
@@ -391,6 +405,7 @@ def wwtl_sample_image_tiles_getparser(parser):
 
 
 def wwtl_sample_image_tiles_impl(settings):
+    # TODO: implement WWTL loading as an Image mode.
     from io import BytesIO
     import numpy as np
     import PIL.Image
@@ -399,12 +414,9 @@ def wwtl_sample_image_tiles_impl(settings):
     from wwt_data_formats.layers import ImageSetLayer, LayerContainerReader
     from wwt_data_formats.place import Place
 
-    from .io import read_image_as_pil
+    from .image import ImageLoader
     from .pyramid import PyramidIO
-    from .study import make_thumbnail_bitmap, tile_study_image
-
-    # Prevent max image size aborts:
-    PIL.Image.MAX_IMAGE_PIXELS = None
+    from .study import tile_study_image
 
     # Load WWTL and see if it matches expectations
     lc = LayerContainerReader.from_file(settings.wwtl_path)
@@ -421,15 +433,16 @@ def wwtl_sample_image_tiles_impl(settings):
         die('WWTL imageset layer must have "SkyImage" projection type')
 
     # Looks OK. Read and parse the image.
+    loader = ImageLoader.create_from_args(settings)
     img_data = lc.read_layer_file(layer, layer.extension)
-    img = PIL.Image.open(BytesIO(img_data))
+    img = loader.load_stream(BytesIO(img_data))
 
     # Tile it!
     pio = PyramidIO(settings.outdir)
-    tiling = tile_study_image(np.asarray(img), pio)
+    tiling = tile_study_image(img, pio)
 
     # Thumbnail.
-    thumb = make_thumbnail_bitmap(img)
+    thumb = img.make_thumbnail_bitmap()
     thumb.save(os.path.join(settings.outdir, 'thumb.jpg'), format='JPEG')
 
     # Write a WTML file. We reuse the existing imageset as much as possible,
@@ -442,6 +455,7 @@ def wwtl_sample_image_tiles_impl(settings):
 
     if not imgset.name:
         imgset.name = 'Toasty'
+    imgset.file_type = '.png'
     imgset.thumbnail_url = 'thumb.jpg'
     imgset.url = pio.get_path_scheme() + '.png'
 

@@ -28,6 +28,8 @@ from collections import namedtuple
 import numpy as np
 import os.path
 
+from .image import ImageLoader
+
 Pos = namedtuple('Pos', 'n x y')
 
 
@@ -56,9 +58,9 @@ def is_subtile(deeper_pos, shallower_pos):
     Parameters
     ----------
     deeper_pos : Pos
-      A tile position.
+        A tile position.
     shallower_pos : Pos
-      A tile position that is shallower than *deeper_pos*.
+        A tile position that is shallower than *deeper_pos*.
 
     Returns
     -------
@@ -80,16 +82,16 @@ def pos_parent(pos):
     Parameters
     ----------
     pos : Pos
-      A tile position.
+        A tile position.
 
     Returns
     -------
     parent : Pos
-      The tile position that is the parent of *pos*.
+        The tile position that is the parent of *pos*.
     x_index : integer, 0 or 1
-      The horizontal index of the child inside its parent.
+        The horizontal index of the child inside its parent.
     y_index : integer, 0 or 1
-      The vertical index of the child inside its parent.
+        The vertical index of the child inside its parent.
 
     """
     if pos.n < 1:
@@ -109,7 +111,7 @@ def pos_children(pos):
     Parameters
     ----------
     pos : :class:`Pos`
-      A tile position.
+        A tile position.
 
     Returns
     -------
@@ -152,12 +154,12 @@ def generate_pos(depth):
     Parameters
     ----------
     depth : int
-      The tile depth to recurse to.
+        The tile depth to recurse to.
 
     Yields
     ------
     pos : :class:`Pos`
-      An individual position to process.
+        An individual position to process.
 
     """
     for item in _postfix_pos(Pos(0, 0, 0), depth):
@@ -185,9 +187,9 @@ class PyramidIO(object):
         Parameters
         ----------
         pos : Pos
-          The tile to get a path for.
+            The tile to get a path for.
         extension : str, default: "png"
-          The file extension to use in the path.
+            The file extension to use in the path.
 
         Returns
         -------
@@ -245,117 +247,88 @@ class PyramidIO(object):
         """
         return self._scheme
 
-    def read_image(self, pos, extension='png', default='none'):
-        """Read an image file for the specified tile position.
+    def read_toasty_image(self, pos, mode, default='none'):
+        """
+        Read a toasty Image for the specified tile position.
 
         Parameters
         ----------
         pos : :class:`Pos`
-          The tile position to read.
-        extension : str, defaults to "png"
-          The file extension to use when constructing the path to read.
+            The tile position to read.
+        mode : :class:`toasty.image.ImageMode`
+            The image data mode to read. This will affect the file extension probed
+            and the mode of the returned image.
         default : str, defaults to "none"
-          What to do if the specified tile file does not exist. If this is
-          "none", ``None`` will be returned instead of an array. If this is
-          "zeros3", an array of zeros with shape ``(256, 256, 3)`` and dtype
-          ``np.uint8`` will be returned. If it is "zeros4", a similar array
-          of shape ``(256, 256, 4)`` will be returned. Otherwise,
-          :exc:`ValueError` will be raised.
-
-        Returns
-        -------
-        The image data as a numpy array, or one of the values as specified
-        based on the parameter *default*. For a typical PNG image, the
-        returned array will have shape ``(256, 256, 4)`` and dtype
-        ``np.uint8``.
+            What to do if the specified tile file does not exist. If this is
+            "none", ``None`` will be returned instead of an image. If this is
+            "masked", an all-masked image will be returned, using
+            :meth:`~toasty.image.ImageMode.make_maskable_buffer`.
+            Otherwise, :exc:`ValueError` will be raised.
 
         """
-        from .io import read_image
+        p = self.tile_path(pos, mode.get_default_save_extension())
+
+        loader = ImageLoader()
+        loader.desired_mode = mode
 
         try:
-            return read_image(self.tile_path(pos, extension))
+            img = loader.load_path(p)
         except IOError as e:
             if e.errno != 2:
                 raise  # not EEXIST
 
             if default == 'none':
                 return None
-            elif default == 'zeros3':
-                return np.zeros((256, 256, 3), dtype=np.uint8)
-            elif default == 'zeros4':
-                return np.zeros((256, 256, 4), dtype=np.uint8)
+            elif default == 'masked':
+                return mode.make_maskable_buffer(256, 256)
             else:
                 raise ValueError('unexpected value for "default": {!r}'.format(default))
 
-    def write_image(self, pos, data, extension='png'):
-        """Write an image file for the specified tile position.
+        assert img.mode == mode
+        return img
 
-        The conversion of the array into an image is handled by the
-        :func:`toasty.io.save_png` function — see its documentation for
-        specifics. Generally, *data* should be an array of shape ``(256, 256,
-        3)`` and dtype ``np.uint8``.
+    def write_toasty_image(self, pos, image):
+        """Write a toasty Image for the specified tile position.
 
         Parameters
         ----------
         pos : :class:`Pos`
-          The tile position to write.
-        data : array-like
-          The image data to write.
-        extension : str, defaults to "png"
-          The file extension to use when constructing the path to write.
+            The tile position to write.
+        image : :class:`toasty.image.Image`
+            The image to write.
 
         """
-        from .io import save_png
-        save_png(self.tile_path(pos, extension), data)
+        p = self.tile_path(pos, image.mode.get_default_save_extension())
+        image.save_default(p)
 
-    def read_numpy(self, pos, extension='npy', default='nan'):
-        """Read a Numpy file for the specified tile position.
+    def open_metadata_for_read(self, basename):
+        """
+        Open a metadata file in read mode.
 
         Parameters
         ----------
-        pos : :class:`Pos`
-          The tile position to read.
-        extension : str, defaults to "npy"
-          The file extension to use when constructing the path to read.
-        default : str, defaults to "nan"
-          What to do if the specified tile file does not exist. If this is
-          "none", ``None`` will be returned instead of an array. If this is
-          "nan", an array of NaNs with shape ``(256, 256)`` and dtype
-          ``np.double`` will be returned. Otherwise, :exc:`ValueError` will be
-          raised.
+        basename : str
+            The basename of the metadata file
 
         Returns
         -------
-        The saved numpy array, or one of the values as specified based on the
-        parameter *default*.
+        A readable and closeable file-like object returning bytes.
 
         """
-        try:
-            return np.load(self.tile_path(pos, extension))
-        except IOError as e:
-            if e.errno != 2:
-                raise  # not EEXIST
+        return open(os.path.join(self._base_dir, basename), 'rb')
 
-            if default == 'none':
-                return None
-            elif default == 'nan':
-                arr = np.empty((256, 256), dtype=np.double)
-                arr.fill(np.nan)
-                return arr
-            else:
-                raise ValueError('unexpected value for "default": {!r}'.format(default))
-
-    def write_numpy(self, pos, data, extension='npy'):
-        """Write a numpy file for the specified tile position.
+    def open_metadata_for_write(self, basename):
+        """
+        Open a metadata file in write mode.
 
         Parameters
         ----------
-        pos : :class:`Pos`
-          The tile position to write.
-        data : array-like
-          The numpy data to write.
-        extension : str, defaults to "npy"
-          The file extension to use when constructing the path to write.
+        basename : str
+            The basename of the metadata file
+
+        Returns
+        -------
+        A writable and closeable file-like object accepting bytes.
 
         """
-        np.save(self.tile_path(pos, extension), data)
+        return open(os.path.join(self._base_dir, basename), 'wb')

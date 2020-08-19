@@ -1,8 +1,9 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2013-2019 Chris Beaumont and the AAS WorldWide Telescope project
+# Copyright 2013-2020 Chris Beaumont and the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
-"""“Sampler” functions that fetch image data as a function of sky coordinates.
+"""
+“Sampler” functions that fetch image data as a function of sky coordinates.
 
 The Sampler Protocol
 --------------------
@@ -36,16 +37,15 @@ def healpix_sampler(data, nest=False, coord='C', interpolation='nearest'):
     Parameters
     ----------
     data : array
-      The HEALPix data
+        The HEALPix data
     nest : bool (default: False)
-      Whether the data is ordered in the nested HEALPix style
+        Whether the data is ordered in the nested HEALPix style
     coord : 'C' | 'G'
-      Whether the image is in Celestial (C) or Galactic (G) coordinates
+        Whether the image is in Celestial (C) or Galactic (G) coordinates
     interpolation : 'nearest' | 'bilinear'
-      What interpolation scheme to use.
+        What interpolation scheme to use.
 
-      WARNING: bilinear uses healpy's get_interp_val,
-               which seems prone to segfaults
+        WARNING: bilinear uses healpy's get_interp_val, which seems prone to segfaults
 
     Returns
     -------
@@ -104,15 +104,14 @@ def healpix_fits_file_sampler(path, extension=None, interpolation='nearest'):
     Parameters
     ----------
     path : string
-      The path to the FITS file.
+        The path to the FITS file.
     extension : integer or None (default: None)
-      Which extension in the FITS file to read. If not specified, the first
-      extension with PIXTYPE = "HEALPIX" will be used.
+        Which extension in the FITS file to read. If not specified, the first
+        extension with PIXTYPE = "HEALPIX" will be used.
     interpolation : 'nearest' | 'bilinear'
-      What interpolation scheme to use.
+        What interpolation scheme to use.
 
-      WARNING: bilinear uses healpy's get_interp_val,
-               which seems prone to segfaults
+        WARNING: bilinear uses healpy's get_interp_val, which seems prone to segfaults
 
     Returns
     -------
@@ -128,8 +127,13 @@ def healpix_fits_file_sampler(path, extension=None, interpolation='nearest'):
             extension = _find_healpix_extension_index(f)
 
         data, hdr = f[extension].data, f[extension].header
-        # grab the first healpix parameter
+
+        # grab the first healpix parameter and convert to native endianness if
+        # needed.
         data = data[data.dtype.names[0]]
+        if data.dtype.byteorder not in '=|':
+            data = data.byteswap().newbyteorder()
+
         nest = hdr.get('ORDERING') == 'NESTED'
         coord = hdr.get('COORDSYS', 'C')
 
@@ -151,7 +155,7 @@ def plate_carree_sampler(data):
     Parameters
     ----------
     data : array-like, at least 2D
-      The map to sample in plate carrée projection.
+        The map to sample in plate carrée projection.
 
     Returns
     -------
@@ -187,18 +191,18 @@ def normalizer(sampler, vmin, vmax, scaling='linear', bias=0.5, contrast=1):
     Parameters
     ----------
     sampler : function
-       An input sampler function with call signature ``vec2pix(lon, lat) -> data``.
+        An input sampler function with call signature ``vec2pix(lon, lat) -> data``.
     vmin : float
-      The data value to assign to 0 (black).
+        The data value to assign to 0 (black).
     vmin : float
-      The data value to assign to 255 (white).
+        The data value to assign to 255 (white).
     bias : float between 0-1, default: 0.5
-      Where to assign middle-grey, relative to (vmin, vmax).
+        Where to assign middle-grey, relative to (vmin, vmax).
     contrast : float, default: 1
-      How quickly to ramp from black to white. The default of 1
-      ramps over a data range of (vmax - vmin)
+        How quickly to ramp from black to white. The default of 1
+        ramps over a data range of (vmax - vmin)
     scaling : 'linear' | 'log' | 'arcsinh' | 'sqrt' | 'power'
-      The type of intensity scaling to apply
+        The type of intensity scaling to apply
 
     Returns
     -------

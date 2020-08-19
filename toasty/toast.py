@@ -1,8 +1,11 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2013-2019 Chris Beaumont and the AAS WorldWide Telescope project
+# Copyright 2013-2020 Chris Beaumont and the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 """Computations for the TOAST projection scheme and tile pyramid format.
+
+TODO this all needs to be ported to modern Toasty infrastructure and
+wwt_data_formats.
 
 """
 from __future__ import absolute_import, division, print_function
@@ -25,17 +28,17 @@ import logging
 import numpy as np
 
 from ._libtoasty import subsample, mid
-from .io import save_png, read_image
+from .image import Image
 from .norm import normalize
 from .pyramid import Pos, depth2tiles, is_subtile, pos_parent
 
 level1 = [
     [np.radians(c) for c in row]
     for row in [
-            [(0, -90), (90, 0), (0, 90), (180, 0)],
-            [(90, 0), (0, -90), (0, 0), (0, 90)],
-            [(0, 90), (0, 0), (0, -90), (270, 0)],
-            [(180, 0), (0, 90), (270, 0), (0, -90)],
+        [(0, -90), (90, 0), (0, 90), (180, 0)],
+        [(90, 0), (0, -90), (0, 0), (0, 90)],
+        [(0, 90), (0, 0), (0, -90), (270, 0)],
+        [(180, 0), (0, 90), (270, 0), (0, -90)],
     ]
 ]
 
@@ -74,7 +77,7 @@ def toast_tile_area(tile):
     Parameters
     ----------
     tile : :class:`Tile`
-      A TOAST tile.
+        A TOAST tile.
 
     Returns
     -------
@@ -107,7 +110,7 @@ def minmax_tile_filter(ra_range, dec_range):
     Parameters
     ----------
     ra_range, dec_range: (array)
-      The ra and dec ranges to be toasted (in the form [min,max]).
+        The ra and dec ranges to be toasted (in the form [min,max]).
     """
 
     def is_overlap(tile):
@@ -135,8 +138,8 @@ def nxy_tile_filter(layer,tx,ty):
     Parameters
     ----------
     layer,tx,ty: (int)
-      Layer and x,y coordinates, for a tile that will serve at the "super-tile"
-      such that all subtiles will be toasted/merged.
+        Layer and x,y coordinates, for a tile that will serve at the "super-tile"
+        such that all subtiles will be toasted/merged.
     """
 
 
@@ -160,15 +163,15 @@ def _postfix_corner(tile, depth, bottom_only, tile_filter):
     Parameters
     ----------
     tile : Tile
-      Parameters of the current tile.
+        Parameters of the current tile.
     depth : int
-      The depth to descend to.
+        The depth to descend to.
     bottom_only : bool
-      If True, only yield tiles at max_depth.
+        If True, only yield tiles at max_depth.
     tile_filter : callable
-      A function with signature ``tile_filter(tile) -> bool`` that determines
-      which tiles will be yielded; tiles for which it returns ``False`` will
-      be skipped.
+        A function with signature ``tile_filter(tile) -> bool`` that determines
+        which tiles will be yielded; tiles for which it returns ``False`` will
+        be skipped.
 
     """
     n = tile[0].n
@@ -216,18 +219,18 @@ def generate_tiles(depth, bottom_only=True, tile_filter=None):
     Parameters
     ----------
     depth : int
-      The tile depth to recurse to.
+        The tile depth to recurse to.
     bottom_only : bool
-      If True, then only the lowest tiles will be yielded.
+        If True, then only the lowest tiles will be yielded.
     tile_filter : callable or None (the default)
-      If not None, a filter function applied to the process;
-      only tiles for which ``tile_filter(tile)`` returns True
-      will be yielded
+        If not None, a filter function applied to the process;
+        only tiles for which ``tile_filter(tile)`` returns True
+        will be yielded
 
     Yields
     ------
     tile : Tile
-      An individual tile to process. Tiles are yield deepest-first.
+        An individual tile to process. Tiles are yield deepest-first.
 
     The ``n = 0`` depth is not included.
 
@@ -247,6 +250,18 @@ def generate_tiles(depth, bottom_only=True, tile_filter=None):
             yield item
 
 
+# This is where we start needing to revamp all of the I/O and pyramid-management stuff:
+
+import PIL.Image
+
+def save_png(pth, array):
+    PIL.Image.fromarray(array).save(pth)
+
+
+def read_image(path):
+    return np.asarray(PIL.Image.open(path))
+
+
 def generate_images(
         data_sampler,
         depth,
@@ -261,41 +276,41 @@ def generate_images(
     Parameters
     ----------
     data_sampler : func or string
-      - A function that takes two 2D numpy arrays of (lon, lat) as input,
-        and returns an image of the original dataset sampled
-        at these locations; see :mod:`toasty.samplers`.
-      - A string giving a base toast directory that contains the
-        base level of toasted tiles, using this option, only the
-        merge step takes place, the given directory must contain
-        a "depth" directory for the given depth parameter
+        - A function that takes two 2D numpy arrays of (lon, lat) as input,
+          and returns an image of the original dataset sampled
+          at these locations; see :mod:`toasty.samplers`.
+        - A string giving a base toast directory that contains the
+          base level of toasted tiles, using this option, only the
+          merge step takes place, the given directory must contain
+          a "depth" directory for the given depth parameter
 
     depth : int
-      The maximum depth to tile to. A depth of N creates
-      4^N pngs at the deepest level
+        The maximum depth to tile to. A depth of N creates
+        4^N pngs at the deepest level
     merge : bool or callable (default True)
-      How to treat lower resolution tiles.
+        How to treat lower resolution tiles.
 
-      - If True, tiles above the lowest level (highest resolution)
-        will be computed by averaging and downsampling the 4 subtiles.
-      - If False, sampler will be called explicitly for all tiles
-      - If a callable object, this object will be passed the
-        4x oversampled image to downsample
+        - If True, tiles above the lowest level (highest resolution)
+          will be computed by averaging and downsampling the 4 subtiles.
+        - If False, sampler will be called explicitly for all tiles
+        - If a callable object, this object will be passed the
+          4x oversampled image to downsample
 
     base_level_only : bool (default False)
-      If True only the bottem level of tiles will be created.
-      In this case merge will be set to True, but no merging will happen,
-      and only the highest resolution layer of images will be created.
+        If True only the bottem level of tiles will be created.
+        In this case merge will be set to True, but no merging will happen,
+        and only the highest resolution layer of images will be created.
     tile_filter: callable (optional)
-      A function that takes a tile and determines if it is in toasting range.
-      If not given default_tile_filter will be used which simply returns True.
+        A function that takes a tile and determines if it is in toasting range.
+        If not given default_tile_filter will be used which simply returns True.
     top: int (optional)
-      The topmost layer of toast tiles to create (only relevant if
-      base_level_only is False), default is 0.
+        The topmost layer of toast tiles to create (only relevant if
+        base_level_only is False), default is 0.
 
     Yields
     ------
     (pth, tile) : str, ndarray
-      pth is the relative path where the tile image should be saved
+        pth is the relative path where the tile image should be saved
     """
     if tile_filter is None:
         tile_filter = lambda t: True
@@ -414,6 +429,7 @@ def _default_merge(mosaic):
             mosaic[1::2, 1::2] / 4.).astype(mosaic.dtype)
 
 
+# XXX TODO: this should be superseded by use of wwt_data_formats
 def gen_wtml(base_dir, depth, **kwargs):
     """
     Create a minimal WTML record for a pyramid generated by toasty
@@ -421,27 +437,27 @@ def gen_wtml(base_dir, depth, **kwargs):
     Parameters
     ----------
     base_dir : str
-      The base path to a toast pyramid, as you wish for it to appear
-      in the WTML file (i.e., this should be a path visible to a server)
+        The base path to a toast pyramid, as you wish for it to appear
+        in the WTML file (i.e., this should be a path visible to a server)
     depth : int
-      The maximum depth of the pyramid
+        The maximum depth of the pyramid
     **kwargs
-      Keyword arguments may be used to set parameters that appear in the
-      generated WTML file. Keywords that are honored are:
+        Keyword arguments may be used to set parameters that appear in the
+        generated WTML file. Keywords that are honored are:
 
-      - FolderName
-      - BandPass
-      - Name
-      - Credits
-      - CreditsUrl
-      - ThumbnailUrl
+        - FolderName
+        - BandPass
+        - Name
+        - Credits
+        - CreditsUrl
+        - ThumbnailUrl
 
-      Unhandled keywords are silently ignored.
+        Unhandled keywords are silently ignored.
 
     Returns
     -------
     wtml : str
-      A WTML record
+        A WTML record
     """
     kwargs.setdefault('FolderName', 'Toasty')
     kwargs.setdefault('BandPass', 'Visible')
@@ -476,38 +492,38 @@ def toast(data_sampler, depth, base_dir,
     Parameters
     ----------
     data_sampler : func or string
-      - A function of (lon, lat) that samples a dataset
-        at the input 2D coordinate arrays
-      - A string giving a base toast directory that contains the
-        base level of toasted tiles, using this option, only the
-        merge step takes place, the given directory must contain
-        a "depth" directory for the given depth parameter
+        - A function of (lon, lat) that samples a dataset
+          at the input 2D coordinate arrays
+        - A string giving a base toast directory that contains the
+          base level of toasted tiles, using this option, only the
+          merge step takes place, the given directory must contain
+          a "depth" directory for the given depth parameter
     depth : int
-      The maximum depth to generate tiles for.
-      4^n tiles are generated at each depth n
+        The maximum depth to generate tiles for.
+        4^n tiles are generated at each depth n
     base_dir : str
-      The path to create the files at
+        The path to create the files at
     wtml_file : str (optional)
-      The path to write a WTML file to. If not present,
-      no file will be written
+        The path to write a WTML file to. If not present,
+        no file will be written
     merge : bool or callable (default True)
-      How to treat lower resolution tiles.
+        How to treat lower resolution tiles.
 
-      - If True, tiles above the lowest level (highest resolution)
-        will be computed by averaging and downsampling the 4 subtiles.
-      - If False, sampler will be called explicitly for all tiles
-      - If a callable object, this object will be passed the
-        4x oversampled image to downsample
+        - If True, tiles above the lowest level (highest resolution)
+          will be computed by averaging and downsampling the 4 subtiles.
+        - If False, sampler will be called explicitly for all tiles
+        - If a callable object, this object will be passed the
+          4x oversampled image to downsample
     base_level_only : bool (default False)
-      If True only the bottem level of tiles will be created.
-      In this case merge will be set to True, but no merging will happen,
-      and only the highest resolution layer of images will be created.
+        If True only the bottem level of tiles will be created.
+        In this case merge will be set to True, but no merging will happen,
+        and only the highest resolution layer of images will be created.
     tile_filter : callable or None (the default)
-      An optional function ``accept_tile(tile) -> bool`` that filters tiles;
-      only tiles for which the fuction returns ``True`` will be
-      processed.
+        An optional function ``accept_tile(tile) -> bool`` that filters tiles;
+        only tiles for which the fuction returns ``True`` will be
+        processed.
     top_layer: int (optional)
-      If merging this indicates the uppermost layer to be created.
+        If merging this indicates the uppermost layer to be created.
 
     """
     if wtml_file is not None:
@@ -541,30 +557,29 @@ def toast(data_sampler, depth, base_dir,
 class SamplingToastDataSource(object):
     """Generate tiles for a TOAST projection from a "sampler" function."""
 
+    _mode = None
+    "The :class:`toasty.image.ImageMode` of this data source."
+
     _sampler = None
     "The sampler callable that will produce data for tiling."
 
-    def __init__(self, sampler):
+    def __init__(self, mode, sampler):
+        self._mode = mode
         self._sampler = sampler
 
-    def sample_data_layer(self, pio, depth):
-        """Generate a data layer of the TOAST tile pyramid through direct sampling.
+    def sample_layer(self, pio, depth):
+        """Generate a layer of the TOAST tile pyramid through direct sampling.
 
         Parameters
         ----------
         pio : :class:`toasty.pyramid.PyramidIO`
-          A :class:`~toasty.pyramid.PyramidIO` instance to manage the I/O with
-          the tiles in the tile pyramid.
+            A :class:`~toasty.pyramid.PyramidIO` instance to manage the I/O with
+            the tiles in the tile pyramid.
         depth : int
-          The depth of the layer of the TOAST tile pyramid to generate. The
-          number of tiles in each layer is ``4**depth``. Each tile is 256×256
-          TOAST pixels, so the resolution of the pixelization at which the
-          data will be sampled is a refinement level of ``2**(depth + 8)``.
-
-        Notes
-        -----
-        This function will create Numpy save files, which will then have to be
-        converted to PNG files through some kind of colormapping process.
+            The depth of the layer of the TOAST tile pyramid to generate. The
+            number of tiles in each layer is ``4**depth``. Each tile is 256×256
+            TOAST pixels, so the resolution of the pixelization at which the
+            data will be sampled is a refinement level of ``2**(depth + 8)``.
 
         """
         for tile in generate_tiles(depth, bottom_only=True):
@@ -577,36 +592,4 @@ class SamplingToastDataSource(object):
                 tile.increasing,
             )
             sampled_data = self._sampler(lon, lat)
-            pio.write_numpy(tile.pos, sampled_data)
-
-    def sample_image_layer(self, pio, depth):
-        """Generate an image layer of the TOAST tile pyramid through direct sampling.
-
-        Parameters
-        ----------
-        pio : :class:`toasty.pyramid.PyramidIO`
-          A :class:`~toasty.pyramid.PyramidIO` instance to manage the I/O with
-          the tiles in the tile pyramid.
-        depth : int
-          The depth of the layer of the TOAST tile pyramid to generate. The
-          number of tiles in each layer is ``4**depth``. Each tile is 256×256
-          TOAST pixels, so the resolution of the pixelization at which the
-          data will be sampled is a refinement level of ``2**(depth + 8)``.
-
-        Notes
-        -----
-        The sampler must produce data that can be converted to a PNG image via
-        the :func:`toasty.io.save_png` function.
-
-        """
-        for tile in generate_tiles(depth, bottom_only=True):
-            lon, lat = subsample(
-                tile.corners[0],
-                tile.corners[1],
-                tile.corners[2],
-                tile.corners[3],
-                256,
-                tile.increasing,
-            )
-            sampled_data = self._sampler(lon, lat)
-            pio.write_image(tile.pos, sampled_data)
+            pio.write_toasty_image(tile.pos, Image.from_array(self._mode, sampled_data))

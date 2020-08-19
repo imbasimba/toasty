@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2019 the AAS WorldWide Telescope project
+# Copyright 2019-2020 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 """General tools for merging and downsampling tiles
@@ -30,6 +30,7 @@ cascade_images
 import numpy as np
 
 from . import pyramid
+from .image import Image
 
 
 def averaging_merger(data):
@@ -38,7 +39,7 @@ def averaging_merger(data):
     Parameters
     ----------
     data : array
-      See the Merger Protocol specification.
+        See the Merger Protocol specification.
 
     Returns
     -------
@@ -49,7 +50,7 @@ def averaging_merger(data):
     return np.nanmean(data.reshape(s), axis=(1, 3)).astype(data.dtype)
 
 
-def cascade_images(pio, start, merger):
+def cascade_images(pio, mode, start, merger):
     """Downsample image tiles all the way to the top of the pyramid.
 
     This function will walk the tiles in the tile pyramid, merging child tile
@@ -58,14 +59,16 @@ def cascade_images(pio, start, merger):
     Parameters
     ----------
     pio : :class:`toasty.pyramid.PyramidIO`
-      An object managing I/O on the tiles in the pyramid.
+        An object managing I/O on the tiles in the pyramid.
+    mode : :class:`toasty.image.ImageMode`
+        The image mode (i.e., RGB or scientific) to process.
     start : nonnegative integer
-      The depth at which to start the cascade process. It is assumed that
-      the tiles *at this depth* are already populated by some other means.
-      This function will create new tiles at shallower depths.
+        The depth at which to start the cascade process. It is assumed that
+        the tiles *at this depth* are already populated by some other means.
+        This function will create new tiles at shallower depths.
     merger : a merger function
-      The method used to create a parent tile from its child tiles. This
-      is a callable that follows the Merger Protocol.
+        The method used to create a parent tile from its child tiles. This
+        is a callable that follows the Merger Protocol.
 
     """
     buf = None
@@ -84,23 +87,23 @@ def cascade_images(pio, start, merger):
         # processed.
         children = pyramid.pos_children(pos)
 
-        img0 = pio.read_image(children[0], default='none')
-        img1 = pio.read_image(children[1], default='none')
-        img2 = pio.read_image(children[2], default='none')
-        img3 = pio.read_image(children[3], default='none')
+        img0 = pio.read_toasty_image(children[0], mode, default='none')
+        img1 = pio.read_toasty_image(children[1], mode, default='none')
+        img2 = pio.read_toasty_image(children[2], mode, default='none')
+        img3 = pio.read_toasty_image(children[3], mode, default='none')
 
         if img0 is None and img1 is None and img2 is None and img3 is None:
             continue  # No data here; ignore
 
         if buf is not None:
-            buf.fill(0)
+            buf.clear()
 
         for slidx, subimg in zip(SLICES, (img0, img1, img2, img3)):
             if subimg is not None:
                 if buf is None:
-                    buf = np.zeros((512, 512) + subimg.shape[2:], dtype=np.uint8)
+                    buf = mode.make_maskable_buffer(512, 512)
 
-                buf[slidx] = subimg
+                buf.asarray()[slidx] = subimg.asarray()
 
-        merged = merger(buf)
-        pio.write_image(pos, merged)
+        merged = Image.from_array(mode, merger(buf.asarray()))
+        pio.write_toasty_image(pos, merged)

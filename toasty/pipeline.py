@@ -658,6 +658,7 @@ class BitmapInputImage(InputImage):
         return self._bitmap
 
     def _process_image_data(self, imgset, outdir):
+        from .image import Image, ImageMode
         self._ensure_bitmap()
 
         needs_tiling = self._bitmap.width > 2048 or self._bitmap.height > 2048
@@ -674,19 +675,18 @@ class BitmapInputImage(InputImage):
 
             # Create the base layer
             pio = PyramidIO(outdir, scheme='LXY')
-            img_data = np.asarray(self._bitmap)
-            tiling = tile_study_image(img_data, pio)
+            image = Image.from_pil(self._bitmap)
+            tiling = tile_study_image(image, pio)
             tiling.apply_to_imageset(imgset)
 
             # Cascade to create the coarser tiles
-            cascade_images(pio, imgset.tile_levels, averaging_merger)
+            cascade_images(pio, ImageMode.RGBA, imgset.tile_levels, averaging_merger)
 
             imgset.url = pio.get_path_scheme() + '.png'
             imgset.file_type = '.png'
 
         # Deal with the thumbnail
-        from .study import make_thumbnail_bitmap
-        thumb = make_thumbnail_bitmap(self._bitmap)
+        thumb = Image.from_pil(self._bitmap).make_thumbnail_bitmap()
         thumb.save(os.path.join(outdir, 'thumb.jpg'), format='JPEG')
         imgset.thumbnail_url = 'thumb.jpg'
 

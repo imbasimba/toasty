@@ -10,7 +10,6 @@ from __future__ import absolute_import, division, print_function
 
 __all__ = '''
 StudyTiling
-make_thumbnail_bitmap
 tile_study_image
 '''.split()
 
@@ -84,6 +83,11 @@ class StudyTiling(object):
         self._tile_levels = int(np.log2(self._tile_size))
         self._img_gx0 = (self._p2n - self._width) // 2
         self._img_gy0 = (self._p2n - self._height) // 2
+
+
+    def n_deepest_layer_tiles(self):
+        """Return the number of tiles in the highest-resolution layer."""
+        return 4**self._tile_levels
 
 
     def apply_to_imageset(self, imgset):
@@ -232,15 +236,47 @@ class StudyTiling(object):
                 )
 
 
-def tile_study_image(img_data, pio):
+    def tile_image(self, image, pio):
+        """Tile an in-memory image as a study.
+
+        Parameters
+        ----------
+        image : :class:`toasty.image.Image`
+            In-memory image data. The image's dimensions must match the ones
+            for which this tiling was computed.
+        pio : :class:`toasty.pyramid.PyramidIO`
+            A handle for doing I/O on the tile pyramid
+
+        Returns
+        -------
+        Self.
+
+        """
+        if image.height != self._height:
+            raise ValueError('height of image to be sampled does not match tiling')
+        if image.width != self._width:
+            raise ValueError('width of image to be sampled does not match tiling')
+
+        buffer = image.mode.make_maskable_buffer(256, 256)
+
+        for pos, width, height, image_x, image_y, tile_x, tile_y in self.generate_populated_positions():
+            iy_idx = slice(image_y, image_y + height)
+            ix_idx = slice(image_x, image_x + width)
+            by_idx = slice(tile_y, tile_y + height)
+            bx_idx = slice(tile_x, tile_x + width)
+            image.fill_into_maskable_buffer(buffer, iy_idx, ix_idx, by_idx, bx_idx)
+            pio.write_toasty_image(pos, buffer)
+
+        return self
+
+
+def tile_study_image(image, pio):
     """Tile an image as a study, loading the whole thing into memory.
 
     Parameters
     ----------
-    img_data : array-like
-        An array of image data, of shape ``(height, width, nchan)``,
-        where nchan is 3 (RGB) or 4 (RGBA). The dtype should be compatible
-        with :class:`np.uint8`.
+    image : :class:`toasty.image.Image`
+        The image to tile.
     pio : :class:`toasty.pyramid.PyramidIO`
         A handle for doing I/O on the tile pyramid
 
@@ -249,62 +285,6 @@ def tile_study_image(img_data, pio):
     A :class:`StudyTiling` defining the tiling of the image.
 
     """
-    img_data = np.asarray(img_data)
-    tiling = StudyTiling(img_data.shape[1], img_data.shape[0])
-    buffer = np.empty((256, 256, 4), dtype=np.uint8)
-
-    if img_data.shape[2] == 3:
-        has_alpha = False
-    elif img_data.shape[2] == 4:
-        has_alpha = True
-    else:
-        raise ValueError('unexpected number of image channels; shape %r' % (img_data.shape,))
-
-    for pos, width, height, image_x, image_y, tile_x, tile_y in tiling.generate_populated_positions():
-        buffer.fill(0)
-
-        if has_alpha:
-            buffer[tile_y:tile_y+height,tile_x:tile_x+width] = \
-                img_data[image_y:image_y+height,image_x:image_x+width]
-        else:
-            buffer[tile_y:tile_y+height,tile_x:tile_x+width,:3] = \
-                img_data[image_y:image_y+height,image_x:image_x+width]
-            buffer[tile_y:tile_y+height,tile_x:tile_x+width,3] = 255
-
-        pio.write_image(pos, buffer)
-
+    tiling = StudyTiling(image.width, image.height)
+    tiling.tile_image(image, pio)
     return tiling
-
-
-def make_thumbnail_bitmap(bitmap):
-    """Create a thumbnail bitmap from a :class:`PIL.Image`.
-
-    Parameters
-    ----------
-    bitmap : :class:`PIL.Image`
-        The image to thumbnail.
-
-    Returns
-    -------
-    A :class:`PIL.Image` representing a thumbnail of the input image. WWT
-    thumbnails are 96 pixels wide and 45 pixels tall and should be saved in
-    JPEG format.
-
-    """
-    THUMB_SHAPE = (96, 45)
-    THUMB_ASPECT = THUMB_SHAPE[0] / THUMB_SHAPE[1]
-
-    if bitmap.width / bitmap.height > THUMB_ASPECT:
-        # The image is wider than desired; we'll need to crop off the sides.
-        target_width = int(round(bitmap.height * THUMB_ASPECT))
-        dx = (bitmap.width - target_width) // 2
-        crop_box = (dx, 0, dx + target_width, bitmap.height)
-    else:
-        # The image is taller than desired; crop off top and bottom.
-        target_height = int(round(bitmap.width / THUMB_ASPECT))
-        dy = (bitmap.height - target_height) // 2
-        crop_box = (0, dy, bitmap.width, dy + target_height)
-
-    thumb = bitmap.crop(crop_box)
-    thumb.thumbnail(THUMB_SHAPE)
-    return thumb

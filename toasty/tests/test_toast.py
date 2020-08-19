@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2013-2019 Chris Beaumont and the AAS WorldWide Telescope project
+# Copyright 2013-2020 Chris Beaumont and the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 from __future__ import absolute_import, division, print_function
@@ -21,9 +21,9 @@ except ImportError:
 
 from .. import toast
 from .._libtoasty import mid
-from ..io import read_image, save_png
+from ..image import ImageMode
 from ..samplers import plate_carree_sampler, healpix_fits_file_sampler
-from ..toast import generate_images, gen_wtml, SamplingToastDataSource
+from ..toast import generate_images, gen_wtml, read_image, save_png, SamplingToastDataSource
 
 
 def mock_sampler(x, y):
@@ -224,6 +224,6 @@ class TestSamplingToastDataSource(object):
             image_test(b, a, 'Failed for %s' % subpth)
 
     def test_default(self):
-        stds = SamplingToastDataSource(self.sampler)
-        stds.sample_image_layer(self.pio, 1)
+        stds = SamplingToastDataSource(ImageMode.RGB, self.sampler)
+        stds.sample_layer(self.pio, 1)
         self.verify_toast()

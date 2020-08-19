@@ -20,6 +20,7 @@ ImageMode
 
       ~ImageMode.get_default_save_extension
       ~ImageMode.make_maskable_buffer
+      ~ImageMode.try_as_pil
 
    .. rubric:: Attributes Documentation
 
@@ -31,3 +32,4 @@ ImageMode
 
    .. automethod:: get_default_save_extension
    .. automethod:: make_maskable_buffer
+   .. automethod:: try_as_pil

@@ -21,6 +21,7 @@ except ImportError:
 
 from .. import toast
 from .._libtoasty import mid
+from ..image import ImageMode
 from ..io import read_image, save_png
 from ..samplers import plate_carree_sampler, healpix_fits_file_sampler
 from ..toast import generate_images, gen_wtml, SamplingToastDataSource
@@ -224,6 +225,6 @@ class TestSamplingToastDataSource(object):
             image_test(b, a, 'Failed for %s' % subpth)
 
     def test_default(self):
-        stds = SamplingToastDataSource(self.sampler)
-        stds.sample_image_layer(self.pio, 1)
+        stds = SamplingToastDataSource(ImageMode.RGB, self.sampler)
+        stds.sample_layer(self.pio, 1)
         self.verify_toast()

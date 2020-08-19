@@ -101,14 +101,15 @@ def healpix_sample_data_tiles_getparser(parser):
 
 
 def healpix_sample_data_tiles_impl(settings):
+    from .image import ImageMode
     from .pyramid import PyramidIO
     from .samplers import healpix_fits_file_sampler
     from .toast import SamplingToastDataSource
 
     pio = PyramidIO(settings.outdir)
     sampler = healpix_fits_file_sampler(settings.fitspath)
-    ds = SamplingToastDataSource(sampler)
-    ds.sample_data_layer(pio, settings.depth)
+    ds = SamplingToastDataSource(ImageMode.F32, sampler)
+    ds.sample_layer(pio, settings.depth)
 
 
 # "image_sample_tiles" subcommand
@@ -140,6 +141,7 @@ def image_sample_tiles_getparser(parser):
 
 
 def image_sample_tiles_impl(settings):
+    from .image import ImageMode
     from .io import read_image
     from .pyramid import PyramidIO
     from .toast import SamplingToastDataSource
@@ -153,8 +155,8 @@ def image_sample_tiles_impl(settings):
     else:
         die('the image projection type {!r} is not recognized'.format(settings.projection))
 
-    ds = SamplingToastDataSource(sampler)
-    ds.sample_image_layer(pio, settings.depth)
+    ds = SamplingToastDataSource(ImageMode.RGB, sampler)
+    ds.sample_layer(pio, settings.depth)
 
 
 # "multi_tan_make_data_tiles" subcommand

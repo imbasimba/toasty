@@ -11,6 +11,7 @@ ImageLoader
    .. autosummary::
 
       ~ImageLoader.colorspace_processing
+      ~ImageLoader.desired_mode
       ~ImageLoader.psd_single_layer
 
    .. rubric:: Methods Summary
@@ -26,6 +27,7 @@ ImageLoader
    .. rubric:: Attributes Documentation
 
    .. autoattribute:: colorspace_processing
+   .. autoattribute:: desired_mode
    .. autoattribute:: psd_single_layer
 
    .. rubric:: Methods Documentation

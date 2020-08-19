@@ -22,6 +22,7 @@ Image
 
       ~Image.asarray
       ~Image.aspil
+      ~Image.clear
       ~Image.fill_into_maskable_buffer
       ~Image.from_array
       ~Image.from_pil
@@ -40,6 +41,7 @@ Image
 
    .. automethod:: asarray
    .. automethod:: aspil
+   .. automethod:: clear
    .. automethod:: fill_into_maskable_buffer
    .. automethod:: from_array
    .. automethod:: from_pil

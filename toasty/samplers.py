@@ -128,8 +128,13 @@ def healpix_fits_file_sampler(path, extension=None, interpolation='nearest'):
             extension = _find_healpix_extension_index(f)
 
         data, hdr = f[extension].data, f[extension].header
-        # grab the first healpix parameter
+
+        # grab the first healpix parameter and convert to native endianness if
+        # needed.
         data = data[data.dtype.names[0]]
+        if data.dtype.byteorder not in '=|':
+            data = data.byteswap().newbyteorder()
+
         nest = hdr.get('ORDERING') == 'NESTED'
         coord = hdr.get('COORDSYS', 'C')
 

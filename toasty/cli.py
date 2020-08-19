@@ -115,6 +115,9 @@ def healpix_sample_data_tiles_impl(settings):
 # "image_sample_tiles" subcommand
 
 def image_sample_tiles_getparser(parser):
+    from .image import ImageLoader
+    ImageLoader.add_arguments(parser)
+
     parser.add_argument(
         '--outdir',
         metavar = 'PATH',
@@ -141,21 +144,20 @@ def image_sample_tiles_getparser(parser):
 
 
 def image_sample_tiles_impl(settings):
-    from .image import ImageMode
-    from .io import read_image
+    from .image import ImageLoader
     from .pyramid import PyramidIO
     from .toast import SamplingToastDataSource
 
+    img = ImageLoader.create_from_args(settings).load_path(settings.imgpath)
     pio = PyramidIO(settings.outdir)
-    data = read_image(settings.imgpath)
 
     if settings.projection == 'plate-carree':
         from .samplers import plate_carree_sampler
-        sampler = plate_carree_sampler(data)
+        sampler = plate_carree_sampler(img.asarray())
     else:
         die('the image projection type {!r} is not recognized'.format(settings.projection))
 
-    ds = SamplingToastDataSource(ImageMode.RGB, sampler)
+    ds = SamplingToastDataSource(img.mode, sampler)
     ds.sample_layer(pio, settings.depth)
 
 

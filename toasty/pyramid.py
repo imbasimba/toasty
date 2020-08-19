@@ -289,42 +289,6 @@ class PyramidIO(object):
             else:
                 raise ValueError('unexpected value for "default": {!r}'.format(default))
 
-    def write_image(self, pos, data, extension='png'):
-        """Write an image file for the specified tile position.
-
-        The conversion of the array into an image is handled by the
-        :func:`toasty.io.save_png` function — see its documentation for
-        specifics. Generally, *data* should be an array of shape ``(256, 256,
-        3)`` and dtype ``np.uint8``.
-
-        Parameters
-        ----------
-        pos : :class:`Pos`
-            The tile position to write.
-        data : array-like
-            The image data to write.
-        extension : str, defaults to "png"
-            The file extension to use when constructing the path to write.
-
-        """
-        from .io import save_png
-        save_png(self.tile_path(pos, extension), data)
-
-    def write_numpy(self, pos, data, extension='npy'):
-        """Write a numpy file for the specified tile position.
-
-        Parameters
-        ----------
-        pos : :class:`Pos`
-            The tile position to write.
-        data : array-like
-            The numpy data to write.
-        extension : str, defaults to "npy"
-            The file extension to use when constructing the path to write.
-
-        """
-        np.save(self.tile_path(pos, extension), data)
-
     def read_toasty_image(self, pos, mode, default='none'):
         """
         Read a toasty Image for the specified tile position.

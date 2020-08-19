@@ -16,8 +16,6 @@ PyramidIO
       ~PyramidIO.read_image
       ~PyramidIO.read_toasty_image
       ~PyramidIO.tile_path
-      ~PyramidIO.write_image
-      ~PyramidIO.write_numpy
       ~PyramidIO.write_toasty_image
 
    .. rubric:: Methods Documentation
@@ -28,6 +26,4 @@ PyramidIO
    .. automethod:: read_image
    .. automethod:: read_toasty_image
    .. automethod:: tile_path
-   .. automethod:: write_image
-   .. automethod:: write_numpy
    .. automethod:: write_toasty_image

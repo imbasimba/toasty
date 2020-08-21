@@ -191,6 +191,15 @@ class ImageLoader(object):
         configuration.
 
         """
+        # If 8-bit grayscale, convert to RGB. Added for
+        # https://www.flickr.com/photos/10795027@N08/43023455582 . That file
+        # also comes with an ICC profile so we do the conversion before
+        # colorspace processing. TODO: if/when we do FITS to RGB conversion, we
+        # should probably use that codepath rather than this manual hack.
+
+        if pil_img.mode == 'L':
+            pil_img = pil_img.convert('RGBA')
+
         # Make sure that we end up in the right color space. From experience, some
         # EPO images have funky colorspaces and we need to convert to sRGB to get
         # the tiled versions to appear correctly.

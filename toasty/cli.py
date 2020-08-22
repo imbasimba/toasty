@@ -128,7 +128,7 @@ def image_sample_tiles_getparser(parser):
         '--projection',
         metavar = 'PROJTYPE',
         default = 'plate-carree',
-        help = 'The projection of the image; "plate-carree" is the only allowed choice',
+        help = 'The projection of the image; allowed choices are "plate-carree" and "plate-carree-planet"',
     )
     parser.add_argument(
         'imgpath',
@@ -154,6 +154,9 @@ def image_sample_tiles_impl(settings):
     if settings.projection == 'plate-carree':
         from .samplers import plate_carree_sampler
         sampler = plate_carree_sampler(img.asarray())
+    elif settings.projection == 'plate-carree-planet':
+        from .samplers import plate_carree_planet_sampler
+        sampler = plate_carree_planet_sampler(img.asarray())
     else:
         die('the image projection type {!r} is not recognized'.format(settings.projection))
 

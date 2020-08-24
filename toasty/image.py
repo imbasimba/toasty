@@ -530,7 +530,17 @@ class Image(object):
             dy = (self.height - target_height) // 2
             crop_box = (0, dy, self.width, dy + target_height)
 
-        thumb = self.aspil().crop(crop_box)
+        # Turns out that PIL the decompression-bomb checks happen here too.
+        # Disable in our usual, not thread-safe, way.
+
+        old_max = pil_image.MAX_IMAGE_PIXELS
+
+        try:
+            pil_image.MAX_IMAGE_PIXELS = None
+            thumb = self.aspil().crop(crop_box)
+        finally:
+            pil_image.MAX_IMAGE_PIXELS = old_max
+
         thumb.thumbnail(THUMB_SHAPE)
 
         # Depending on the source image, the mode might be RGBA, which can't

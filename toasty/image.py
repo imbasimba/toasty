@@ -393,9 +393,15 @@ class Image(object):
         floating-point dtype.
 
         """
-        if self._pil is not None:
-            return np.asarray(self._pil)
+        # NOTE: it turns out that np.asarray() on a PIL image has to copy the
+        # entire image data. So, on a large image, it becomes super slow.
+        # Therefore we cache the array. The array is marked read-only so we
+        # don't have to worry about it and the PIL image getting out of sync
+        # with modifications.
+        if self._array is None:
+            self._array = np.asarray(self._pil)
         return self._array
+
 
     def aspil(self):
         """Obtain the image data as :class:`PIL.Image.Image`.
@@ -535,12 +541,15 @@ class Image(object):
 
     def clear(self):
         """
-        Fill the image with whatever "empty" value is most appropriate for its mode.
+        Fill the image with whatever "empty" value is most appropriate for its
+        mode.
 
         Notes
         -----
-        If the mode is RGB or RGBA, the buffer is filled with zeros. If the mode is
-        floating-point, the buffer is filled with NaNs.
+        The image is assumed to be writable, which will not be the case for
+        images constructed from PIL. If the mode is RGB or RGBA, the buffer is
+        filled with zeros. If the mode is floating-point, the buffer is filled
+        with NaNs.
 
         """
         if self._mode in (ImageMode.RGB, ImageMode.RGBA):

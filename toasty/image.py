@@ -111,6 +111,7 @@ class ImageLoader(object):
     TODO: support FITS, Numpy, etc.
 
     """
+    black_to_transparent = False
     colorspace_processing = 'srgb'
     desired_mode = None
     psd_single_layer = None
@@ -136,6 +137,11 @@ class ImageLoader(object):
         infrastructure and options.
 
         """
+        parser.add_argument(
+            '--black-to-transparent',
+            action = 'store_true',
+            help = 'Convert full black colors to be transparent',
+        )
         parser.add_argument(
             '--colorspace-processing',
             metavar = 'MODE',
@@ -167,8 +173,9 @@ class ImageLoader(object):
         A new :class:`ImageLoader` initialized with the settings.
         """
         loader = cls()
-        loader.psd_single_layer = settings.psd_single_layer
+        loader.black_to_transparent = settings.black_to_transparent
         loader.colorspace_processing = settings.colorspace_processing
+        loader.psd_single_layer = settings.psd_single_layer
         return loader
 
     def load_pil(self, pil_img):
@@ -199,6 +206,34 @@ class ImageLoader(object):
 
         if pil_img.mode == 'L':
             pil_img = pil_img.convert('RGBA')
+
+        # Convert pure black to transparent -- make sure to do this before any
+        # colorspace processing.
+        #
+        # As far as I can tell, PIL has no good way to modify an image on a
+        # pixel-by-pixel level in-place, which is really annoying. For now I'm
+        # doing this processing in Numpy space, but for an image that almost
+        # fills up memory we might have to use a different approach since this
+        # one will involve holding two buffers at once.
+
+        if self.black_to_transparent:
+            if pil_img.mode != 'RGBA':
+                pil_img = pil_img.convert('RGBA')
+            a = np.asarray(pil_img)
+            a = a.copy()  # read-only buffer => writeable
+
+            for i in range(a.shape[0]):
+                nonblack = (a[i,...,0] > 0)
+                np.logical_or(nonblack, a[i,...,1] > 0, out=nonblack)
+                np.logical_or(nonblack, a[i,...,2] > 0, out=nonblack)
+                a[i,...,3] *= nonblack
+
+            # This is my attempt to preserve the image metadata and other
+            # attributes, swapping out the pixel data only. There is probably
+            # a better way to do this
+            new_img = pil_image.fromarray(a, mode=pil_img.mode)
+            pil_img.im = new_img.im
+            del a, new_img
 
         # Make sure that we end up in the right color space. From experience, some
         # EPO images have funky colorspaces and we need to convert to sRGB to get

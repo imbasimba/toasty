@@ -17,7 +17,7 @@ from .. import study
 
 class TestStudy(object):
     WTML = """<?xml version='1.0' encoding='UTF-8'?>
-<Folder Browseable="True" Group="Explorer" MSRCommunityId="0" MSRComponentId="0" Permission="0" Searchable="True" Type="Sky">
+<Folder Browseable="True" Group="Explorer" MSRCommunityId="0" MSRComponentId="0" Name="Toasty" Permission="0" Searchable="True" Type="Sky">
   <Place Angle="0.0" AngularSize="0.0" DataSetType="Sky" Dec="0.0" Distance="0.0" DomeAlt="0.0" DomeAz="0.0" Lat="0.0" Lng="0.0" Magnitude="0.0" MSRCommunityId="0" MSRComponentId="0" Name="Toasty" Opacity="100.0" Permission="0" RA="0.0" Rotation="0.0" Thumbnail="thumb.jpg" ZoomLevel="1.0">
     <ForegroundImageSet>
       <ImageSet BandPass="Visible" BaseDegreesPerTile="1.0" BaseTileLevel="0" BottomsUp="False" CenterX="0.0" CenterY="0.0" DataSetType="Sky" ElevationModel="False" FileType=".png" Generic="False" MeanRadius="0.0" MSRCommunityId="0" MSRComponentId="0" Name="Toasty" OffsetX="0.0" OffsetY="0.0" Permission="0" Projection="Tan" Rotation="0.0" Sparse="True" StockSet="False" TileLevels="4" Url="{1}/{3}/{3}_{2}.png" WidthFactor="2">

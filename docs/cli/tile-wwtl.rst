@@ -29,7 +29,8 @@ command.
 
 The ``WWTL-PATH`` argument gives the filename of the input WWTL file. This file
 should contain one layer, which should be an image-set layer. The WWTL file will
-include the contents of the associated image as well.
+include the contents of the associated image as well. The source image should be
+in a tangential (gnomonic) projection on the sky.
 
 The ``--outdir DIR`` option specifies where the output data should be written.
 If unspecified, the data root will be the current directory.

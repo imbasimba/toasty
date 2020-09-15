@@ -6,5 +6,6 @@ CLI Reference
 
    cli/std-image-options
    cli/cascade
+   cli/tile-allsky
    cli/tile-study
    cli/tile-wwtl

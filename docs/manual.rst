@@ -7,4 +7,5 @@ The toasty Manual
    overview
    installation
    studies
+   toasting
    pipeline

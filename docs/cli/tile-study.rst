@@ -29,6 +29,10 @@ If unspecified, the data root will be the current directory.
 Notes
 =====
 
+For correct results the source image must be in a tangential (gnomonic)
+projection on the sky. For images that are small in an angular sense, you might
+be able to get away with fudging the projection type.
+
 If the input image does not contain any useful astrometric information, the
 emited ``index_rel.wtml`` file will contain generic information that makes the
 image 1° wide and places it at RA = Dec = 0.

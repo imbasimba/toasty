@@ -4,8 +4,8 @@ project = 'toasty'
 author = 'Chris Beaumont and the AAS WorldWide Telescope Team'
 copyright = '2014-2020, ' + author
 
-release = '0.1.0.dev0'  # the full version string; also update ../setup.py
-version = '0.1.0.dev0'  # the "short" version
+release = '0.1.0'  # the full version string; also update ../setup.py
+version = '0.1.0'  # the "short" version
 
 extensions = [
     'sphinx.ext.autodoc',

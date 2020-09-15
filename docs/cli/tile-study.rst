@@ -1,18 +1,18 @@
-.. _cli-study-sample-image-tiles:
+.. _cli-tile-study:
 
-===================================
-``toasty study-sample-image-tiles``
-===================================
+=====================
+``toasty tile-study``
+=====================
 
-The ``study-sample-image-tiles`` command takes a single large :ref:`study
-<studies>` image and samples it into a high-resolution layer of tiles.
+The ``tile-study`` command takes a single large :ref:`study <studies>` image and
+breaks it into a high-resolution layer of tiles.
 
 Usage
 =====
 
 .. code-block:: shell
 
-   toasty study-sample-image-tiles
+   toasty tile-study
       [standard image-loading options]
       [--outdir DIR]
       IMAGE-PATH

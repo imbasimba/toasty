@@ -4,13 +4,13 @@
 ``toasty wwtl-sample-image-tiles``
 ==================================
 
-The ``wwtl-sample-image-tiles`` command is like
-:ref:`cli-study-sample-image-tiles`, but loads up ``.wwtl`` WWT “layers” files,
-from which it can load preexisting astrometric information and convert it to the
-format needed for its tiled output. The purpose of this specialized command is
-to enable an easy workflow where you can interactively position a large image
-file on the sky in the AAS WorldWide Telescope Windows application, then tile it
-for web viewing while preserving the astrometric alignment.
+The ``wwtl-sample-image-tiles`` command is like :ref:`cli-tile-study`, but loads
+up ``.wwtl`` WWT “layers” files, from which it can load preexisting astrometric
+information and convert it to the format needed for its tiled output. The
+purpose of this specialized command is to enable an easy workflow where you can
+interactively position a large image file on the sky in the AAS WorldWide
+Telescope Windows application, then tile it for web viewing while preserving the
+astrometric alignment.
 
 Usage
 =====

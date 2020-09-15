@@ -41,7 +41,7 @@ necessary astrometric information will come from. Your options are:
   that placement as an “image layer” in a WWTL “layers file”, then can load the
   image and its astrometry using the :ref:`cli-wwtl-sample-image-tiles` command.
 
-- If all else fails, the :ref:`cli-study-sample-image-tiles` command will insert
+- If all else fails, the :ref:`cli-tile-study` command will insert
   default astrometric information and place your image at RA = Dec = 0 and make
   it 1° across. You can then manually edit the WTML to properly place the image
   against a reference. This can be less horrible than it sounds, but it’s

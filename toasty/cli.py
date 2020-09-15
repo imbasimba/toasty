@@ -334,9 +334,9 @@ def pipeline_reindex_impl(settings):
     mgr.reindex()
 
 
-# "study_sample_image_tiles" subcommand
+# "tile_study" subcommand
 
-def study_sample_image_tiles_getparser(parser):
+def tile_study_getparser(parser):
     from .image import ImageLoader
     ImageLoader.add_arguments(parser)
 
@@ -353,7 +353,7 @@ def study_sample_image_tiles_getparser(parser):
     )
 
 
-def study_sample_image_tiles_impl(settings):
+def tile_study_impl(settings):
     from .builder import Builder
     from .image import ImageLoader
     from .pyramid import PyramidIO

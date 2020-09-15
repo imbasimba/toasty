@@ -75,7 +75,7 @@ class TestStudy(object):
         expected = etree.fromstring(self.WTML)
 
         args = [
-            'study-sample-image-tiles',
+            'tile-study',
             '--outdir', self.work_path(),
             test_path('NGC253ALMA.jpg')
         ]

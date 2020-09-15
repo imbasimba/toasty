@@ -202,9 +202,9 @@ def plate_carree_planet_sampler(data):
 
     Returns
     -------
-    A function that samples the image; the call signature is ``vec2pix(lon, lat)
-    -> data``, where the inputs and output are 2D arrays and *lon* and *lat* are
-    in radians.
+    A function that samples the image; the call signature is
+    ``vec2pix(lon, lat) -> data``, where the inputs and output are 2D arrays
+    and *lon* and *lat* are in radians.
 
     """
     data = np.asarray(data)

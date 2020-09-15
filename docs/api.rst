@@ -1,7 +1,11 @@
-API Documentation
-=================
+API Reference
+=============
 
 .. automodapi:: toasty
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
+.. automodapi:: toasty.builder
    :no-inheritance-diagram:
    :no-inherited-members:
 
@@ -34,6 +38,10 @@ API Documentation
    :no-inherited-members:
 
 .. automodapi:: toasty.samplers
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
+.. automodapi:: toasty.study
    :no-inheritance-diagram:
    :no-inherited-members:
 

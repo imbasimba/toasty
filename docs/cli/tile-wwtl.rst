@@ -1,23 +1,23 @@
-.. _cli-wwtl-sample-image-tiles:
+.. _cli-tile-wwtl:
 
 ==================================
-``toasty wwtl-sample-image-tiles``
+``toasty tile-wwtl``
 ==================================
 
-The ``wwtl-sample-image-tiles`` command is like
-:ref:`cli-study-sample-image-tiles`, but loads up ``.wwtl`` WWT “layers” files,
-from which it can load preexisting astrometric information and convert it to the
-format needed for its tiled output. The purpose of this specialized command is
-to enable an easy workflow where you can interactively position a large image
-file on the sky in the AAS WorldWide Telescope Windows application, then tile it
-for web viewing while preserving the astrometric alignment.
+The ``tile-wwtl`` command is like :ref:`cli-tile-study`, but loads
+up ``.wwtl`` WWT “layers” files, from which it can load preexisting astrometric
+information and convert it to the format needed for its tiled output. The
+purpose of this specialized command is to enable an easy workflow where you can
+interactively position a large image file on the sky in the AAS WorldWide
+Telescope Windows application, then tile it for web viewing while preserving the
+astrometric alignment.
 
 Usage
 =====
 
 .. code-block:: shell
 
-   toasty wwtl-sample-image-tiles
+   toasty tile-wwtl
       [standard image-loading options]
       [--outdir DIR]
       WWTL-PATH
@@ -29,7 +29,8 @@ command.
 
 The ``WWTL-PATH`` argument gives the filename of the input WWTL file. This file
 should contain one layer, which should be an image-set layer. The WWTL file will
-include the contents of the associated image as well.
+include the contents of the associated image as well. The source image should be
+in a tangential (gnomonic) projection on the sky.
 
 The ``--outdir DIR`` option specifies where the output data should be written.
 If unspecified, the data root will be the current directory.

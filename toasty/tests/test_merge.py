@@ -38,7 +38,7 @@ class TestCascade(object):
 
         """
         args = [
-            'image-sample-tiles',
+            'tile-allsky',
             '--outdir', self.work_path('basic_cli'),
             test_path('Equirectangular_projection_SW-tweaked.jpg'),
             '1',

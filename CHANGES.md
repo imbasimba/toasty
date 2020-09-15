@@ -1,6 +1,7 @@
-# 0.1.0.dev0 (unreleased)
+# 0.1.0 (2020 Sep 15)
 
-- No changes yet
+- Massive rebuild of just about everything about the package.
+- New CLI tool, `toasty`.
 
 # 0.0.3 (2019 Aug 3)
 

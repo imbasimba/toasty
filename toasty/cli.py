@@ -112,9 +112,9 @@ def healpix_sample_data_tiles_impl(settings):
     ds.sample_layer(pio, settings.depth)
 
 
-# "image_sample_tiles" subcommand
+# "tile_allsky" subcommand
 
-def image_sample_tiles_getparser(parser):
+def tile_allsky_getparser(parser):
     from .image import ImageLoader
     ImageLoader.add_arguments(parser)
 
@@ -143,7 +143,7 @@ def image_sample_tiles_getparser(parser):
     )
 
 
-def image_sample_tiles_impl(settings):
+def tile_allsky_impl(settings):
     from .image import ImageLoader
     from .pyramid import PyramidIO
     from .toast import SamplingToastDataSource
@@ -334,9 +334,9 @@ def pipeline_reindex_impl(settings):
     mgr.reindex()
 
 
-# "study_sample_image_tiles" subcommand
+# "tile_study" subcommand
 
-def study_sample_image_tiles_getparser(parser):
+def tile_study_getparser(parser):
     from .image import ImageLoader
     ImageLoader.add_arguments(parser)
 
@@ -353,7 +353,7 @@ def study_sample_image_tiles_getparser(parser):
     )
 
 
-def study_sample_image_tiles_impl(settings):
+def tile_study_impl(settings):
     from .builder import Builder
     from .image import ImageLoader
     from .pyramid import PyramidIO
@@ -372,9 +372,9 @@ def study_sample_image_tiles_impl(settings):
     print(f'   toasty cascade --start {builder.imgset.tile_levels} {settings.outdir}')
 
 
-# "wwtl_sample_image_tiles" subcommand
+# "tile_wwtl" subcommand
 
-def wwtl_sample_image_tiles_getparser(parser):
+def tile_wwtl_getparser(parser):
     from .image import ImageLoader
     ImageLoader.add_arguments(parser)
 
@@ -391,7 +391,7 @@ def wwtl_sample_image_tiles_getparser(parser):
     )
 
 
-def wwtl_sample_image_tiles_impl(settings):
+def tile_wwtl_impl(settings):
     from .builder import Builder
     from .image import ImageLoader
     from .pyramid import PyramidIO

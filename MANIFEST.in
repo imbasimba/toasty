@@ -3,7 +3,7 @@ include .coveragerc
 include *.md
 include *.yml
 
-recursive-include toasty *.fits *.png *.wwtxml
+recursive-include toasty *.fits *.fits.gz *.jpg *.png *.wwtxml *.yaml
 
 graft docs
 prune docs/_build

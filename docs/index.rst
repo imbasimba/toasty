@@ -20,11 +20,11 @@ User guide
 
    overview
    installation
-   cli-studies
-   examples
+   studies
    pipeline
    cli
    api
+   examples
 
 
 Getting help

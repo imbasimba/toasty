@@ -112,9 +112,9 @@ def healpix_sample_data_tiles_impl(settings):
     ds.sample_layer(pio, settings.depth)
 
 
-# "image_sample_tiles" subcommand
+# "tile_allsky" subcommand
 
-def image_sample_tiles_getparser(parser):
+def tile_allsky_getparser(parser):
     from .image import ImageLoader
     ImageLoader.add_arguments(parser)
 
@@ -143,7 +143,7 @@ def image_sample_tiles_getparser(parser):
     )
 
 
-def image_sample_tiles_impl(settings):
+def tile_allsky_impl(settings):
     from .image import ImageLoader
     from .pyramid import PyramidIO
     from .toast import SamplingToastDataSource

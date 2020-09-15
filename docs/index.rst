@@ -11,20 +11,12 @@ maps can be viewed in software such as the AAS_ `WorldWide Telescope`_.
 .. _AAS: https://aas.org/
 .. _WorldWide Telescope: http://www.worldwidetelescope.org/home
 
-
-User guide
-==========
-
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
-   overview
-   installation
-   studies
-   pipeline
+   manual
    cli
    api
-   examples
 
 
 Getting help

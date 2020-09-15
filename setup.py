@@ -72,6 +72,7 @@ setup_args = dict(
         'cython>=0.20',
         'numpy>=1.7',
         'pillow>=7.0',
+        'PyYAML>=5.0',
         'wwt_data_formats>=0.2.0',
     ],
 

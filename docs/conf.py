@@ -2,7 +2,7 @@
 
 project = 'toasty'
 author = 'Chris Beaumont and the AAS WorldWide Telescope Team'
-copyright = '2014-2019, ' + author
+copyright = '2014-2020, ' + author
 
 release = '0.1.0.dev0'  # the full version string; also update ../setup.py
 version = '0.1.0.dev0'  # the "short" version

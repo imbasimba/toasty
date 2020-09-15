@@ -20,9 +20,11 @@ User guide
 
    overview
    installation
-   examples
+   studies
    pipeline
+   cli
    api
+   examples
 
 
 Getting help

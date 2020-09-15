@@ -10,6 +10,7 @@ ImageLoader
 
    .. autosummary::
 
+      ~ImageLoader.black_to_transparent
       ~ImageLoader.colorspace_processing
       ~ImageLoader.desired_mode
       ~ImageLoader.psd_single_layer
@@ -26,6 +27,7 @@ ImageLoader
 
    .. rubric:: Attributes Documentation
 
+   .. autoattribute:: black_to_transparent
    .. autoattribute:: colorspace_processing
    .. autoattribute:: desired_mode
    .. autoattribute:: psd_single_layer

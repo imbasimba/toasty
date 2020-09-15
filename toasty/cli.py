@@ -128,7 +128,7 @@ def image_sample_tiles_getparser(parser):
         '--projection',
         metavar = 'PROJTYPE',
         default = 'plate-carree',
-        help = 'The projection of the image; "plate-carree" is the only allowed choice',
+        help = 'The projection of the image; allowed choices are "plate-carree" and "plate-carree-planet"',
     )
     parser.add_argument(
         'imgpath',
@@ -154,6 +154,9 @@ def image_sample_tiles_impl(settings):
     if settings.projection == 'plate-carree':
         from .samplers import plate_carree_sampler
         sampler = plate_carree_sampler(img.asarray())
+    elif settings.projection == 'plate-carree-planet':
+        from .samplers import plate_carree_planet_sampler
+        sampler = plate_carree_planet_sampler(img.asarray())
     else:
         die('the image projection type {!r} is not recognized'.format(settings.projection))
 
@@ -351,38 +354,22 @@ def study_sample_image_tiles_getparser(parser):
 
 
 def study_sample_image_tiles_impl(settings):
-    import numpy as np
-    import PIL.Image
-    from wwt_data_formats.imageset import ImageSet
+    from .builder import Builder
     from .image import ImageLoader
     from .pyramid import PyramidIO
-    from .study import tile_study_image
 
-    # Load image and prep tiling
     img = ImageLoader.create_from_args(settings).load_path(settings.imgpath)
     pio = PyramidIO(settings.outdir)
-    tiling = tile_study_image(img, pio)
+    builder = Builder(pio)
+    builder.default_tiled_study_astrometry()
+    builder.tile_base_as_study(img)
+    builder.make_thumbnail_from_other(img)
+    builder.write_index_rel_wtml()
 
-    # Thumbnail.
-    thumb = img.make_thumbnail_bitmap()
-    thumb.save(os.path.join(settings.outdir, 'thumb.jpg'), format='JPEG')
-
-    # Write out a stub WTML file. The only information this will actually
-    # contain is the number of tile levels. Other information can be filled
-    # in as processing continues.
-    imgset = ImageSet()
-    tiling.apply_to_imageset(imgset)
-    imgset.base_degrees_per_tile = 1.0  # random default to make it viewable
-    imgset.name = 'Toasty'
-    imgset.thumbnail_url = 'thumb.jpg'
-    imgset.url = pio.get_path_scheme() + '.png'
-    stub_wtml(imgset, os.path.join(settings.outdir, 'index_rel.wtml'))
-
-    # Helpful hint:
-    print(f'Successfully tiled input "{settings.imgpath}" at level {imgset.tile_levels}.')
+    print(f'Successfully tiled input "{settings.imgpath}" at level {builder.imgset.tile_levels}.')
     print('To create parent tiles, consider running:')
     print()
-    print(f'   toasty cascade --start {imgset.tile_levels} {settings.outdir}')
+    print(f'   toasty cascade --start {builder.imgset.tile_levels} {settings.outdir}')
 
 
 # "wwtl_sample_image_tiles" subcommand
@@ -405,73 +392,20 @@ def wwtl_sample_image_tiles_getparser(parser):
 
 
 def wwtl_sample_image_tiles_impl(settings):
-    # TODO: implement WWTL loading as an Image mode.
-    from io import BytesIO
-    import numpy as np
-    import PIL.Image
-
-    from wwt_data_formats.enums import DataSetType, ProjectionType
-    from wwt_data_formats.layers import ImageSetLayer, LayerContainerReader
-    from wwt_data_formats.place import Place
-
+    from .builder import Builder
     from .image import ImageLoader
     from .pyramid import PyramidIO
-    from .study import tile_study_image
 
-    # Load WWTL and see if it matches expectations
-    lc = LayerContainerReader.from_file(settings.wwtl_path)
-
-    if len(lc.layers) != 1:
-        die('WWTL file must contain exactly one layer')
-
-    layer = lc.layers[0]
-    if not isinstance(layer, ImageSetLayer):
-        die('WWTL file must contain an imageset layer')
-
-    imgset = layer.image_set
-    if imgset.projection != ProjectionType.SKY_IMAGE:
-        die('WWTL imageset layer must have "SkyImage" projection type')
-
-    # Looks OK. Read and parse the image.
-    loader = ImageLoader.create_from_args(settings)
-    img_data = lc.read_layer_file(layer, layer.extension)
-    img = loader.load_stream(BytesIO(img_data))
-
-    # Tile it!
     pio = PyramidIO(settings.outdir)
-    tiling = tile_study_image(img, pio)
+    builder = Builder(pio)
+    img = builder.load_from_wwtl(settings, settings.wwtl_path)
+    builder.make_thumbnail_from_other(img)
+    builder.write_index_rel_wtml()
 
-    # Thumbnail.
-    thumb = img.make_thumbnail_bitmap()
-    thumb.save(os.path.join(settings.outdir, 'thumb.jpg'), format='JPEG')
-
-    # Write a WTML file. We reuse the existing imageset as much as possible,
-    # but update the parameters that change in the tiling process.
-
-    place = Place()
-    wcs_keywords = imgset.wcs_headers_from_position()
-    tiling.apply_to_imageset(imgset)
-    imgset.set_position_from_wcs(wcs_keywords, img.width, img.height, place=place)
-
-    if not imgset.name:
-        imgset.name = 'Toasty'
-    imgset.file_type = '.png'
-    imgset.thumbnail_url = 'thumb.jpg'
-    imgset.url = pio.get_path_scheme() + '.png'
-
-    place.data_set_type = DataSetType.SKY
-    place.foreground_image_set = imgset
-    place.name = imgset.name
-    place.thumbnail = imgset.thumbnail_url
-
-    stub_wtml(imgset, os.path.join(settings.outdir, 'index_rel.wtml'), place=place)
-
-    # Helpful hint:
-
-    print(f'Successfully tiled input "{settings.wwtl_path}" at level {imgset.tile_levels}.')
+    print(f'Successfully tiled input "{settings.wwtl_path}" at level {builder.imgset.tile_levels}.')
     print('To create parent tiles, consider running:')
     print()
-    print(f'   toasty cascade --start {imgset.tile_levels} {settings.outdir}')
+    print(f'   toasty cascade --start {builder.imgset.tile_levels} {settings.outdir}')
 
 
 # The CLI driver:

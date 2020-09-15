@@ -1,6 +1,9 @@
-=============================
-Examples of How to Use Toasty
-=============================
+======================================
+OUTDATED Examples of How to Use Toasty
+======================================
+
+.. warning:: These docs are out of date
+   These are all superseded by the command-line interface!
 
 Here we’ll summarize some of the ways that you can use toasty_.
 

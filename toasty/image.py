@@ -111,6 +111,7 @@ class ImageLoader(object):
     TODO: support FITS, Numpy, etc.
 
     """
+    black_to_transparent = False
     colorspace_processing = 'srgb'
     desired_mode = None
     psd_single_layer = None
@@ -136,6 +137,11 @@ class ImageLoader(object):
         infrastructure and options.
 
         """
+        parser.add_argument(
+            '--black-to-transparent',
+            action = 'store_true',
+            help = 'Convert full black colors to be transparent',
+        )
         parser.add_argument(
             '--colorspace-processing',
             metavar = 'MODE',
@@ -167,8 +173,9 @@ class ImageLoader(object):
         A new :class:`ImageLoader` initialized with the settings.
         """
         loader = cls()
-        loader.psd_single_layer = settings.psd_single_layer
+        loader.black_to_transparent = settings.black_to_transparent
         loader.colorspace_processing = settings.colorspace_processing
+        loader.psd_single_layer = settings.psd_single_layer
         return loader
 
     def load_pil(self, pil_img):
@@ -191,6 +198,43 @@ class ImageLoader(object):
         configuration.
 
         """
+        # If 8-bit grayscale, convert to RGB. Added for
+        # https://www.flickr.com/photos/10795027@N08/43023455582 . That file
+        # also comes with an ICC profile so we do the conversion before
+        # colorspace processing. TODO: if/when we do FITS to RGB conversion, we
+        # should probably use that codepath rather than this manual hack.
+
+        if pil_img.mode == 'L':
+            pil_img = pil_img.convert('RGBA')
+
+        # Convert pure black to transparent -- make sure to do this before any
+        # colorspace processing.
+        #
+        # As far as I can tell, PIL has no good way to modify an image on a
+        # pixel-by-pixel level in-place, which is really annoying. For now I'm
+        # doing this processing in Numpy space, but for an image that almost
+        # fills up memory we might have to use a different approach since this
+        # one will involve holding two buffers at once.
+
+        if self.black_to_transparent:
+            if pil_img.mode != 'RGBA':
+                pil_img = pil_img.convert('RGBA')
+            a = np.asarray(pil_img)
+            a = a.copy()  # read-only buffer => writeable
+
+            for i in range(a.shape[0]):
+                nonblack = (a[i,...,0] > 0)
+                np.logical_or(nonblack, a[i,...,1] > 0, out=nonblack)
+                np.logical_or(nonblack, a[i,...,2] > 0, out=nonblack)
+                a[i,...,3] *= nonblack
+
+            # This is my attempt to preserve the image metadata and other
+            # attributes, swapping out the pixel data only. There is probably
+            # a better way to do this
+            new_img = pil_image.fromarray(a, mode=pil_img.mode)
+            pil_img.im = new_img.im
+            del a, new_img
+
         # Make sure that we end up in the right color space. From experience, some
         # EPO images have funky colorspaces and we need to convert to sRGB to get
         # the tiled versions to appear correctly.
@@ -384,9 +428,15 @@ class Image(object):
         floating-point dtype.
 
         """
-        if self._pil is not None:
-            return np.asarray(self._pil)
+        # NOTE: it turns out that np.asarray() on a PIL image has to copy the
+        # entire image data. So, on a large image, it becomes super slow.
+        # Therefore we cache the array. The array is marked read-only so we
+        # don't have to worry about it and the PIL image getting out of sync
+        # with modifications.
+        if self._array is None:
+            self._array = np.asarray(self._pil)
         return self._array
+
 
     def aspil(self):
         """Obtain the image data as :class:`PIL.Image.Image`.
@@ -515,7 +565,17 @@ class Image(object):
             dy = (self.height - target_height) // 2
             crop_box = (0, dy, self.width, dy + target_height)
 
-        thumb = self.aspil().crop(crop_box)
+        # Turns out that PIL the decompression-bomb checks happen here too.
+        # Disable in our usual, not thread-safe, way.
+
+        old_max = pil_image.MAX_IMAGE_PIXELS
+
+        try:
+            pil_image.MAX_IMAGE_PIXELS = None
+            thumb = self.aspil().crop(crop_box)
+        finally:
+            pil_image.MAX_IMAGE_PIXELS = old_max
+
         thumb.thumbnail(THUMB_SHAPE)
 
         # Depending on the source image, the mode might be RGBA, which can't
@@ -526,12 +586,15 @@ class Image(object):
 
     def clear(self):
         """
-        Fill the image with whatever "empty" value is most appropriate for its mode.
+        Fill the image with whatever "empty" value is most appropriate for its
+        mode.
 
         Notes
         -----
-        If the mode is RGB or RGBA, the buffer is filled with zeros. If the mode is
-        floating-point, the buffer is filled with NaNs.
+        The image is assumed to be writable, which will not be the case for
+        images constructed from PIL. If the mode is RGB or RGBA, the buffer is
+        filled with zeros. If the mode is floating-point, the buffer is filled
+        with NaNs.
 
         """
         if self._mode in (ImageMode.RGB, ImageMode.RGBA):

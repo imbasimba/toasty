@@ -7,3 +7,4 @@ CLI Reference
    cli/std-image-options
    cli/cascade
    cli/study-sample-image-tiles
+   cli/wwtl-sample-image-tiles

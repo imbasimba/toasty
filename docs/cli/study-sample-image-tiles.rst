@@ -1,3 +1,5 @@
+.. _cli-study-sample-image-tiles:
+
 ===================================
 ``toasty study-sample-image-tiles``
 ===================================
@@ -23,3 +25,10 @@ that needs to be tiled to be displayed usefully in AAS WorldWide Telescope.
 
 The ``--outdir DIR`` option specifies where the output data should be written.
 If unspecified, the data root will be the current directory.
+
+Notes
+=====
+
+If the input image does not contain any useful astrometric information, the
+emited ``index_rel.wtml`` file will contain generic information that makes the
+image 1° wide and places it at RA = Dec = 0.

@@ -1,5 +1,6 @@
-API Reference
-=============
+====================
+Python API Reference
+====================
 
 .. automodapi:: toasty
    :no-inheritance-diagram:

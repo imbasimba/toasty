@@ -1,6 +1,6 @@
-========================
-Overview: Uses of toasty
-========================
+=================================
+Overview: Tile Pyramids and TOAST
+=================================
 
 The toasty_ package can be used to create “tile pyramids” of astronomical
 image data, particularly ones targeting the “TOAST” format. What does that

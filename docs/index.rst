@@ -20,8 +20,10 @@ User guide
 
    overview
    installation
+   cli-studies
    examples
    pipeline
+   cli
    api
 
 

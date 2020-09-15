@@ -51,7 +51,7 @@ class TestStudy(object):
         # Now run it through the CLI.
 
         args = [
-            'wwtl-sample-image-tiles',
+            'tile-wwtl',
             '--outdir', self.work_path('tiles'),
             self.work_path('image.wwtl')
         ]

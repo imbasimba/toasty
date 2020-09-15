@@ -1,10 +1,10 @@
-.. _cli-wwtl-sample-image-tiles:
+.. _cli-tile-wwtl:
 
 ==================================
-``toasty wwtl-sample-image-tiles``
+``toasty tile-wwtl``
 ==================================
 
-The ``wwtl-sample-image-tiles`` command is like :ref:`cli-tile-study`, but loads
+The ``tile-wwtl`` command is like :ref:`cli-tile-study`, but loads
 up ``.wwtl`` WWT “layers” files, from which it can load preexisting astrometric
 information and convert it to the format needed for its tiled output. The
 purpose of this specialized command is to enable an easy workflow where you can
@@ -17,7 +17,7 @@ Usage
 
 .. code-block:: shell
 
-   toasty wwtl-sample-image-tiles
+   toasty tile-wwtl
       [standard image-loading options]
       [--outdir DIR]
       WWTL-PATH

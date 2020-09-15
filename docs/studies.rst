@@ -39,7 +39,7 @@ necessary astrometric information will come from. Your options are:
   have a large image that you can load in the WWT Windows client, you can use its
   interactive placement feature to set its position, and then save the image with
   that placement as an “image layer” in a WWTL “layers file”, then can load the
-  image and its astrometry using the :ref:`cli-wwtl-sample-image-tiles` command.
+  image and its astrometry using the :ref:`cli-tile-wwtl` command.
 
 - If all else fails, the :ref:`cli-tile-study` command will insert
   default astrometric information and place your image at RA = Dec = 0 and make

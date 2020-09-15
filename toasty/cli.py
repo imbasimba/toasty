@@ -372,9 +372,9 @@ def tile_study_impl(settings):
     print(f'   toasty cascade --start {builder.imgset.tile_levels} {settings.outdir}')
 
 
-# "wwtl_sample_image_tiles" subcommand
+# "tile_wwtl" subcommand
 
-def wwtl_sample_image_tiles_getparser(parser):
+def tile_wwtl_getparser(parser):
     from .image import ImageLoader
     ImageLoader.add_arguments(parser)
 
@@ -391,7 +391,7 @@ def wwtl_sample_image_tiles_getparser(parser):
     )
 
 
-def wwtl_sample_image_tiles_impl(settings):
+def tile_wwtl_impl(settings):
     from .builder import Builder
     from .image import ImageLoader
     from .pyramid import PyramidIO

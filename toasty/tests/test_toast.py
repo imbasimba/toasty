@@ -88,6 +88,12 @@ class TestSampleLayer(object):
         sample_layer(self.pio, ImageMode.RGB, sampler, 1)
         self.verify_level1(ImageMode.RGB)
 
+    def test_earth_plate_caree_exr(self):
+        img = ImageLoader().load_path(test_path('Equirectangular_projection_SW-tweaked.exr'))
+        sampler = plate_carree_sampler(img.asarray())
+        sample_layer(self.pio, ImageMode.RGB, sampler, 1)
+        self.verify_level1(ImageMode.RGB)
+
     def test_healpix_equ(self):
         sampler = healpix_fits_file_sampler(test_path('earth_healpix_equ.fits'))
         sample_layer(self.pio, ImageMode.F32, sampler, 1)

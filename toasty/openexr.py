@@ -17,6 +17,7 @@ load_openexr
 '''.split()
 
 import numpy as np
+import sys
 
 
 def _util_load_openexr_float(path):

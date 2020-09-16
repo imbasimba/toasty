@@ -22,32 +22,6 @@ def warn(msg):
     print('warning:', msg, file=sys.stderr)
 
 
-def stub_wtml(imgset, wtml_path, place=None):
-    """Given an ImageSet object and potential a Place, save its information into a
-    stub WTML file.
-
-    """
-    from wwt_data_formats import write_xml_doc
-    from wwt_data_formats.enums import DataSetType
-    from wwt_data_formats.folder import Folder
-    from wwt_data_formats.place import Place
-
-    folder = Folder()
-
-    if place is None:
-        place = Place()
-        place.data_set_type = DataSetType.SKY
-        place.foreground_image_set = imgset
-        place.name = 'Toasty'
-        place.thumbnail = imgset.thumbnail_url
-        place.zoom_level = 1.0
-
-    folder.children = [place]
-
-    with open(wtml_path, 'wt') as f:
-        write_xml_doc(folder.to_xml(), dest_stream=f)
-
-
 # "cascade" subcommand
 
 def cascade_getparser(parser):

@@ -303,10 +303,15 @@ class ImageLoader(object):
         -------
         A new :class:`Image`.
         """
+        # Special handling for Numpy arrays. TODO: it would be better to sniff
+        # filetypes instead of just looking at extensions. But, lazy.
+
+        if path.endswith('.npy'):
+            arr = np.load(path)
+            return Image.from_array(ImageMode.F32, arr.astype(np.float32))
+
         # Special handling for Photoshop files, used for some very large mosaics
-        # with transparency (e.g. the PHAT M31/M33 images). TODO: it would be
-        # better to sniff the PSD filetype instead of just looking at
-        # extensions. But, lazy.
+        # with transparency (e.g. the PHAT M31/M33 images).
 
         if path.endswith('.psd') or path.endswith('.psb'):
             try:

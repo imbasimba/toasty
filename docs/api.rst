@@ -49,7 +49,3 @@ Python API Reference
 .. automodapi:: toasty.toast
    :no-inheritance-diagram:
    :no-inherited-members:
-
-.. automodapi:: toasty.viewer
-   :no-inheritance-diagram:
-   :no-inherited-members:

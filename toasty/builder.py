@@ -137,6 +137,18 @@ class Builder(object):
 
         return self
 
+    def make_placeholder_thumbnail(self):
+        import numpy as np
+        from .image import Image, ImageMode
+
+        arr = np.zeros((45, 96, 3), dtype=np.uint8)
+        img = Image.from_array(ImageMode.RGB, arr)
+
+        with self.pio.open_metadata_for_write('thumb.jpg') as f:
+            img.aspil().save(f, format='JPEG')
+
+        self.imgset.thumbnail_url = 'thumb.jpg'
+        return self
 
     def apply_wcs_info(self, wcs, width, height):
         self.imgset.set_position_from_wcs(

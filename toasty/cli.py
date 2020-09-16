@@ -105,6 +105,11 @@ def tile_allsky_getparser(parser):
         help = 'The root directory of the output tile pyramid',
     )
     parser.add_argument(
+        '--placeholder-thumbnail',
+        action = 'store_true',
+        help = 'Do not attempt to thumbnail the input image -- saves memory for large inputs',
+    )
+    parser.add_argument(
         '--projection',
         metavar = 'PROJTYPE',
         default = 'plate-carree',
@@ -141,7 +146,13 @@ def tile_allsky_impl(settings):
         die('the image projection type {!r} is not recognized'.format(settings.projection))
 
     builder = Builder(pio)
-    builder.make_thumbnail_from_other(img)
+
+    # Do the thumbnail first since for large inputs it can be the memory high-water mark!
+    if settings.placeholder_thumbnail:
+        builder.make_placeholder_thumbnail()
+    else:
+        builder.make_thumbnail_from_other(img)
+
     builder.toast_base(img.mode, sampler, settings.depth)
     builder.write_index_rel_wtml()
 
@@ -328,6 +339,11 @@ def tile_study_getparser(parser):
     ImageLoader.add_arguments(parser)
 
     parser.add_argument(
+        '--placeholder-thumbnail',
+        action = 'store_true',
+        help = 'Do not attempt to thumbnail the input image -- saves memory for large inputs',
+    )
+    parser.add_argument(
         '--outdir',
         metavar = 'PATH',
         default = '.',
@@ -349,8 +365,14 @@ def tile_study_impl(settings):
     pio = PyramidIO(settings.outdir)
     builder = Builder(pio)
     builder.default_tiled_study_astrometry()
+
+    # Do the thumbnail first since for large inputs it can be the memory high-water mark!
+    if settings.placeholder_thumbnail:
+        builder.make_placeholder_thumbnail()
+    else:
+        builder.make_thumbnail_from_other(img)
+
     builder.tile_base_as_study(img)
-    builder.make_thumbnail_from_other(img)
     builder.write_index_rel_wtml()
 
     print(f'Successfully tiled input "{settings.imgpath}" at level {builder.imgset.tile_levels}.')
@@ -365,6 +387,11 @@ def tile_wwtl_getparser(parser):
     from .image import ImageLoader
     ImageLoader.add_arguments(parser)
 
+    parser.add_argument(
+        '--placeholder-thumbnail',
+        action = 'store_true',
+        help = 'Do not attempt to thumbnail the input image -- saves memory for large inputs',
+    )
     parser.add_argument(
         '--outdir',
         metavar = 'PATH',
@@ -386,7 +413,14 @@ def tile_wwtl_impl(settings):
     pio = PyramidIO(settings.outdir)
     builder = Builder(pio)
     img = builder.load_from_wwtl(settings, settings.wwtl_path)
-    builder.make_thumbnail_from_other(img)
+
+    # Do the thumbnail first since for large inputs it can be the memory high-water mark!
+    if settings.placeholder_thumbnail:
+        builder.make_placeholder_thumbnail()
+    else:
+        builder.make_thumbnail_from_other(img)
+
+    builder.tile_base_as_study(img)
     builder.write_index_rel_wtml()
 
     print(f'Successfully tiled input "{settings.wwtl_path}" at level {builder.imgset.tile_levels}.')

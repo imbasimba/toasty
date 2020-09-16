@@ -74,6 +74,7 @@ well as release listings maintained by
 - [pillow]
 - [pytest] to run the test suite
 - [PyYAML]
+- [tqdm]
 - [wwt_data_formats]
 
 [astropy]: https://www.astropy.org/
@@ -84,6 +85,7 @@ well as release listings maintained by
 [pillow]: https://pillow.readthedocs.io/
 [pytest]: https://docs.pytest.org/
 [PyYAML]: https://github.com/yaml/pyyaml
+[tqdm]: https://tqdm.github.io/
 [wwt_data_formats]: https://github.com/WorldWideTelescope/wwt_data_formats
 
 

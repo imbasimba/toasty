@@ -23,11 +23,12 @@ from collections import defaultdict, namedtuple
 import os
 import logging
 import numpy as np
+from tqdm import tqdm
 
 from ._libtoasty import subsample, mid
 from .image import Image
 from .norm import normalize
-from .pyramid import Pos, depth2tiles, is_subtile, pos_parent
+from .pyramid import Pos, depth2tiles, is_subtile, pos_parent, tiles_at_depth
 
 level1 = [
     [np.radians(c) for c in row]
@@ -247,7 +248,7 @@ def generate_tiles(depth, bottom_only=True, tile_filter=None):
             yield item
 
 
-def sample_layer(pio, mode, sampler, depth):
+def sample_layer(pio, mode, sampler, depth, cli_progress=False):
     """Generate a layer of the TOAST tile pyramid through direct sampling.
 
     Parameters
@@ -264,16 +265,23 @@ def sample_layer(pio, mode, sampler, depth):
         number of tiles in each layer is ``4**depth``. Each tile is 256×256
         TOAST pixels, so the resolution of the pixelization at which the
         data will be sampled is a refinement level of ``2**(depth + 8)``.
+    cli_progress : optional boolean, defaults False
+        If true, a progress bar will be printed to the terminal using tqdm.
 
     """
-    for tile in generate_tiles(depth, bottom_only=True):
-        lon, lat = subsample(
-            tile.corners[0],
-            tile.corners[1],
-            tile.corners[2],
-            tile.corners[3],
-            256,
-            tile.increasing,
-        )
-        sampled_data = sampler(lon, lat)
-        pio.write_toasty_image(tile.pos, Image.from_array(mode, sampled_data))
+    with tqdm(total=tiles_at_depth(depth), disable=not cli_progress) as progress:
+        for tile in generate_tiles(depth, bottom_only=True):
+            lon, lat = subsample(
+                tile.corners[0],
+                tile.corners[1],
+                tile.corners[2],
+                tile.corners[3],
+                256,
+                tile.increasing,
+            )
+            sampled_data = sampler(lon, lat)
+            pio.write_toasty_image(tile.pos, Image.from_array(mode, sampled_data))
+            progress.update(1)
+
+    if cli_progress:
+        print()

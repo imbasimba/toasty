@@ -54,10 +54,10 @@ class Builder(object):
         self.place.name = 'Toasty'
 
 
-    def tile_base_as_study(self, image):
+    def tile_base_as_study(self, image, **kwargs):
         from .study import tile_study_image
 
-        tiling = tile_study_image(image, self.pio)
+        tiling = tile_study_image(image, self.pio, **kwargs)
         tiling.apply_to_imageset(self.imgset)
         self.imgset.url = self.pio.get_path_scheme() + '.png'
         self.imgset.file_type = '.png'
@@ -107,9 +107,9 @@ class Builder(object):
         return img
 
 
-    def toast_base(self, mode, sampler, depth):
+    def toast_base(self, mode, sampler, depth, **kwargs):
         from .toast import sample_layer
-        sample_layer(self.pio, mode, sampler, depth)
+        sample_layer(self.pio, mode, sampler, depth, **kwargs)
 
         self.imgset.data_set_type = DataSetType.SKY
         self.imgset.base_degrees_per_tile = 180
@@ -122,10 +122,10 @@ class Builder(object):
         return self
 
 
-    def cascade(self):
+    def cascade(self, **kwargs):
         from .image import ImageMode
         from .merge import averaging_merger, cascade_images
-        cascade_images(self.pio, ImageMode.RGBA, self.imgset.tile_levels, averaging_merger)
+        cascade_images(self.pio, ImageMode.RGBA, self.imgset.tile_levels, averaging_merger, **kwargs)
         return self
 
 
@@ -136,6 +136,7 @@ class Builder(object):
         self.imgset.thumbnail_url = 'thumb.jpg'
 
         return self
+
 
     def make_placeholder_thumbnail(self):
         import numpy as np
@@ -149,6 +150,7 @@ class Builder(object):
 
         self.imgset.thumbnail_url = 'thumb.jpg'
         return self
+
 
     def apply_wcs_info(self, wcs, width, height):
         self.imgset.set_position_from_wcs(

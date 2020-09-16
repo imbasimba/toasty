@@ -49,7 +49,7 @@ def cascade_impl(settings):
     if start is None:
         die('currently, you must specify the start layer with the --start option')
 
-    cascade_images(pio, ImageMode.RGBA, start, averaging_merger)
+    cascade_images(pio, ImageMode.RGBA, start, averaging_merger, cli_progress=True)
 
 
 # "healpix_sample_data_tiles" subcommand
@@ -355,7 +355,7 @@ def tile_allsky_impl(settings):
     else:
         builder.make_thumbnail_from_other(img)
 
-    builder.toast_base(img.mode, sampler, settings.depth)
+    builder.toast_base(img.mode, sampler, settings.depth, cli_progress=True)
     builder.write_index_rel_wtml()
 
     print(f'Successfully tiled input "{settings.imgpath}" at level {builder.imgset.tile_levels}.')
@@ -404,7 +404,7 @@ def tile_study_impl(settings):
     else:
         builder.make_thumbnail_from_other(img)
 
-    builder.tile_base_as_study(img)
+    builder.tile_base_as_study(img, cli_progress=True)
     builder.write_index_rel_wtml()
 
     print(f'Successfully tiled input "{settings.imgpath}" at level {builder.imgset.tile_levels}.')
@@ -452,7 +452,7 @@ def tile_wwtl_impl(settings):
     else:
         builder.make_thumbnail_from_other(img)
 
-    builder.tile_base_as_study(img)
+    builder.tile_base_as_study(img, cli_progress=True)
     builder.write_index_rel_wtml()
 
     print(f'Successfully tiled input "{settings.wwtl_path}" at level {builder.imgset.tile_levels}.')

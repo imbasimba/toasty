@@ -73,6 +73,7 @@ setup_args = dict(
         'numpy>=1.7',
         'pillow>=7.0',
         'PyYAML>=5.0',
+        'tqdm>=4.0',
         'wwt_data_formats>=0.2.0',
     ],
 

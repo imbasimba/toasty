@@ -23,6 +23,7 @@ Builder
       ~Builder.cascade
       ~Builder.default_tiled_study_astrometry
       ~Builder.load_from_wwtl
+      ~Builder.make_placeholder_thumbnail
       ~Builder.make_thumbnail_from_other
       ~Builder.tile_base_as_study
       ~Builder.toast_base
@@ -41,6 +42,7 @@ Builder
    .. automethod:: cascade
    .. automethod:: default_tiled_study_astrometry
    .. automethod:: load_from_wwtl
+   .. automethod:: make_placeholder_thumbnail
    .. automethod:: make_thumbnail_from_other
    .. automethod:: tile_base_as_study
    .. automethod:: toast_base

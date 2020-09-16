@@ -14,12 +14,14 @@ tile_study_image
 '''.split()
 
 import numpy as np
+from tqdm import tqdm
 
-from .pyramid import Pos, next_highest_power_of_2
+from .pyramid import Pos, next_highest_power_of_2, tiles_at_depth
 
 
 class StudyTiling(object):
-    """Information about how a WWT "study" image is broken into tiles.
+    """
+    Information about how a WWT "study" image is broken into tiles.
 
     In WWT a "study" is a large astronomical image projected onto the sky
     using a gnomonic (tangential or TAN) projection. The image may have many
@@ -61,9 +63,9 @@ class StudyTiling(object):
         Parameters
         ----------
         width : positive integer
-          The width of the full-resolution image, in pixels.
+            The width of the full-resolution image, in pixels.
         height : positive integer
-          The height of the full-resolution image, in pixels.
+            The height of the full-resolution image, in pixels.
 
         """
         width = int(width)
@@ -121,9 +123,9 @@ class StudyTiling(object):
         Parameters
         ----------
         im_ix : integer
-          A 0-based horizontal pixel position in the image coordinate system.
+            A 0-based horizontal pixel position in the image coordinate system.
         im_iy : integer
-          A 0-based vertical pixel position in the image coordinate system.
+            A 0-based vertical pixel position in the image coordinate system.
 
         Notes
         -----
@@ -151,6 +153,22 @@ class StudyTiling(object):
         tile_ix = np.floor(gx // 256).astype(np.int)
         tile_iy = np.floor(gy // 256).astype(np.int)
         return (tile_ix, tile_iy, gx % 256, gy % 256)
+
+
+    def count_populated_positions(self):
+        """
+        Count how man tiles contain image data.
+
+        This is used for progress reporting.
+
+        """
+        img_gx1 = self._img_gx0 + self._width - 1
+        img_gy1 = self._img_gy0 + self._height - 1
+        tile_start_tx = self._img_gx0 // 256
+        tile_start_ty = self._img_gy0 // 256
+        tile_end_tx = img_gx1 // 256
+        tile_end_ty = img_gy1 // 256
+        return (tile_end_ty + 1 - tile_start_ty) * (tile_end_tx + 1 - tile_start_tx)
 
 
     def generate_populated_positions(self):
@@ -236,7 +254,7 @@ class StudyTiling(object):
                 )
 
 
-    def tile_image(self, image, pio):
+    def tile_image(self, image, pio, cli_progress=False):
         """Tile an in-memory image as a study.
 
         Parameters
@@ -246,6 +264,8 @@ class StudyTiling(object):
             for which this tiling was computed.
         pio : :class:`toasty.pyramid.PyramidIO`
             A handle for doing I/O on the tile pyramid
+        cli_progress : optional boolean, defaults False
+            If true, a progress bar will be printed to the terminal using tqdm.
 
         Returns
         -------
@@ -259,18 +279,23 @@ class StudyTiling(object):
 
         buffer = image.mode.make_maskable_buffer(256, 256)
 
-        for pos, width, height, image_x, image_y, tile_x, tile_y in self.generate_populated_positions():
-            iy_idx = slice(image_y, image_y + height)
-            ix_idx = slice(image_x, image_x + width)
-            by_idx = slice(tile_y, tile_y + height)
-            bx_idx = slice(tile_x, tile_x + width)
-            image.fill_into_maskable_buffer(buffer, iy_idx, ix_idx, by_idx, bx_idx)
-            pio.write_toasty_image(pos, buffer)
+        with tqdm(total=self.count_populated_positions(), disable=not cli_progress) as progress:
+            for pos, width, height, image_x, image_y, tile_x, tile_y in self.generate_populated_positions():
+                iy_idx = slice(image_y, image_y + height)
+                ix_idx = slice(image_x, image_x + width)
+                by_idx = slice(tile_y, tile_y + height)
+                bx_idx = slice(tile_x, tile_x + width)
+                image.fill_into_maskable_buffer(buffer, iy_idx, ix_idx, by_idx, bx_idx)
+                pio.write_toasty_image(pos, buffer)
+                progress.update(1)
+
+        if cli_progress:
+            print()
 
         return self
 
 
-def tile_study_image(image, pio):
+def tile_study_image(image, pio, cli_progress=False):
     """Tile an image as a study, loading the whole thing into memory.
 
     Parameters
@@ -279,6 +304,8 @@ def tile_study_image(image, pio):
         The image to tile.
     pio : :class:`toasty.pyramid.PyramidIO`
         A handle for doing I/O on the tile pyramid
+    cli_progress : optional boolean, defaults False
+        If true, a progress bar will be printed to the terminal using tqdm.
 
     Returns
     -------
@@ -286,5 +313,5 @@ def tile_study_image(image, pio):
 
     """
     tiling = StudyTiling(image.width, image.height)
-    tiling.tile_image(image, pio)
+    tiling.tile_image(image, pio, cli_progress=cli_progress)
     return tiling

@@ -22,6 +22,7 @@ Pos
 pos_children
 pos_parent
 PyramidIO
+tiles_at_depth
 '''.split()
 
 from collections import namedtuple
@@ -50,6 +51,13 @@ def next_highest_power_of_2(n):
 def depth2tiles(depth):
     """Return the total number of tiles in a WWT tile pyramid of depth *depth*."""
     return (4 ** (depth + 1) - 1) // 3
+
+
+def tiles_at_depth(depth):
+    """
+    Return the number of tiles in the WWT tile pyramid layer at depth *depth*.
+    """
+    return 4**depth
 
 
 def is_subtile(deeper_pos, shallower_pos):

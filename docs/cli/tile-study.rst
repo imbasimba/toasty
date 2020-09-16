@@ -14,6 +14,7 @@ Usage
 
    toasty tile-study
       [standard image-loading options]
+      [--placeholder-thumbnail]
       [--outdir DIR]
       IMAGE-PATH
 
@@ -25,6 +26,14 @@ that needs to be tiled to be displayed usefully in AAS WorldWide Telescope.
 
 The ``--outdir DIR`` option specifies where the output data should be written.
 If unspecified, the data root will be the current directory.
+
+If the ``--placeholder-thumbnail`` argument is given, an all-black placeholder
+thumbnail will be created. Otherwise, the thumbnail will be created by
+downsampling the input image. This operation can actually be the most
+memory-intensive part of the process, and can yield poor results with
+mostly-empty images. You can avoid this by using this argument and then invoking
+:ref:`cli-make-thumbnail` with a better-suited input image.
+
 
 Notes
 =====

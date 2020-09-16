@@ -54,10 +54,10 @@ class Builder(object):
         self.place.name = 'Toasty'
 
 
-    def tile_base_as_study(self, image):
+    def tile_base_as_study(self, image, **kwargs):
         from .study import tile_study_image
 
-        tiling = tile_study_image(image, self.pio)
+        tiling = tile_study_image(image, self.pio, **kwargs)
         tiling.apply_to_imageset(self.imgset)
         self.imgset.url = self.pio.get_path_scheme() + '.png'
         self.imgset.file_type = '.png'
@@ -107,10 +107,25 @@ class Builder(object):
         return img
 
 
-    def cascade(self):
+    def toast_base(self, mode, sampler, depth, **kwargs):
+        from .toast import sample_layer
+        sample_layer(self.pio, mode, sampler, depth, **kwargs)
+
+        self.imgset.data_set_type = DataSetType.SKY
+        self.imgset.base_degrees_per_tile = 180
+        self.imgset.file_type = '.png'
+        self.imgset.projection = ProjectionType.TOAST
+        self.imgset.tile_levels = depth
+        self.imgset.url = self.pio.get_path_scheme() + '.png'
+        self.place.zoom_level = 360
+
+        return self
+
+
+    def cascade(self, **kwargs):
         from .image import ImageMode
         from .merge import averaging_merger, cascade_images
-        cascade_images(self.pio, ImageMode.RGBA, self.imgset.tile_levels, averaging_merger)
+        cascade_images(self.pio, ImageMode.RGBA, self.imgset.tile_levels, averaging_merger, **kwargs)
         return self
 
 
@@ -120,6 +135,20 @@ class Builder(object):
             thumb.save(f, format='JPEG')
         self.imgset.thumbnail_url = 'thumb.jpg'
 
+        return self
+
+
+    def make_placeholder_thumbnail(self):
+        import numpy as np
+        from .image import Image, ImageMode
+
+        arr = np.zeros((45, 96, 3), dtype=np.uint8)
+        img = Image.from_array(ImageMode.RGB, arr)
+
+        with self.pio.open_metadata_for_write('thumb.jpg') as f:
+            img.aspil().save(f, format='JPEG')
+
+        self.imgset.thumbnail_url = 'thumb.jpg'
         return self
 
 

@@ -50,9 +50,11 @@ class TestStudy(object):
 
         # Now run it through the CLI.
 
-        args = [
-            'tile-wwtl',
-            '--outdir', self.work_path('tiles'),
-            self.work_path('image.wwtl')
-        ]
-        cli.entrypoint(args)
+        for variants in ([], ['--placeholder-thumbnail']):
+            args = ['tile-wwtl']
+            args += variants
+            args += [
+                '--outdir', self.work_path('tiles'),
+                self.work_path('image.wwtl')
+            ]
+            cli.entrypoint(args)

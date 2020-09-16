@@ -74,12 +74,14 @@ class TestStudy(object):
         from xml.etree import ElementTree as etree
         expected = etree.fromstring(self.WTML)
 
-        args = [
-            'tile-study',
-            '--outdir', self.work_path(),
-            test_path('NGC253ALMA.jpg')
-        ]
-        cli.entrypoint(args)
+        for variants in ([], ['--placeholder-thumbnail']):
+            args = ['tile-study']
+            args += variants
+            args += [
+                '--outdir', self.work_path(),
+                test_path('NGC253ALMA.jpg')
+            ]
+            cli.entrypoint(args)
 
         with open(self.work_path('index_rel.wtml')) as f:
             observed = etree.fromstring(f.read())

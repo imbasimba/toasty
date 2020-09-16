@@ -22,32 +22,6 @@ def warn(msg):
     print('warning:', msg, file=sys.stderr)
 
 
-def stub_wtml(imgset, wtml_path, place=None):
-    """Given an ImageSet object and potential a Place, save its information into a
-    stub WTML file.
-
-    """
-    from wwt_data_formats import write_xml_doc
-    from wwt_data_formats.enums import DataSetType
-    from wwt_data_formats.folder import Folder
-    from wwt_data_formats.place import Place
-
-    folder = Folder()
-
-    if place is None:
-        place = Place()
-        place.data_set_type = DataSetType.SKY
-        place.foreground_image_set = imgset
-        place.name = 'Toasty'
-        place.thumbnail = imgset.thumbnail_url
-        place.zoom_level = 1.0
-
-    folder.children = [place]
-
-    with open(wtml_path, 'wt') as f:
-        write_xml_doc(folder.to_xml(), dest_stream=f)
-
-
 # "cascade" subcommand
 
 def cascade_getparser(parser):
@@ -75,7 +49,7 @@ def cascade_impl(settings):
     if start is None:
         die('currently, you must specify the start layer with the --start option')
 
-    cascade_images(pio, ImageMode.RGBA, start, averaging_merger)
+    cascade_images(pio, ImageMode.RGBA, start, averaging_merger, cli_progress=True)
 
 
 # "healpix_sample_data_tiles" subcommand
@@ -101,67 +75,53 @@ def healpix_sample_data_tiles_getparser(parser):
 
 
 def healpix_sample_data_tiles_impl(settings):
+    from .builder import Builder
     from .image import ImageMode
     from .pyramid import PyramidIO
     from .samplers import healpix_fits_file_sampler
-    from .toast import SamplingToastDataSource
 
     pio = PyramidIO(settings.outdir)
     sampler = healpix_fits_file_sampler(settings.fitspath)
-    ds = SamplingToastDataSource(ImageMode.F32, sampler)
-    ds.sample_layer(pio, settings.depth)
+    builder = Builder(pio)
+    builder.toast_base(ImageMode.F32, sampler, settings.depth)
+    builder.write_index_rel_wtml()
+
+    print(f'Successfully tiled input "{settings.fitspath}" at level {builder.imgset.tile_levels}.')
+    print('To create parent tiles, consider running:')
+    print()
+    print(f'   toasty cascade --start {builder.imgset.tile_levels} {settings.outdir}')
 
 
-# "tile_allsky" subcommand
+# "make_thumbnail" subcommand
 
-def tile_allsky_getparser(parser):
+def make_thumbnail_getparser(parser):
     from .image import ImageLoader
     ImageLoader.add_arguments(parser)
 
     parser.add_argument(
-        '--outdir',
-        metavar = 'PATH',
-        default = '.',
-        help = 'The root directory of the output tile pyramid',
-    )
-    parser.add_argument(
-        '--projection',
-        metavar = 'PROJTYPE',
-        default = 'plate-carree',
-        help = 'The projection of the image; allowed choices are "plate-carree" and "plate-carree-planet"',
-    )
-    parser.add_argument(
         'imgpath',
-        metavar = 'PATH',
-        help = 'The image file to be tiled',
+        metavar = 'IN-PATH',
+        help = 'The image file to be thumbnailed',
     )
     parser.add_argument(
-        'depth',
-        metavar = 'DEPTH',
-        type = int,
-        help = 'The depth of the TOAST layer to sample',
+        'outpath',
+        metavar = 'OUT-PATH',
+        help = 'The location of the new thumbnail file',
     )
 
 
-def tile_allsky_impl(settings):
+def make_thumbnail_impl(settings):
     from .image import ImageLoader
-    from .pyramid import PyramidIO
-    from .toast import SamplingToastDataSource
+
+    olp = settings.outpath.lower()
+    if not (olp.endswith('.jpg') or olp.endswith('.jpeg')):
+        warn('saving output in JPEG format even though filename is "{}"'.format(settings.outpath))
 
     img = ImageLoader.create_from_args(settings).load_path(settings.imgpath)
-    pio = PyramidIO(settings.outdir)
+    thumb = img.make_thumbnail_bitmap()
 
-    if settings.projection == 'plate-carree':
-        from .samplers import plate_carree_sampler
-        sampler = plate_carree_sampler(img.asarray())
-    elif settings.projection == 'plate-carree-planet':
-        from .samplers import plate_carree_planet_sampler
-        sampler = plate_carree_planet_sampler(img.asarray())
-    else:
-        die('the image projection type {!r} is not recognized'.format(settings.projection))
-
-    ds = SamplingToastDataSource(img.mode, sampler)
-    ds.sample_layer(pio, settings.depth)
+    with open(settings.outpath, 'wb') as f:
+        thumb.save(f, format='JPEG')
 
 
 # "multi_tan_make_data_tiles" subcommand
@@ -334,12 +294,87 @@ def pipeline_reindex_impl(settings):
     mgr.reindex()
 
 
+# "tile_allsky" subcommand
+
+def tile_allsky_getparser(parser):
+    from .image import ImageLoader
+    ImageLoader.add_arguments(parser)
+
+    parser.add_argument(
+        '--outdir',
+        metavar = 'PATH',
+        default = '.',
+        help = 'The root directory of the output tile pyramid',
+    )
+    parser.add_argument(
+        '--placeholder-thumbnail',
+        action = 'store_true',
+        help = 'Do not attempt to thumbnail the input image -- saves memory for large inputs',
+    )
+    parser.add_argument(
+        '--projection',
+        metavar = 'PROJTYPE',
+        default = 'plate-carree',
+        help = 'The projection of the image; allowed choices are "plate-carree" and "plate-carree-planet"',
+    )
+    parser.add_argument(
+        'imgpath',
+        metavar = 'PATH',
+        help = 'The image file to be tiled',
+    )
+    parser.add_argument(
+        'depth',
+        metavar = 'DEPTH',
+        type = int,
+        help = 'The depth of the TOAST layer to sample',
+    )
+
+
+def tile_allsky_impl(settings):
+    from .builder import Builder
+    from .image import ImageLoader
+    from .pyramid import PyramidIO
+
+    img = ImageLoader.create_from_args(settings).load_path(settings.imgpath)
+    pio = PyramidIO(settings.outdir)
+
+    if settings.projection == 'plate-carree':
+        from .samplers import plate_carree_sampler
+        sampler = plate_carree_sampler(img.asarray())
+    elif settings.projection == 'plate-carree-planet':
+        from .samplers import plate_carree_planet_sampler
+        sampler = plate_carree_planet_sampler(img.asarray())
+    else:
+        die('the image projection type {!r} is not recognized'.format(settings.projection))
+
+    builder = Builder(pio)
+
+    # Do the thumbnail first since for large inputs it can be the memory high-water mark!
+    if settings.placeholder_thumbnail:
+        builder.make_placeholder_thumbnail()
+    else:
+        builder.make_thumbnail_from_other(img)
+
+    builder.toast_base(img.mode, sampler, settings.depth, cli_progress=True)
+    builder.write_index_rel_wtml()
+
+    print(f'Successfully tiled input "{settings.imgpath}" at level {builder.imgset.tile_levels}.')
+    print('To create parent tiles, consider running:')
+    print()
+    print(f'   toasty cascade --start {builder.imgset.tile_levels} {settings.outdir}')
+
+
 # "tile_study" subcommand
 
 def tile_study_getparser(parser):
     from .image import ImageLoader
     ImageLoader.add_arguments(parser)
 
+    parser.add_argument(
+        '--placeholder-thumbnail',
+        action = 'store_true',
+        help = 'Do not attempt to thumbnail the input image -- saves memory for large inputs',
+    )
     parser.add_argument(
         '--outdir',
         metavar = 'PATH',
@@ -362,8 +397,14 @@ def tile_study_impl(settings):
     pio = PyramidIO(settings.outdir)
     builder = Builder(pio)
     builder.default_tiled_study_astrometry()
-    builder.tile_base_as_study(img)
-    builder.make_thumbnail_from_other(img)
+
+    # Do the thumbnail first since for large inputs it can be the memory high-water mark!
+    if settings.placeholder_thumbnail:
+        builder.make_placeholder_thumbnail()
+    else:
+        builder.make_thumbnail_from_other(img)
+
+    builder.tile_base_as_study(img, cli_progress=True)
     builder.write_index_rel_wtml()
 
     print(f'Successfully tiled input "{settings.imgpath}" at level {builder.imgset.tile_levels}.')
@@ -378,6 +419,11 @@ def tile_wwtl_getparser(parser):
     from .image import ImageLoader
     ImageLoader.add_arguments(parser)
 
+    parser.add_argument(
+        '--placeholder-thumbnail',
+        action = 'store_true',
+        help = 'Do not attempt to thumbnail the input image -- saves memory for large inputs',
+    )
     parser.add_argument(
         '--outdir',
         metavar = 'PATH',
@@ -399,7 +445,14 @@ def tile_wwtl_impl(settings):
     pio = PyramidIO(settings.outdir)
     builder = Builder(pio)
     img = builder.load_from_wwtl(settings, settings.wwtl_path)
-    builder.make_thumbnail_from_other(img)
+
+    # Do the thumbnail first since for large inputs it can be the memory high-water mark!
+    if settings.placeholder_thumbnail:
+        builder.make_placeholder_thumbnail()
+    else:
+        builder.make_thumbnail_from_other(img)
+
+    builder.tile_base_as_study(img, cli_progress=True)
     builder.write_index_rel_wtml()
 
     print(f'Successfully tiled input "{settings.wwtl_path}" at level {builder.imgset.tile_levels}.')

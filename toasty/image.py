@@ -303,10 +303,15 @@ class ImageLoader(object):
         -------
         A new :class:`Image`.
         """
+        # Special handling for Numpy arrays. TODO: it would be better to sniff
+        # filetypes instead of just looking at extensions. But, lazy.
+
+        if path.endswith('.npy'):
+            arr = np.load(path)
+            return Image.from_array(ImageMode.F32, arr.astype(np.float32))
+
         # Special handling for Photoshop files, used for some very large mosaics
-        # with transparency (e.g. the PHAT M31/M33 images). TODO: it would be
-        # better to sniff the PSD filetype instead of just looking at
-        # extensions. But, lazy.
+        # with transparency (e.g. the PHAT M31/M33 images).
 
         if path.endswith('.psd') or path.endswith('.psb'):
             try:
@@ -325,6 +330,14 @@ class ImageLoader(object):
                     pilimg = psd.composite()
 
                 return self.load_pil(pilimg)
+
+        # Special handling for OpenEXR files, used for large images with high
+        # dynamic range.
+
+        if path.endswith('.exr'):
+            from .openexr import load_openexr
+            img = load_openexr(path)
+            return Image.from_array(ImageMode.RGB, img)
 
         # (One day, maybe we'll do more kinds of sniffing.) No special handling
         # came into play; just open the file and auto-detect.

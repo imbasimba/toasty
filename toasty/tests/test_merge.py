@@ -37,13 +37,15 @@ class TestCascade(object):
         module directly.
 
         """
-        args = [
-            'tile-allsky',
-            '--outdir', self.work_path('basic_cli'),
-            test_path('Equirectangular_projection_SW-tweaked.jpg'),
-            '1',
-        ]
-        cli.entrypoint(args)
+        for variants in ([], ['--placeholder-thumbnail']):
+            args = ['tile-allsky']
+            args += variants
+            args += [
+                '--outdir', self.work_path('basic_cli'),
+                test_path('Equirectangular_projection_SW-tweaked.jpg'),
+                '1',
+            ]
+            cli.entrypoint(args)
 
         args = [
             'cascade',

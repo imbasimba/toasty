@@ -101,15 +101,21 @@ def healpix_sample_data_tiles_getparser(parser):
 
 
 def healpix_sample_data_tiles_impl(settings):
+    from .builder import Builder
     from .image import ImageMode
     from .pyramid import PyramidIO
     from .samplers import healpix_fits_file_sampler
-    from .toast import SamplingToastDataSource
 
     pio = PyramidIO(settings.outdir)
     sampler = healpix_fits_file_sampler(settings.fitspath)
-    ds = SamplingToastDataSource(ImageMode.F32, sampler)
-    ds.sample_layer(pio, settings.depth)
+    builder = Builder(pio)
+    builder.toast_base(ImageMode.F32, sampler, settings.depth)
+    builder.write_index_rel_wtml()
+
+    print(f'Successfully tiled input "{settings.fitspath}" at level {builder.imgset.tile_levels}.')
+    print('To create parent tiles, consider running:')
+    print()
+    print(f'   toasty cascade --start {builder.imgset.tile_levels} {settings.outdir}')
 
 
 # "tile_allsky" subcommand
@@ -144,9 +150,9 @@ def tile_allsky_getparser(parser):
 
 
 def tile_allsky_impl(settings):
+    from .builder import Builder
     from .image import ImageLoader
     from .pyramid import PyramidIO
-    from .toast import SamplingToastDataSource
 
     img = ImageLoader.create_from_args(settings).load_path(settings.imgpath)
     pio = PyramidIO(settings.outdir)
@@ -160,8 +166,15 @@ def tile_allsky_impl(settings):
     else:
         die('the image projection type {!r} is not recognized'.format(settings.projection))
 
-    ds = SamplingToastDataSource(img.mode, sampler)
-    ds.sample_layer(pio, settings.depth)
+    builder = Builder(pio)
+    builder.make_thumbnail_from_other(img)
+    builder.toast_base(img.mode, sampler, settings.depth)
+    builder.write_index_rel_wtml()
+
+    print(f'Successfully tiled input "{settings.imgpath}" at level {builder.imgset.tile_levels}.')
+    print('To create parent tiles, consider running:')
+    print()
+    print(f'   toasty cascade --start {builder.imgset.tile_levels} {settings.outdir}')
 
 
 # "multi_tan_make_data_tiles" subcommand

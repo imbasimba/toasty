@@ -107,6 +107,21 @@ class Builder(object):
         return img
 
 
+    def toast_base(self, mode, sampler, depth):
+        from .toast import sample_layer
+        sample_layer(self.pio, mode, sampler, depth)
+
+        self.imgset.data_set_type = DataSetType.SKY
+        self.imgset.base_degrees_per_tile = 180
+        self.imgset.file_type = '.png'
+        self.imgset.projection = ProjectionType.TOAST
+        self.imgset.tile_levels = depth
+        self.imgset.url = self.pio.get_path_scheme() + '.png'
+        self.place.zoom_level = 360
+
+        return self
+
+
     def cascade(self):
         from .image import ImageMode
         from .merge import averaging_merger, cascade_images

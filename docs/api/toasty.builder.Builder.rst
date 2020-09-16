@@ -25,6 +25,7 @@ Builder
       ~Builder.load_from_wwtl
       ~Builder.make_thumbnail_from_other
       ~Builder.tile_base_as_study
+      ~Builder.toast_base
       ~Builder.write_index_rel_wtml
 
    .. rubric:: Attributes Documentation
@@ -42,4 +43,5 @@ Builder
    .. automethod:: load_from_wwtl
    .. automethod:: make_thumbnail_from_other
    .. automethod:: tile_base_as_study
+   .. automethod:: toast_base
    .. automethod:: write_index_rel_wtml

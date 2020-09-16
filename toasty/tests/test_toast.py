@@ -23,7 +23,7 @@ from .. import toast
 from .._libtoasty import mid
 from ..image import ImageMode
 from ..samplers import plate_carree_sampler, healpix_fits_file_sampler
-from ..toast import generate_images, gen_wtml, read_image, save_png, SamplingToastDataSource
+from ..toast import generate_images, gen_wtml, read_image, sample_layer, save_png
 
 
 def mock_sampler(x, y):
@@ -201,7 +201,7 @@ reference_wtml = """
 """
 
 
-class TestSamplingToastDataSource(object):
+class TestSamplingLayer(object):
     def setup_method(self, method):
         self.base = mkdtemp()
         self.cwd = cwd()
@@ -224,6 +224,5 @@ class TestSamplingToastDataSource(object):
             image_test(b, a, 'Failed for %s' % subpth)
 
     def test_default(self):
-        stds = SamplingToastDataSource(ImageMode.RGB, self.sampler)
-        stds.sample_layer(self.pio, 1)
+        sample_layer(self.pio, ImageMode.RGB, self.sampler, 1)
         self.verify_toast()

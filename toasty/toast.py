@@ -16,7 +16,7 @@ generate_tiles
 gen_wtml
 minmax_tile_filter
 nxy_tile_filter
-SamplingToastDataSource
+sample_layer
 Tile
 toast
 toast_tile_area
@@ -248,6 +248,38 @@ def generate_tiles(depth, bottom_only=True, tile_filter=None):
     for t in todo:
         for item in _postfix_corner(t, depth, bottom_only, tile_filter):
             yield item
+
+
+def sample_layer(pio, mode, sampler, depth):
+    """Generate a layer of the TOAST tile pyramid through direct sampling.
+
+    Parameters
+    ----------
+    pio : :class:`toasty.pyramid.PyramidIO`
+        A :class:`~toasty.pyramid.PyramidIO` instance to manage the I/O with
+        the tiles in the tile pyramid.
+    mode : :class:`toasty.image.ImageMode`
+        The image mode of this data source.
+    sampler : callable
+        The sampler callable that will produce data for tiling.
+    depth : int
+        The depth of the layer of the TOAST tile pyramid to generate. The
+        number of tiles in each layer is ``4**depth``. Each tile is 256×256
+        TOAST pixels, so the resolution of the pixelization at which the
+        data will be sampled is a refinement level of ``2**(depth + 8)``.
+
+    """
+    for tile in generate_tiles(depth, bottom_only=True):
+        lon, lat = subsample(
+            tile.corners[0],
+            tile.corners[1],
+            tile.corners[2],
+            tile.corners[3],
+            256,
+            tile.increasing,
+        )
+        sampled_data = sampler(lon, lat)
+        pio.write_toasty_image(tile.pos, Image.from_array(mode, sampled_data))
 
 
 # This is where we start needing to revamp all of the I/O and pyramid-management stuff:
@@ -552,44 +584,3 @@ def toast(data_sampler, depth, base_dir,
         except:
             print(pth)
             print(type(tile))
-
-
-class SamplingToastDataSource(object):
-    """Generate tiles for a TOAST projection from a "sampler" function."""
-
-    _mode = None
-    "The :class:`toasty.image.ImageMode` of this data source."
-
-    _sampler = None
-    "The sampler callable that will produce data for tiling."
-
-    def __init__(self, mode, sampler):
-        self._mode = mode
-        self._sampler = sampler
-
-    def sample_layer(self, pio, depth):
-        """Generate a layer of the TOAST tile pyramid through direct sampling.
-
-        Parameters
-        ----------
-        pio : :class:`toasty.pyramid.PyramidIO`
-            A :class:`~toasty.pyramid.PyramidIO` instance to manage the I/O with
-            the tiles in the tile pyramid.
-        depth : int
-            The depth of the layer of the TOAST tile pyramid to generate. The
-            number of tiles in each layer is ``4**depth``. Each tile is 256×256
-            TOAST pixels, so the resolution of the pixelization at which the
-            data will be sampled is a refinement level of ``2**(depth + 8)``.
-
-        """
-        for tile in generate_tiles(depth, bottom_only=True):
-            lon, lat = subsample(
-                tile.corners[0],
-                tile.corners[1],
-                tile.corners[2],
-                tile.corners[3],
-                256,
-                tile.increasing,
-            )
-            sampled_data = self._sampler(lon, lat)
-            pio.write_toasty_image(tile.pos, Image.from_array(self._mode, sampled_data))

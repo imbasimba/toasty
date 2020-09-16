@@ -92,6 +92,38 @@ def healpix_sample_data_tiles_impl(settings):
     print(f'   toasty cascade --start {builder.imgset.tile_levels} {settings.outdir}')
 
 
+# "make_thumbnail" subcommand
+
+def make_thumbnail_getparser(parser):
+    from .image import ImageLoader
+    ImageLoader.add_arguments(parser)
+
+    parser.add_argument(
+        'imgpath',
+        metavar = 'IN-PATH',
+        help = 'The image file to be thumbnailed',
+    )
+    parser.add_argument(
+        'outpath',
+        metavar = 'OUT-PATH',
+        help = 'The location of the new thumbnail file',
+    )
+
+
+def make_thumbnail_impl(settings):
+    from .image import ImageLoader
+
+    olp = settings.outpath.lower()
+    if not (olp.endswith('.jpg') or olp.endswith('.jpeg')):
+        warn('saving output in JPEG format even though filename is "{}"'.format(settings.outpath))
+
+    img = ImageLoader.create_from_args(settings).load_path(settings.imgpath)
+    thumb = img.make_thumbnail_bitmap()
+
+    with open(settings.outpath, 'wb') as f:
+        thumb.save(f, format='JPEG')
+
+
 # "multi_tan_make_data_tiles" subcommand
 
 def multi_tan_make_data_tiles_getparser(parser):

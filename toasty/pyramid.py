@@ -331,4 +331,10 @@ class PyramidIO(object):
         A writable and closeable file-like object accepting bytes.
 
         """
+        # We can't use the `exist_ok` kwarg because it's not available in Python 2.
+        try:
+            os.makedirs(self._base_dir)
+        except OSError as e:
+            if e.errno != 17:
+                raise  # not EEXIST
         return open(os.path.join(self._base_dir, basename), 'wb')

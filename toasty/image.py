@@ -326,6 +326,14 @@ class ImageLoader(object):
 
                 return self.load_pil(pilimg)
 
+        # Special handling for OpenEXR files, used for large images with high
+        # dynamic range.
+
+        if path.endswith('.exr'):
+            from .openexr import load_openexr
+            img = load_openexr(path)
+            return Image.from_array(ImageMode.RGB, img)
+
         # (One day, maybe we'll do more kinds of sniffing.) No special handling
         # came into play; just open the file and auto-detect.
 

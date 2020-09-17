@@ -1,3 +1,15 @@
+# 0.2.0 (2020 Sep 17)
+
+- Add a first cut at support for OpenEXR images. This may evolve since it might
+  be valuable to take more advantage of OpenEXR's support for high-dynamic-range
+  imagery.
+- Add cool progress reporting for tiling and cascading!
+- Fix installation on Windows (hopefully).
+- Add a new `make-thumbnail` utility command.
+- Add `--placeholder-thumbnail` to some tiling commands to avoid the thumbnailing
+  step, which can be very slow and memory-intensive for huge input images.
+- Internal cleanups.
+
 # 0.1.0 (2020 Sep 15)
 
 - Massive rebuild of just about everything about the package.

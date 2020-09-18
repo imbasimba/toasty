@@ -127,5 +127,8 @@ else:
 
 # That was fun.
 
+for e in setup_args['ext_modules']:
+    e.cython_directives = {'language_level': '3'}
+
 if __name__ == '__main__':
     setup(**setup_args)

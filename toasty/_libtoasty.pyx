@@ -64,7 +64,7 @@ cdef void _subsample(Point ul, Point ur, Point lr, Point ll,
     """
     cdef Point le, up, lo, ri, cen
     cdef int n = x.shape[0]
-    cdef int n2 = n / 2
+    cdef int n2 = n // 2
 
     _mid(ul, ur, &up)
     _mid(ul, ll, &le)

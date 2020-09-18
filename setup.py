@@ -1,9 +1,11 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2013-2019 Chris Beaumont and the AAS WorldWide Telescope team
+# Copyright 2013-2020 Chris Beaumont and the AAS WorldWide Telescope team
 # Licensed under the MIT License
 
 from __future__ import absolute_import, division, print_function
 
+from Cython.Distutils import build_ext  # in pyproject.toml
+import numpy as np  # in pyproject.toml
 import os
 from setuptools import setup, Extension
 
@@ -70,7 +72,6 @@ setup_args = dict(
     },
 
     install_requires = [
-        'cython>=0.20',
         'numpy>=1.7',
         'pillow>=7.0',
         'PyYAML>=5.0',
@@ -91,41 +92,18 @@ setup_args = dict(
         ],
     },
 
+    cmdclass = {
+        'build_ext': build_ext,
+    },
+
     ext_modules = [
         Extension('toasty._libtoasty', ['toasty/_libtoasty.pyx']),
     ],
-)
 
-
-# When we build on ReadTheDocs, there seems to be no way to ensure that Cython
-# and Numpy are installed before this file is evaluated (yes, I tried all
-# sorts of requirements.txt tricks and things). So, we allow these imports to
-# fail in that environment, since we can make things work out for the docs
-# build in the end.
-
-ON_READTHEDOCS = 'READTHEDOCS' in os.environ
-
-try:
-    import numpy as np
-except ImportError:
-    if not ON_READTHEDOCS:
-        raise
-else:
-    setup_args['include_dirs'] = [
+    include_dirs = [
         np.get_include(),
     ]
-
-try:
-    from Cython.Distutils import build_ext
-except ImportError:
-    if not ON_READTHEDOCS:
-        raise
-else:
-    setup_args['cmdclass'] = {
-        'build_ext': build_ext,
-    }
-
-# That was fun.
+)
 
 for e in setup_args['ext_modules']:
     e.cython_directives = {'language_level': '3'}

@@ -1,3 +1,8 @@
+# 0.3.0 (2020 Sep 18)
+
+- Attempt to properly categorize Cython as a build-time-only dependency. We don't
+  need it at runtime.
+
 # 0.2.0 (2020 Sep 17)
 
 - Add a first cut at support for OpenEXR images. This may evolve since it might

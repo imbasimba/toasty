@@ -15,6 +15,7 @@ generate_tiles
 sample_layer
 Tile
 toast_tile_area
+toast_tile_for_point
 '''.split()
 
 from collections import defaultdict, namedtuple
@@ -104,6 +105,149 @@ def toast_tile_area(tile):
         a2 = _spherical_triangle_area(ul[1], ul[0], ll[1], ll[0], lr[1], lr[0])
 
     return a1 + a2
+
+
+def _equ_to_xyz(lat, lon):
+    """
+    Convert equatorial to cartesian coordinates. Lat and lon are in radians.
+    Output is on the unit sphere.
+
+    """
+    clat = np.cos(lat)
+    return np.array([
+        np.cos(lon) * clat,
+        np.sin(lat),
+        np.sin(lon) * clat,
+    ])
+
+
+def _left_of_half_space_score(point_a, point_b, test_point):
+    """
+    A variant of WWT Window's IsLeftOfHalfSpace.
+
+    When determining which tile a given RA/Dec lives in, it is inevitable that
+    rounding errors can make seem that certain coordinates are not contained by
+    *any* tile. Unlike IsLeftOfHalf space, which returns a boolean based on the
+    dot product calculated here, we return a number <= 0, where 0 indicates that
+    the test point is *definitely* in the left half-space defined by the A and B
+    points. Negative values tell us how far into the right space the point is;
+    when rounding errors are biting us, that value might be something like
+    -1e-16.
+
+    """
+    return min(np.dot(np.cross(point_a, point_b), test_point), 0)
+
+
+def _toast_tile_containment_score(tile, lat, lon):
+    """
+    Assess whether a TOAST tile contains a given point.
+
+    Parameters
+    ----------
+    tile : :class:`Tile`
+        A TOAST tile
+    lat : number
+        The latitude (declination) of the point, in radians.
+    lon : number
+        The longitude (RA) of the point, in radians. This value must
+        have already been normalied to lie within the range [0, 2pi]
+        (inclusive on both ends.)
+
+    Returns
+    -------
+    A floating-point "containment score" number. If this number is zero, the
+    point definitely lies within the tile. Otherwise, the number will be
+    negative, with more negative values indicating a greater distance from the
+    point to the nearest tile boundary. Due to inevitable roundoff errors, there
+    are situations where, given a certain point and tile, the point "should" be
+    contained in the tile, but due to roundoff errors, its score will not be
+    exactly zero.
+
+    """
+    # Derived from ToastTile.IsPointInTile.
+
+    if tile.pos.n == 0:
+        return 0
+
+    # Note that our labeling scheme is different than that used in WWT proper.
+    if tile.pos.n == 1:
+        if lon >= 0 and lon <= HALFPI and tile.pos.x == 1 and tile.pos.y == 0:
+            return 0
+        if lon > HALFPI and lon <= np.pi and tile.pos.x == 0 and tile.pos.y == 0:
+            return 0
+        if lon > np.pi and lon < THREEHALFPI and tile.pos.x == 0 and tile.pos.y == 1:
+            return 0
+        if lon >= THREEHALFPI and lon <= TWOPI and tile.pos.x == 1 and tile.pos.y == 1:
+            return 0
+        return -100
+
+    test_point = _equ_to_xyz(lat, lon)
+    ul = _equ_to_xyz(tile.corners[0][1], tile.corners[0][0])
+    ur = _equ_to_xyz(tile.corners[1][1], tile.corners[1][0])
+    lr = _equ_to_xyz(tile.corners[2][1], tile.corners[2][0])
+    ll = _equ_to_xyz(tile.corners[3][1], tile.corners[3][0])
+
+    upper = _left_of_half_space_score(ul, ur, test_point)
+    right = _left_of_half_space_score(ur, lr, test_point)
+    lower = _left_of_half_space_score(lr, ll, test_point)
+    left = _left_of_half_space_score(ll, ul, test_point)
+    return upper + right + lower + left
+
+
+def toast_tile_for_point(depth, lat, lon):
+    """
+    Identify the TOAST tile at a given depth that contains the given point.
+
+    Parameters
+    ----------
+    depth : non-negative integer
+        The TOAST tile pyramid depth to drill down to. For any given depth,
+        there exists a tile containing the input point. As the depth gets
+        larger, the precision of the location gets more precise.
+    lat : number
+        The latitude (declination) of the point, in radians.
+    lon : number
+        The longitude (RA) of the point, in radians. This value must
+        have already been normalied to lie within the range [0, 2pi]
+        (inclusive on both ends.)
+
+    Returns
+    -------
+    The :class:`Tile` at the given depth that best contains the specified
+    point.
+
+    """
+    lon = lon % TWOPI
+
+    if depth == 0:
+        return Tile(Pos(n=0, x=0, y=0), (None, None, None, None), False)
+
+    for tile in LEVEL1_TILES:
+        if _toast_tile_containment_score(tile, lat, lon) == 0.:
+            break
+
+    while tile.pos.n < depth:
+        # Due to inevitable roundoff errors in the tile construction process, it
+        # can arise that we find that the point is contained in a certain tile
+        # but not contained in any of its children. We deal with this reality by
+        # using the "containment score" rather than a binary in/out
+        # classification. If no sub-tile has a containment score of zero, we
+        # choose whichever tile has the least negative score. In typical
+        # roundoff situations that score will be something like -1e-16.
+        best_score = -np.inf
+
+        for child in _div4(tile):
+            score = _toast_tile_containment_score(child, lat, lon)
+
+            if score == 0.:
+                tile = child
+                break
+
+            if score > best_score:
+                tile = child
+                best_score = score
+
+    return tile
 
 
 def _postfix_corner(tile, depth, bottom_only):

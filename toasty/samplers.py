@@ -176,10 +176,12 @@ def plate_carree_sampler(data):
     def vec2pix(lon, lat):
         lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
         ix = (lon0 - lon) * dx
-        ix = np.clip(ix.astype(np.int), 0, nx - 1)
+        ix = np.round(ix).astype(np.int)
+        ix = np.clip(ix, 0, nx - 1)
 
         iy = (lat0 - lat) * dy  # *assume* in range [-pi/2, pi/2]
-        iy = np.clip(iy.astype(np.int), 0, ny - 1)
+        iy = np.round(iy).astype(np.int)
+        iy = np.clip(iy, 0, ny - 1)
 
         return data[iy, ix]
 
@@ -218,10 +220,12 @@ def plate_carree_planet_sampler(data):
     def vec2pix(lon, lat):
         lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
         ix = (lon - lon0) * dx
-        ix = np.clip(ix.astype(np.int), 0, nx - 1)
+        ix = np.round(ix).astype(np.int)
+        ix = np.clip(ix, 0, nx - 1)
 
         iy = (lat0 - lat) * dy  # *assume* in range [-pi/2, pi/2]
-        iy = np.clip(iy.astype(np.int), 0, ny - 1)
+        iy = np.round(iy).astype(np.int)
+        iy = np.clip(iy, 0, ny - 1)
 
         return data[iy, ix]
 

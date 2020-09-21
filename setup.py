@@ -36,7 +36,7 @@ project homepage].
 
 setup_args = dict(
     name = 'toasty',
-    version = '0.4.0.dev0',  # also update docs/conf.py
+    version = '0.3.1',  # also update docs/conf.py
     description = 'Generate TOAST image tile pyramids from existing image data',
     long_description = get_long_desc(),
     long_description_content_type = 'text/markdown',

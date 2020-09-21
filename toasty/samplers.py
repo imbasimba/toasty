@@ -23,6 +23,7 @@ from __future__ import absolute_import, division, print_function
 
 __all__ = '''
 plate_carree_sampler
+plate_carree_galactic_sampler
 plate_carree_planet_sampler
 healpix_fits_file_sampler
 healpix_sampler
@@ -55,7 +56,7 @@ def healpix_sampler(data, nest=False, coord='C', interpolation='nearest'):
 
     """
     from healpy import ang2pix, get_interp_val, npix2nside
-    from astropy.coordinates import Galactic, FK5
+    from astropy.coordinates import Galactic, ICRS
     import astropy.units as u
 
     interp_opts = ['nearest', 'bilinear']
@@ -71,7 +72,7 @@ def healpix_sampler(data, nest=False, coord='C', interpolation='nearest'):
 
     def vec2pix(l, b):
         if galactic:
-            f = FK5(l * u.rad, b * u.rad)
+            f = ICRS(l * u.rad, b * u.rad)
             g = f.transform_to(Galactic)
             l, b = g.l.rad, g.b.rad
 
@@ -173,6 +174,52 @@ def plate_carree_sampler(data):
     lat0 = 0.5 * np.pi - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
 
     def vec2pix(lon, lat):
+        lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
+        ix = (lon0 - lon) * dx
+        ix = np.round(ix).astype(np.int)
+        ix = np.clip(ix, 0, nx - 1)
+
+        iy = (lat0 - lat) * dy  # *assume* in range [-pi/2, pi/2]
+        iy = np.round(iy).astype(np.int)
+        iy = np.clip(iy, 0, ny - 1)
+
+        return data[iy, ix]
+
+    return vec2pix
+
+
+def plate_carree_galactic_sampler(data):
+    """
+    Create a sampler function for all-sky data in a “plate carrée” projection
+    using Galactic coordinates.
+
+    Parameters
+    ----------
+    data : array-like, at least 2D
+        The map to sample in plate carrée projection.
+
+    Returns
+    -------
+    A function that samples the image. The call signature is
+    ``sampler(lon, lat) -> data``, where the inputs and output are 2D arrays and
+    *lon* and *lat* are in radians.
+
+    """
+    from astropy.coordinates import Galactic, ICRS
+    import astropy.units as u
+
+    data = np.asarray(data)
+    ny, nx = data.shape[:2]
+
+    dx = nx / (2 * np.pi)  # pixels per radian in the X direction
+    dy = ny / np.pi  # ditto, for the Y direction
+    lon0 = np.pi - 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
+    lat0 = 0.5 * np.pi - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
+
+    def vec2pix(lon, lat):
+        gal = ICRS(lon * u.rad, lat * u.rad).transform_to(Galactic)
+        lon, lat = gal.l.rad, gal.b.rad
+
         lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
         ix = (lon0 - lon) * dx
         ix = np.round(ix).astype(np.int)

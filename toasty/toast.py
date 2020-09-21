@@ -14,6 +14,7 @@ __all__ = '''
 generate_tiles
 sample_layer
 Tile
+toast_pixel_for_point
 toast_tile_area
 toast_tile_for_point
 '''.split()
@@ -248,6 +249,94 @@ def toast_tile_for_point(depth, lat, lon):
                 best_score = score
 
     return tile
+
+
+def toast_pixel_for_point(depth, lat, lon):
+    """
+    Identify the pixel within a TOAST tile at a given depth that contains the
+    given point.
+
+    Parameters
+    ----------
+    depth : non-negative integer
+        The TOAST tile pyramid depth to drill down to. For any given depth,
+        there exists a tile containing the input point. As the depth gets
+        larger, the precision of the location gets more precise.
+    lat : number
+        The latitude (declination) of the point, in radians.
+    lon : number
+        The longitude (RA) of the point, in radians. This value must
+        have already been normalied to lie within the range [0, 2pi]
+        (inclusive on both ends.)
+
+    Returns
+    -------
+    A tuple ``(tile, x, y)``. The *tile* is the :class:`Tile` at the given depth
+    that best contains the specified point. The *x* and *y* values are
+    floating-point numbers giving the pixel location within the 256×256 tile.
+    The returned values are derived from a quadratic fit to the TOAST
+    coordinates of the pixels nearest the specified coordinates *lat* and *lon*.
+
+    """
+    tile = toast_tile_for_point(depth, lat, lon)
+
+    # Now that we have the tile, get its pixel locations and identify the pixel
+    # that is closest to the input position.
+
+    lons, lats = subsample(
+        tile.corners[0],
+        tile.corners[1],
+        tile.corners[2],
+        tile.corners[3],
+        256,
+        tile.increasing,
+    )
+
+    dist2 = (lons - lon)**2 + (lats - lat)**2
+    min_y, min_x = np.unravel_index(np.argmin(dist2), (256, 256))
+
+    # Now, identify a postage stamp around that best-fit pixel and fit a biquadratic
+    # mapping lat/lon to y/x.
+
+    halfsize = 4
+    x0 = max(min_x - halfsize, 0)
+    y0 = max(min_y - halfsize, 0)
+    x1 = min(min_x + halfsize + 1, 256)
+    y1 = min(min_y + halfsize + 1, 256)
+
+    dist2_stamp = dist2[y0:y1,x0:x1]
+    lons_stamp = lons[y0:y1,x0:x1]
+    lats_stamp = lats[y0:y1,x0:x1]
+
+    flat_lons = lons_stamp.flatten()
+    flat_lats = lats_stamp.flatten()
+
+    A = np.array([
+        flat_lons * 0 + 1,
+        flat_lons,
+        flat_lats,
+        flat_lons**2,
+        flat_lons * flat_lats,
+        flat_lats**2,
+    ]).T
+
+    ygrid, xgrid = np.indices(dist2_stamp.shape)
+    x_coeff, _r, _rank, _s = np.linalg.lstsq(A, xgrid.flatten(), rcond=None)
+    y_coeff, _r, _rank, _s = np.linalg.lstsq(A, ygrid.flatten(), rcond=None)
+
+    # Evaluate the polynomial to get the refined pixel coordinates.
+
+    pt = np.array([
+        1,
+        lon,
+        lat,
+        lon**2,
+        lon * lat,
+        lat**2,
+    ])
+    x = np.dot(x_coeff, pt)
+    y = np.dot(y_coeff, pt)
+    return tile, x0 + x, y0 + y
 
 
 def _postfix_corner(tile, depth, bottom_only):

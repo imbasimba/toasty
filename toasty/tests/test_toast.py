@@ -111,6 +111,26 @@ def test_tile_for_point_specifics():
             assert tile.pos.y == nxy[2]
 
 
+def test_pixel_for_point():
+    from ..toast import toast_pixel_for_point
+
+    test_data = {
+        (0.1, 0.1): (3, 7, 3, 126, 191),
+        (-0.4, 2.2): (3, 1, 1, 200, 75),
+    }
+
+    for (lat, lon), (n, x, y, px, py) in test_data.items():
+        shallow_tile, frac_x, frac_y = toast_pixel_for_point(n, lat, lon)
+        assert shallow_tile.pos.n == n
+        assert shallow_tile.pos.x == x
+        assert shallow_tile.pos.y == y
+        assert px == int(round(frac_x))
+        assert py == int(round(frac_y))
+        deep_tile, _, _ = toast_pixel_for_point(n + 8, lat, lon)
+        assert deep_tile.pos.x % 256 == px
+        assert deep_tile.pos.y % 256 == py
+
+
 def image_test(expected, actual, err_msg):
     resid = np.abs(1. * actual - expected)
     if np.median(resid) < 15:

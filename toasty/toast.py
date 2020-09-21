@@ -27,7 +27,13 @@ from ._libtoasty import subsample, mid
 from .image import Image
 from .pyramid import Pos, depth2tiles, is_subtile, pos_parent, tiles_at_depth
 
-level1 = [
+HALFPI = 0.5 * np.pi
+THREEHALFPI = 1.5 * np.pi
+TWOPI = 2 * np.pi
+
+Tile = namedtuple('Tile', 'pos corners increasing')
+
+_level1_lonlats = [
     [np.radians(c) for c in row]
     for row in [
         [(0, -90), (90, 0), (0, 90), (180, 0)],
@@ -37,7 +43,12 @@ level1 = [
     ]
 ]
 
-Tile = namedtuple('Tile', 'pos corners increasing')
+LEVEL1_TILES = [
+    Tile(Pos(n=1, x=0, y=0), _level1_lonlats[0], True),
+    Tile(Pos(n=1, x=1, y=0), _level1_lonlats[1], False),
+    Tile(Pos(n=1, x=1, y=1), _level1_lonlats[2], True),
+    Tile(Pos(n=1, x=0, y=1), _level1_lonlats[3], False),
+]
 
 
 def _arclength(lat1, lon1, lat2, lon2):
@@ -163,14 +174,7 @@ def generate_tiles(depth, bottom_only=True):
     The ``n = 0`` depth is not included.
 
     """
-    todo = [
-        Tile(Pos(n=1, x=0, y=0), level1[0], True),
-        Tile(Pos(n=1, x=1, y=0), level1[1], False),
-        Tile(Pos(n=1, x=1, y=1), level1[2], True),
-        Tile(Pos(n=1, x=0, y=1), level1[3], False),
-    ]
-
-    for t in todo:
+    for t in LEVEL1_TILES:
         for item in _postfix_corner(t, depth, bottom_only):
             yield item
 

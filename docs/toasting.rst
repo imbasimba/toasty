@@ -33,9 +33,11 @@ workflow in this case is as follows:
 
 3. Determine the *projection* used by the source image. This is the mechanism by
    which the curved surface of the sphere is mapped onto a 2D image. For
-   full-sphere imagery, only a few choices are ever used. Consult the
-   :ref:`cli-tile-allsky` documentation for the supported choices. If your image
-   uses an unsupported projection, please `file a request`_ with the developers.
+   full-sphere imagery, only a few choices are ever used: probably the main
+   thing to check is whether your image is in equatorial (RA/Dec) or galactic
+   (l/b) coordinates. Consult the :ref:`cli-tile-allsky` documentation for the
+   supported choices. If your image uses an unsupported projection, please `file
+   a request`_ with the developers.
 
 4. Determine the *tiling depth* appropriate for your use case. The depth is a number
    that specifies the highest resolution that your final map will attain.
@@ -113,7 +115,7 @@ workflow in this case is as follows:
 
        $ wwtdatatool wtml rewrite-urls \
            tiled/index_rel.wtml \
-           http://data1.wwtassets.org/packages/2020/07_phat_m31/ \
+           http://myserver.org/datasetname/ \
            tiled/index.wtml
 
     (Here, the backslashes are used because the command spans multiple lines of
@@ -122,8 +124,8 @@ workflow in this case is as follows:
 
 11. Finally, upload the complete contents of your ``tiled`` subdirectory to your
     web server. In this case, the upload location should be such that the url
-    `<http://data1.wwtassets.org/packages/2020/07_phat_m31/index.wtml>`_ will
-    yield the ``index.wtml`` file created in the previous step.
+    `<http://myserver.org/datasetname/index.wtml>`_ will yield the
+    ``index.wtml`` file created in the previous step.
 
 .. _file a request: https://github.com/WorldWideTelescope/toasty/issues/
 .. _wwt_data_formats: https://wwt-data-formats.readthedocs.io/

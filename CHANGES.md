@@ -1,3 +1,15 @@
+# 0.3.1 (2020 Sep 21)
+
+- If PIL is missing colorspace support, don't crash with an error, but provide a
+  big warning.
+- Add a `plate-carree-galactic` projection type, for equirectangular images in
+  Galactic coordinates.
+- In the plate carrée image samplers, round nearest-neighbor pixel coordinates
+  rather than truncating the fractional component. This should fix a half-pixel
+  offset in TOASTed maps.
+- Remove some old functionalities that are currently going unused, and not
+  expected to become needed in the future.
+
 # 0.3.0 (2020 Sep 18)
 
 - Attempt to properly categorize Cython as a build-time-only dependency. We don't

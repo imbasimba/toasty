@@ -12,8 +12,6 @@ from __future__ import absolute_import, division, print_function
 
 __all__ = '''
 generate_tiles
-minmax_tile_filter
-nxy_tile_filter
 sample_layer
 Tile
 toast_tile_area
@@ -27,10 +25,15 @@ from tqdm import tqdm
 
 from ._libtoasty import subsample, mid
 from .image import Image
-from .norm import normalize
 from .pyramid import Pos, depth2tiles, is_subtile, pos_parent, tiles_at_depth
 
-level1 = [
+HALFPI = 0.5 * np.pi
+THREEHALFPI = 1.5 * np.pi
+TWOPI = 2 * np.pi
+
+Tile = namedtuple('Tile', 'pos corners increasing')
+
+_level1_lonlats = [
     [np.radians(c) for c in row]
     for row in [
         [(0, -90), (90, 0), (0, 90), (180, 0)],
@@ -40,7 +43,12 @@ level1 = [
     ]
 ]
 
-Tile = namedtuple('Tile', 'pos corners increasing')
+LEVEL1_TILES = [
+    Tile(Pos(n=1, x=0, y=0), _level1_lonlats[0], True),
+    Tile(Pos(n=1, x=1, y=0), _level1_lonlats[1], False),
+    Tile(Pos(n=1, x=1, y=1), _level1_lonlats[2], True),
+    Tile(Pos(n=1, x=0, y=1), _level1_lonlats[3], False),
+]
 
 
 def _arclength(lat1, lon1, lat2, lon2):
@@ -98,63 +106,7 @@ def toast_tile_area(tile):
     return a1 + a2
 
 
-def _minmax(arr):
-    return min(arr), max(arr)
-
-
-def minmax_tile_filter(ra_range, dec_range):
-    """Returns the tile_filter function based on a ra/dec range.
-
-    Parameters
-    ----------
-    ra_range, dec_range: (array)
-        The ra and dec ranges to be toasted (in the form [min,max]).
-    """
-
-    def is_overlap(tile):
-        c = tile[1]
-
-        minRa,maxRa = _minmax([(x[0] + 2*np.pi) if x[0] < 0 else x[0] for x in [y for y in c if np.abs(y[1]) !=  np.pi/2]])
-        minDec,maxDec = _minmax([x[1] for x in c])
-        if (dec_range[0] > maxDec) or (dec_range[1] < minDec): # tile is not within dec range
-            return False
-        if (maxRa - minRa) > np.pi: # tile croses circle boundary
-            if (ra_range[0] < maxRa) and (ra_range[1] > minRa): # tile is not within ra range
-                return False
-        else:
-            if (ra_range[0] > maxRa) or (ra_range[1] < minRa): # tile is not within ra range
-                return False
-
-        return True
-
-    return is_overlap
-
-
-def nxy_tile_filter(layer,tx,ty):
-    """Returns the tile_filter function based on a given super-tile.
-
-    Parameters
-    ----------
-    layer,tx,ty: (int)
-        Layer and x,y coordinates, for a tile that will serve at the "super-tile"
-        such that all subtiles will be toasted/merged.
-    """
-
-
-    regionLoc = Pos(n=layer,x=tx,y=ty)
-
-    def is_overlap(tile):
-        tileLoc = tile[0]
-
-        if tileLoc.n > regionLoc.n:
-            return True
-
-        return is_subtile(regionLoc,tileLoc)
-
-    return is_overlap
-
-
-def _postfix_corner(tile, depth, bottom_only, tile_filter):
+def _postfix_corner(tile, depth, bottom_only):
     """
     Yield subtiles of a given tile, in postfix (deepest-first) order.
 
@@ -166,21 +118,14 @@ def _postfix_corner(tile, depth, bottom_only, tile_filter):
         The depth to descend to.
     bottom_only : bool
         If True, only yield tiles at max_depth.
-    tile_filter : callable
-        A function with signature ``tile_filter(tile) -> bool`` that determines
-        which tiles will be yielded; tiles for which it returns ``False`` will
-        be skipped.
 
     """
     n = tile[0].n
     if n > depth:
         return
 
-    if not tile_filter(tile):
-        return
-
     for child in _div4(tile):
-        for item in _postfix_corner(child, depth, bottom_only, tile_filter):
+        for item in _postfix_corner(child, depth, bottom_only):
             yield item
 
     if n == depth or not bottom_only:
@@ -211,7 +156,7 @@ def _div4(tile):
     ]
 
 
-def generate_tiles(depth, bottom_only=True, tile_filter=None):
+def generate_tiles(depth, bottom_only=True):
     """Generate a pyramid of TOAST tiles in deepest-first order.
 
     Parameters
@@ -220,10 +165,6 @@ def generate_tiles(depth, bottom_only=True, tile_filter=None):
         The tile depth to recurse to.
     bottom_only : bool
         If True, then only the lowest tiles will be yielded.
-    tile_filter : callable or None (the default)
-        If not None, a filter function applied to the process;
-        only tiles for which ``tile_filter(tile)`` returns True
-        will be yielded
 
     Yields
     ------
@@ -233,18 +174,8 @@ def generate_tiles(depth, bottom_only=True, tile_filter=None):
     The ``n = 0`` depth is not included.
 
     """
-    if tile_filter is None:
-        tile_filter = lambda t: True
-
-    todo = [
-        Tile(Pos(n=1, x=0, y=0), level1[0], True),
-        Tile(Pos(n=1, x=1, y=0), level1[1], False),
-        Tile(Pos(n=1, x=1, y=1), level1[2], True),
-        Tile(Pos(n=1, x=0, y=1), level1[3], False),
-    ]
-
-    for t in todo:
-        for item in _postfix_corner(t, depth, bottom_only, tile_filter):
+    for t in LEVEL1_TILES:
+        for item in _postfix_corner(t, depth, bottom_only):
             yield item
 
 

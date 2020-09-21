@@ -46,6 +46,10 @@ mapped on to the image. Allowed types are:
   celestial pole is at the top of the image, RA = Dec = 0 is at the image
   center, and RA increases to the left.
 
+- ``plate-carree-galactic`` — like the above, but the image is in Galactic
+  coordinates rather than (celestial) equatorial. This is often the case for
+  all-sky astronomical press release images.
+
 - ``plate-carree-planet`` — like the above, but the image is that of a planet
   and so the sense of the longitude/RA axis is inverted. Longitude increases to
   the right. This is the format in which planetary maps are typically

@@ -21,6 +21,7 @@ ImageMode
 from enum import Enum
 from PIL import Image as pil_image
 import numpy as np
+import sys
 
 
 class ImageMode(Enum):
@@ -146,8 +147,8 @@ class ImageLoader(object):
             '--colorspace-processing',
             metavar = 'MODE',
             default = 'srgb',
-            help = 'What kind of RGB colorspace processing to perform: '
-                '"none", "srgb" to convert to sRGB (the default)',
+            help = 'What kind of RGB colorspace processing to perform (default: %(default)s; choices: %(choices)s)',
+            choices = ['srgb', 'none'],
         )
         # not exposing desired_mode -- shouldn't be something the for the user to deal with
         parser.add_argument(
@@ -241,12 +242,22 @@ class ImageLoader(object):
 
         if self.colorspace_processing != 'none' and 'icc_profile' in pil_img.info:
             assert self.colorspace_processing == 'srgb' # more modes, one day?
-            from io import BytesIO
-            from PIL import ImageCms
-            in_prof = ImageCms.getOpenProfile(BytesIO(pil_img.info['icc_profile']))
-            out_prof = ImageCms.createProfile('sRGB')
-            xform = ImageCms.buildTransform(in_prof, out_prof, pil_img.mode, pil_img.mode)
-            ImageCms.applyTransform(pil_img, xform, inPlace=True)
+
+            try:
+                from PIL import ImageCms
+            except ImportError:
+                print('''warning: colorspace processing requested, but no `ImageCms` module found in PIL.
+    Your installation of PIL probably does not have colorspace support.
+    Colors will not be transformed to sRGB and therefore may not appear as intended.
+    Compare toasty's output to your source image and decide if this is acceptable to you.
+    Consider a different setting of the `--colorspace-processing` argument to avoid this warning.''',
+                    file=sys.stderr)
+            else:
+                from io import BytesIO
+                in_prof = ImageCms.getOpenProfile(BytesIO(pil_img.info['icc_profile']))
+                out_prof = ImageCms.createProfile('sRGB')
+                xform = ImageCms.buildTransform(in_prof, out_prof, pil_img.mode, pil_img.mode)
+                ImageCms.applyTransform(pil_img, xform, inPlace=True)
 
         # Make sure that we end up with the right mode, if requested.
 

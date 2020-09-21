@@ -23,10 +23,10 @@ from __future__ import absolute_import, division, print_function
 
 __all__ = '''
 plate_carree_sampler
+plate_carree_galactic_sampler
 plate_carree_planet_sampler
 healpix_fits_file_sampler
 healpix_sampler
-normalizer
 '''.split()
 
 import numpy as np
@@ -56,7 +56,7 @@ def healpix_sampler(data, nest=False, coord='C', interpolation='nearest'):
 
     """
     from healpy import ang2pix, get_interp_val, npix2nside
-    from astropy.coordinates import Galactic, FK5
+    from astropy.coordinates import Galactic, ICRS
     import astropy.units as u
 
     interp_opts = ['nearest', 'bilinear']
@@ -72,7 +72,7 @@ def healpix_sampler(data, nest=False, coord='C', interpolation='nearest'):
 
     def vec2pix(l, b):
         if galactic:
-            f = FK5(l * u.rad, b * u.rad)
+            f = ICRS(l * u.rad, b * u.rad)
             g = f.transform_to(Galactic)
             l, b = g.l.rad, g.b.rad
 
@@ -176,10 +176,58 @@ def plate_carree_sampler(data):
     def vec2pix(lon, lat):
         lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
         ix = (lon0 - lon) * dx
-        ix = np.clip(ix.astype(np.int), 0, nx - 1)
+        ix = np.round(ix).astype(np.int)
+        ix = np.clip(ix, 0, nx - 1)
 
         iy = (lat0 - lat) * dy  # *assume* in range [-pi/2, pi/2]
-        iy = np.clip(iy.astype(np.int), 0, ny - 1)
+        iy = np.round(iy).astype(np.int)
+        iy = np.clip(iy, 0, ny - 1)
+
+        return data[iy, ix]
+
+    return vec2pix
+
+
+def plate_carree_galactic_sampler(data):
+    """
+    Create a sampler function for all-sky data in a “plate carrée” projection
+    using Galactic coordinates.
+
+    Parameters
+    ----------
+    data : array-like, at least 2D
+        The map to sample in plate carrée projection.
+
+    Returns
+    -------
+    A function that samples the image. The call signature is
+    ``sampler(lon, lat) -> data``, where the inputs and output are 2D arrays and
+    *lon* and *lat* are in radians.
+
+    """
+    from astropy.coordinates import Galactic, ICRS
+    import astropy.units as u
+
+    data = np.asarray(data)
+    ny, nx = data.shape[:2]
+
+    dx = nx / (2 * np.pi)  # pixels per radian in the X direction
+    dy = ny / np.pi  # ditto, for the Y direction
+    lon0 = np.pi - 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
+    lat0 = 0.5 * np.pi - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
+
+    def vec2pix(lon, lat):
+        gal = ICRS(lon * u.rad, lat * u.rad).transform_to(Galactic)
+        lon, lat = gal.l.rad, gal.b.rad
+
+        lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
+        ix = (lon0 - lon) * dx
+        ix = np.round(ix).astype(np.int)
+        ix = np.clip(ix, 0, nx - 1)
+
+        iy = (lat0 - lat) * dy  # *assume* in range [-pi/2, pi/2]
+        iy = np.round(iy).astype(np.int)
+        iy = np.clip(iy, 0, ny - 1)
 
         return data[iy, ix]
 
@@ -218,50 +266,13 @@ def plate_carree_planet_sampler(data):
     def vec2pix(lon, lat):
         lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
         ix = (lon - lon0) * dx
-        ix = np.clip(ix.astype(np.int), 0, nx - 1)
+        ix = np.round(ix).astype(np.int)
+        ix = np.clip(ix, 0, nx - 1)
 
         iy = (lat0 - lat) * dy  # *assume* in range [-pi/2, pi/2]
-        iy = np.clip(iy.astype(np.int), 0, ny - 1)
+        iy = np.round(iy).astype(np.int)
+        iy = np.clip(iy, 0, ny - 1)
 
         return data[iy, ix]
 
     return vec2pix
-
-
-def normalizer(sampler, vmin, vmax, scaling='linear', bias=0.5, contrast=1):
-    """Create a sampler that applies an intensity scaling to another sampler.
-
-    Parameters
-    ----------
-    sampler : function
-        An input sampler function with call signature ``vec2pix(lon, lat) -> data``.
-    vmin : float
-        The data value to assign to 0 (black).
-    vmin : float
-        The data value to assign to 255 (white).
-    bias : float between 0-1, default: 0.5
-        Where to assign middle-grey, relative to (vmin, vmax).
-    contrast : float, default: 1
-        How quickly to ramp from black to white. The default of 1
-        ramps over a data range of (vmax - vmin)
-    scaling : 'linear' | 'log' | 'arcsinh' | 'sqrt' | 'power'
-        The type of intensity scaling to apply
-
-    Returns
-    -------
-    A function that scales the input sampler; the call signature is
-    ``vec2pix(lon, lat) -> data``, where the inputs and output are 2D arrays
-    and *lon* and *lat* are in radians. The output has a dtype of ``np.uint8``.
-
-    """
-    from .norm import normalize
-
-    def result(x, y):
-        raw = sampler(x, y)
-        if raw is None:
-            return raw
-
-        r = normalize(raw, vmin, vmax, bias, contrast, scaling)
-        return r
-
-    return result

@@ -26,10 +26,6 @@ Python API Reference
    :no-inheritance-diagram:
    :no-inherited-members:
 
-.. automodapi:: toasty.norm
-   :no-inheritance-diagram:
-   :no-inherited-members:
-
 .. automodapi:: toasty.openexr
    :no-inheritance-diagram:
    :no-inherited-members:

@@ -147,8 +147,8 @@ class ImageLoader(object):
             '--colorspace-processing',
             metavar = 'MODE',
             default = 'srgb',
-            help = 'What kind of RGB colorspace processing to perform: '
-                '"none", "srgb" to convert to sRGB (the default)',
+            help = 'What kind of RGB colorspace processing to perform (default: %(default)s; choices: %(choices)s)',
+            choices = ['srgb', 'none'],
         )
         # not exposing desired_mode -- shouldn't be something the for the user to deal with
         parser.add_argument(

@@ -25,7 +25,6 @@ from tqdm import tqdm
 
 from ._libtoasty import subsample, mid
 from .image import Image
-from .norm import normalize
 from .pyramid import Pos, depth2tiles, is_subtile, pos_parent, tiles_at_depth
 
 level1 = [

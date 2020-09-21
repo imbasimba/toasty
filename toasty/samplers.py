@@ -26,7 +26,6 @@ plate_carree_sampler
 plate_carree_planet_sampler
 healpix_fits_file_sampler
 healpix_sampler
-normalizer
 '''.split()
 
 import numpy as np
@@ -230,42 +229,3 @@ def plate_carree_planet_sampler(data):
         return data[iy, ix]
 
     return vec2pix
-
-
-def normalizer(sampler, vmin, vmax, scaling='linear', bias=0.5, contrast=1):
-    """Create a sampler that applies an intensity scaling to another sampler.
-
-    Parameters
-    ----------
-    sampler : function
-        An input sampler function with call signature ``vec2pix(lon, lat) -> data``.
-    vmin : float
-        The data value to assign to 0 (black).
-    vmin : float
-        The data value to assign to 255 (white).
-    bias : float between 0-1, default: 0.5
-        Where to assign middle-grey, relative to (vmin, vmax).
-    contrast : float, default: 1
-        How quickly to ramp from black to white. The default of 1
-        ramps over a data range of (vmax - vmin)
-    scaling : 'linear' | 'log' | 'arcsinh' | 'sqrt' | 'power'
-        The type of intensity scaling to apply
-
-    Returns
-    -------
-    A function that scales the input sampler; the call signature is
-    ``vec2pix(lon, lat) -> data``, where the inputs and output are 2D arrays
-    and *lon* and *lat* are in radians. The output has a dtype of ``np.uint8``.
-
-    """
-    from .norm import normalize
-
-    def result(x, y):
-        raw = sampler(x, y)
-        if raw is None:
-            return raw
-
-        r = normalize(raw, vmin, vmax, bias, contrast, scaling)
-        return r
-
-    return result

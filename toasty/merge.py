@@ -72,7 +72,7 @@ def cascade_images(pio, mode, start, merger, parallel=None, cli_progress=False):
     merger : a merger function
         The method used to create a parent tile from its child tiles. This
         is a callable that follows the Merger Protocol.
-    parallel : optional integer
+    parallel : integer or None (the default)
         The level of parallelization to use. If unspecified, defaults to using
         all CPUs. If the OS does not support fork-based multiprocessing,
         parallel processing is not possible and serial processing will be
@@ -81,21 +81,8 @@ def cascade_images(pio, mode, start, merger, parallel=None, cli_progress=False):
         If true, a progress bar will be printed to the terminal using tqdm.
 
     """
-    import multiprocessing as mp
-
-    if parallel is None:
-        if mp.get_start_method() == 'fork':
-            parallel = os.cpu_count()
-            if parallel > 1:
-                print(f'info: parallelizing processing over {parallel} CPUs')
-        else:
-            parallel = 1
-
-    if parallel > 1 and mp.get_start_method() != 'fork':
-        print('''warning: parallel processing was requested but is not possible
-    because this operating system is not using `fork`-based multiprocessing
-    On macOS a bug prevents forking: https://bugs.python.org/issue33725''', file=sys.stderr)
-        parallel = 1
+    from .par_util import resolve_parallelism
+    parallel = resolve_parallelism(parallel)
 
     if parallel > 1:
         _cascade_images_parallel(pio, mode, start, merger, cli_progress, parallel)

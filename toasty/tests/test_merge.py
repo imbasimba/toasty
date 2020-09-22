@@ -37,7 +37,7 @@ class TestCascade(object):
         module directly.
 
         """
-        for variants in ([], ['--placeholder-thumbnail']):
+        for variants in (['--parallelism=1'], ['--parallelism=2', '--placeholder-thumbnail']):
             args = ['tile-allsky']
             args += variants
             args += [

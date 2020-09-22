@@ -412,7 +412,7 @@ def generate_tiles(depth, bottom_only=True):
             yield item
 
 
-def sample_layer(pio, mode, sampler, depth, cli_progress=False):
+def sample_layer(pio, mode, sampler, depth, parallel=None, cli_progress=False):
     """Generate a layer of the TOAST tile pyramid through direct sampling.
 
     Parameters
@@ -429,10 +429,25 @@ def sample_layer(pio, mode, sampler, depth, cli_progress=False):
         number of tiles in each layer is ``4**depth``. Each tile is 256×256
         TOAST pixels, so the resolution of the pixelization at which the
         data will be sampled is a refinement level of ``2**(depth + 8)``.
+    parallel : integer or None (the default)
+        The level of parallelization to use. If unspecified, defaults to using
+        all CPUs. If the OS does not support fork-based multiprocessing,
+        parallel processing is not possible and serial processing will be
+        forced. Pass ``1`` to force serial processing.
     cli_progress : optional boolean, defaults False
         If true, a progress bar will be printed to the terminal using tqdm.
 
     """
+    from .par_util import resolve_parallelism
+    parallel = resolve_parallelism(parallel)
+
+    if parallel > 1:
+        _sample_layer_parallel(pio, mode, sampler, depth, cli_progress, parallel)
+    else:
+        _sample_layer_serial(pio, mode, sampler, depth, cli_progress)
+
+
+def _sample_layer_serial(pio, mode, sampler, depth, cli_progress):
     with tqdm(total=tiles_at_depth(depth), disable=not cli_progress) as progress:
         for tile in generate_tiles(depth, bottom_only=True):
             lon, lat = subsample(
@@ -449,3 +464,65 @@ def sample_layer(pio, mode, sampler, depth, cli_progress=False):
 
     if cli_progress:
         print()
+
+
+def _sample_layer_parallel(pio, mode, sampler, depth, cli_progress, parallel):
+    import multiprocessing as mp
+
+    queue = mp.Queue(maxsize = 2 * parallel)
+    dispatcher = mp.Process(target=_mp_sample_dispatcher, args=(queue, depth, cli_progress))
+    dispatcher.start()
+
+    workers = []
+
+    for _ in range(parallel):
+        w = mp.Process(target=_mp_sample_worker, args=(queue, pio, sampler, mode))
+        w.daemon = True
+        w.start()
+        workers.append(w)
+
+    dispatcher.join()
+
+    for w in workers:
+        w.join()
+
+
+def _mp_sample_dispatcher(queue, depth, cli_progress):
+    """
+    Generate and enqueue the tiles that need to be processed.
+    """
+    with tqdm(total=tiles_at_depth(depth), disable=not cli_progress) as progress:
+        for tile in generate_tiles(depth, bottom_only=True):
+            queue.put(tile)
+            progress.update(1)
+
+    if cli_progress:
+        print()
+
+    queue.close()
+
+
+def _mp_sample_worker(queue, pio, sampler, mode):
+    """
+    Process tiles on the queue.
+    """
+    from queue import Empty
+
+    while True:
+        try:
+            tile = queue.get(True, timeout=1)
+        except (OSError, ValueError, Empty):
+            # OSError or ValueError => queue closed. This signal seems not to
+            # cross multiprocess lines, though.
+            break
+
+        lon, lat = subsample(
+            tile.corners[0],
+            tile.corners[1],
+            tile.corners[2],
+            tile.corners[3],
+            256,
+            tile.increasing,
+        )
+        sampled_data = sampler(lon, lat)
+        pio.write_toasty_image(tile.pos, Image.from_array(mode, sampled_data))

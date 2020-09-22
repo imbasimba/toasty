@@ -51,6 +51,86 @@ def test_area():
         np.testing.assert_almost_equal(areas[d], 4 * np.pi)
 
 
+def test_tile_for_point_boundaries():
+    # These test points occur at large-scale tile boundaries and so we're not
+    # picky about where they land in the tiling -- either tile on a border is
+    # OK.
+
+    from ..toast import toast_tile_for_point
+
+    latlons = [
+        (0., 0.),
+
+        (0., -0.5 * np.pi),
+        (0., 0.5 * np.pi),
+        (0., np.pi),
+        (0., 1.5 * np.pi),
+        (0., 2 * np.pi),
+        (0., 2.5 * np.pi),
+
+        (-0.5 * np.pi, 0.),
+        (-0.5 * np.pi, -np.pi),
+        (-0.5 * np.pi, np.pi),
+
+        (0.5 * np.pi, 0.),
+        (0.5 * np.pi, -np.pi),
+        (0.5 * np.pi, np.pi),
+    ]
+
+    for depth in range(4):
+        for lat, lon in latlons:
+            tile = toast_tile_for_point(depth, lat, lon)
+
+
+def test_tile_for_point_specifics():
+    from ..toast import toast_tile_for_point
+
+    test_data = {
+        (0.1, 0.1): [
+            (0, 0, 0),
+            (1, 1, 0),
+            (2, 3, 1),
+            (3, 7, 3),
+            (4, 14, 7),
+            (5, 29, 14),
+            (6, 59, 29),
+            (7, 119, 59),
+            (8, 239, 119),
+            (9, 479, 239),
+            (10, 959, 479),
+            (11, 1918, 959),
+            (12, 3837, 1918),
+        ]
+    }
+
+    for (lat, lon), nxys in test_data.items():
+        for nxy in nxys:
+            tile = toast_tile_for_point(nxy[0], lat, lon)
+            assert tile.pos.n == nxy[0]
+            assert tile.pos.x == nxy[1]
+            assert tile.pos.y == nxy[2]
+
+
+def test_pixel_for_point():
+    from ..toast import toast_pixel_for_point
+
+    test_data = {
+        (0.1, 0.1): (3, 7, 3, 126, 191),
+        (-0.4, 2.2): (3, 1, 1, 200, 75),
+    }
+
+    for (lat, lon), (n, x, y, px, py) in test_data.items():
+        shallow_tile, frac_x, frac_y = toast_pixel_for_point(n, lat, lon)
+        assert shallow_tile.pos.n == n
+        assert shallow_tile.pos.x == x
+        assert shallow_tile.pos.y == y
+        assert px == int(round(frac_x))
+        assert py == int(round(frac_y))
+        deep_tile, _, _ = toast_pixel_for_point(n + 8, lat, lon)
+        assert deep_tile.pos.x % 256 == px
+        assert deep_tile.pos.y % 256 == py
+
+
 def image_test(expected, actual, err_msg):
     resid = np.abs(1. * actual - expected)
     if np.median(resid) < 15:

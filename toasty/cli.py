@@ -26,6 +26,12 @@ def warn(msg):
 
 def cascade_getparser(parser):
     parser.add_argument(
+        '--parallelism', '-j',
+        metavar = 'COUNT',
+        type = int,
+        help = 'The parallelization level (default: use all CPUs; specify `1` to force serial processing)',
+    )
+    parser.add_argument(
         '--start',
         metavar = 'DEPTH',
         type = int,
@@ -49,7 +55,14 @@ def cascade_impl(settings):
     if start is None:
         die('currently, you must specify the start layer with the --start option')
 
-    cascade_images(pio, ImageMode.RGBA, start, averaging_merger, cli_progress=True)
+    cascade_images(
+        pio,
+        ImageMode.RGBA,
+        start,
+        averaging_merger,
+        parallel=settings.parallelism,
+        cli_progress=True
+    )
 
 
 # "healpix_sample_data_tiles" subcommand
@@ -319,6 +332,12 @@ def tile_allsky_getparser(parser):
         choices = ['plate-carree', 'plate-carree-galactic', 'plate-carree-planet'],
     )
     parser.add_argument(
+        '--parallelism', '-j',
+        metavar = 'COUNT',
+        type = int,
+        help = 'The parallelization level (default: use all CPUs; specify `1` to force serial processing)',
+    )
+    parser.add_argument(
         'imgpath',
         metavar = 'PATH',
         help = 'The image file to be tiled',
@@ -359,7 +378,13 @@ def tile_allsky_impl(settings):
     else:
         builder.make_thumbnail_from_other(img)
 
-    builder.toast_base(img.mode, sampler, settings.depth, cli_progress=True)
+    builder.toast_base(
+        img.mode,
+        sampler,
+        settings.depth,
+        parallel=settings.parallelism,
+        cli_progress=True,
+    )
     builder.write_index_rel_wtml()
 
     print(f'Successfully tiled input "{settings.imgpath}" at level {builder.imgset.tile_levels}.')

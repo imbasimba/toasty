@@ -17,6 +17,7 @@ Usage
       [--placeholder-thumbnail]
       [--outdir DIR]
       [--projection TYPE]
+      [--parallelism FACTOR]
       {IMAGE-PATH}
       {TOAST-DEPTH}
 
@@ -65,11 +66,19 @@ memory-intensive part of the process, and can yield poor results with
 mostly-empty images. You can avoid this by using this argument and then invoking
 :ref:`cli-make-thumbnail` with a better-suited input image.
 
+The ``--parallelism FACTOR`` argument specifies the level of parallism to use.
+On operating systems that support parallel processing, the default is to use
+all CPUs. To disable parallel processing, explicitly specify a factor of 1.
 
-Details
-=======
+Notes
+=====
 
 This command will create the highest-resolution tile layer, corresponding to the
 ``DEPTH`` argument, and emit an ``index_rel.wtml`` file containing projection
 information and template metadata.
 
+Currently, parallel processing is only supported on the Linux operating system,
+because ``fork()``-based multiprocessing is required. MacOS should support this,
+but there is currently (as of Python 3.8) `a bug`_ preventing that.
+
+.. _a bug: https://bugs.python.org/issue33725

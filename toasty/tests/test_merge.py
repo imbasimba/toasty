@@ -37,7 +37,7 @@ class TestCascade(object):
         module directly.
 
         """
-        for variants in ([], ['--placeholder-thumbnail']):
+        for variants in (['--parallelism=1'], ['--parallelism=2', '--placeholder-thumbnail']):
             args = ['tile-allsky']
             args += variants
             args += [
@@ -47,9 +47,11 @@ class TestCascade(object):
             ]
             cli.entrypoint(args)
 
-        args = [
-            'cascade',
-            '--start', '1',
-            self.work_path('basic_cli'),
-        ]
-        cli.entrypoint(args)
+        for parallelism in '12':
+            args = [
+                'cascade',
+                '--parallelism', parallelism,
+                '--start', '1',
+                self.work_path('basic_cli'),
+            ]
+            cli.entrypoint(args)

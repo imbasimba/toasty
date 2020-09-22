@@ -245,6 +245,10 @@ class ImageLoader(object):
 
             try:
                 from PIL import ImageCms
+                # ImageCms doesn't raise import error if the implementation is unavailable
+                # "for doc purposes". To see if it's available we need to actually try to
+                # do something:
+                out_prof = ImageCms.createProfile('sRGB')
             except ImportError:
                 print('''warning: colorspace processing requested, but no `ImageCms` module found in PIL.
     Your installation of PIL probably does not have colorspace support.
@@ -255,7 +259,6 @@ class ImageLoader(object):
             else:
                 from io import BytesIO
                 in_prof = ImageCms.getOpenProfile(BytesIO(pil_img.info['icc_profile']))
-                out_prof = ImageCms.createProfile('sRGB')
                 xform = ImageCms.buildTransform(in_prof, out_prof, pil_img.mode, pil_img.mode)
                 ImageCms.applyTransform(pil_img, xform, inPlace=True)
 

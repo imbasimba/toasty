@@ -47,9 +47,11 @@ class TestCascade(object):
             ]
             cli.entrypoint(args)
 
-        args = [
-            'cascade',
-            '--start', '1',
-            self.work_path('basic_cli'),
-        ]
-        cli.entrypoint(args)
+        for parallelism in '12':
+            args = [
+                'cascade',
+                '--parallelism', parallelism,
+                '--start', '1',
+                self.work_path('basic_cli'),
+            ]
+            cli.entrypoint(args)

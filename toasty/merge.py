@@ -28,6 +28,8 @@ cascade_images
 '''.split()
 
 import numpy as np
+import os
+import sys
 from tqdm import tqdm
 
 from . import pyramid
@@ -51,7 +53,7 @@ def averaging_merger(data):
     return np.nanmean(data.reshape(s), axis=(1, 3)).astype(data.dtype)
 
 
-def cascade_images(pio, mode, start, merger, cli_progress=False):
+def cascade_images(pio, mode, start, merger, parallel=None, cli_progress=False):
     """Downsample image tiles all the way to the top of the pyramid.
 
     This function will walk the tiles in the tile pyramid, merging child tile
@@ -70,10 +72,38 @@ def cascade_images(pio, mode, start, merger, cli_progress=False):
     merger : a merger function
         The method used to create a parent tile from its child tiles. This
         is a callable that follows the Merger Protocol.
+    parallel : optional integer
+        The level of parallelization to use. If unspecified, defaults to using
+        all CPUs. If the OS does not support fork-based multiprocessing,
+        parallel processing is not possible and serial processing will be
+        forced. Pass ``1`` to force serial processing.
     cli_progress : optional boolean, defaults False
         If true, a progress bar will be printed to the terminal using tqdm.
 
     """
+    import multiprocessing as mp
+
+    if parallel is None:
+        if mp.get_start_method() == 'fork':
+            parallel = os.cpu_count()
+            if parallel > 1:
+                print(f'info: parallelizing processing over {parallel} CPUs')
+        else:
+            parallel = 1
+
+    if parallel > 1 and mp.get_start_method() != 'fork':
+        print('''warning: parallel processing was requested but is not possible
+    because this operating system is not using `fork`-based multiprocessing
+    On macOS a bug prevents forking: https://bugs.python.org/issue33725''', file=sys.stderr)
+        parallel = 1
+
+    if parallel > 1:
+        _cascade_images_parallel(pio, mode, start, merger, cli_progress, parallel)
+    else:
+        _cascade_images_serial(pio, mode, start, merger, cli_progress)
+
+
+def _cascade_images_serial(pio, mode, start, merger, cli_progress):
     buf = None
     SLICES = [
         (slice(None, 256), slice(None, 256)),
@@ -116,3 +146,159 @@ def cascade_images(pio, mode, start, merger, cli_progress=False):
 
     if cli_progress:
         print()
+
+
+def _cascade_images_parallel(pio, mode, start, merger, cli_progress, parallel):
+    """Parallelized cascade operation
+
+    At the moment, we require fork-based multiprocessing because the PyramidIO
+    and ``merger`` items are not pickle-able. This could be relaxed, but we
+    might plausibly want to support custom merger functions, so pickle-ability
+    is likely to be a continuing issue.
+
+    """
+    import multiprocessing as mp
+    from .pyramid import Pos
+
+    # The dispatcher process keeps track of finished tiles (reported in
+    # `done_queue`) and notifiers worker when new tiles are ready to process
+    # (`ready_queue`).
+
+    first_level_to_do = start - 1
+    n_todo = pyramid.depth2tiles(first_level_to_do)
+    ready_queue = mp.Queue(maxsize = 2 * parallel)
+    done_queue = mp.Queue(maxsize = 2 * parallel)
+
+
+    dispatcher = mp.Process(
+        target=_mp_cascade_dispatcher,
+        args=(done_queue, ready_queue, n_todo, cli_progress)
+    )
+    dispatcher.start()
+
+    # The workers pick up tiles that are ready to process and do the merging.
+
+    workers = []
+
+    for _ in range(parallel):
+        w = mp.Process(
+            target=_mp_cascade_worker,
+            args=(done_queue, ready_queue, pio, merger, mode),
+        )
+        w.daemon = True
+        w.start()
+        workers.append(w)
+
+    # Seed the queue of ready tiles. We use generate_pos to try to seed the
+    # queue in an order that will get us to generate higher-level tiles as early
+    # as possible, to make it easier to evaluate the output during processing ...
+    # but in practice this isn't working. Seems that we're saturating the ready
+    # queue before any higher-level tiles can become eligible for processing.
+
+    for pos in pyramid.generate_pos(first_level_to_do):
+        if pos.n == first_level_to_do:
+            ready_queue.put(pos)
+
+    # Wait for the magic to happen.
+
+    dispatcher.join()
+
+    for w in workers:
+        w.join()
+
+
+def _mp_cascade_dispatcher(done_queue, ready_queue, n_todo, cli_progress):
+    """
+    Monitor for tiles that are finished processing and enqueue ones that
+    become ready for processing (= all of their children are processed).
+    """
+    from queue import Empty
+    from .pyramid import pos_parent
+
+    readiness = {}
+
+    with tqdm(total=n_todo, disable=not cli_progress) as progress:
+        while True:
+            # Did anybody finish a tile?
+            try:
+                pos = done_queue.get(True, timeout=1)
+            except (OSError, ValueError, Empty):
+                # OSError or ValueError => queue closed. This signal seems not to
+                # cross multiprocess lines, though.
+                continue
+
+            progress.update(1)
+
+            # If the n=0 tile was done, that's everything.
+            if pos.n == 0:
+                break
+
+            # If this tile was finished, its parent is one step
+            # closer to being ready to process.
+            ppos, x_index, y_index = pos_parent(pos)
+            bit_num = 2 * y_index + x_index
+            flags = readiness.get(ppos, 0)
+            flags |= (1 << bit_num)
+
+            # If this tile was the last of its siblings to be finished,
+            # the parent is now ready for processing.
+            if flags == 0xF:
+                readiness.pop(ppos)
+                ready_queue.put(ppos)
+            else:
+                readiness[ppos] = flags
+
+    ready_queue.close()
+
+    if cli_progress:
+        print()
+
+
+def _mp_cascade_worker(done_queue, ready_queue, pio, merger, mode):
+    """
+    Process tiles that are ready.
+    """
+    from queue import Empty
+
+    buf = None
+    SLICES = [
+        (slice(None, 256), slice(None, 256)),
+        (slice(None, 256), slice(256, None)),
+        (slice(256, None), slice(None, 256)),
+        (slice(256, None), slice(256, None)),
+    ]
+
+    while True:
+        try:
+            pos = ready_queue.get(True, timeout=1)
+        except (OSError, ValueError, Empty):
+            # OSError or ValueError => queue closed. This signal seems not to
+            # cross multiprocess lines, though.
+            break
+
+        # By construction, the children of this tile have all already been
+        # processed.
+        children = pyramid.pos_children(pos)
+
+        img0 = pio.read_toasty_image(children[0], mode, default='none')
+        img1 = pio.read_toasty_image(children[1], mode, default='none')
+        img2 = pio.read_toasty_image(children[2], mode, default='none')
+        img3 = pio.read_toasty_image(children[3], mode, default='none')
+
+        if img0 is None and img1 is None and img2 is None and img3 is None:
+            pass  # No data here; ignore
+        else:
+            if buf is not None:
+                buf.clear()
+
+            for slidx, subimg in zip(SLICES, (img0, img1, img2, img3)):
+                if subimg is not None:
+                    if buf is None:
+                        buf = mode.make_maskable_buffer(512, 512)
+
+                    buf.asarray()[slidx] = subimg.asarray()
+
+            merged = Image.from_array(mode, merger(buf.asarray()))
+            pio.write_toasty_image(pos, merged)
+
+        done_queue.put(pos)

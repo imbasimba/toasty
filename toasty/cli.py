@@ -26,6 +26,12 @@ def warn(msg):
 
 def cascade_getparser(parser):
     parser.add_argument(
+        '--parallelism', '-j',
+        metavar = 'COUNT',
+        type = int,
+        help = 'The parallelization level (default: use all CPUs; specify `1` to force serial processing)',
+    )
+    parser.add_argument(
         '--start',
         metavar = 'DEPTH',
         type = int,
@@ -49,7 +55,14 @@ def cascade_impl(settings):
     if start is None:
         die('currently, you must specify the start layer with the --start option')
 
-    cascade_images(pio, ImageMode.RGBA, start, averaging_merger, cli_progress=True)
+    cascade_images(
+        pio,
+        ImageMode.RGBA,
+        start,
+        averaging_merger,
+        parallel=settings.parallelism,
+        cli_progress=True
+    )
 
 
 # "healpix_sample_data_tiles" subcommand

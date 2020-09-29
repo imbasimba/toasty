@@ -54,7 +54,7 @@ jobs:
       conda install -y \
         numpy \
         pillow \
-        pyyaml \ 
+        pyyaml \
         tqdm \
         wwt_data_formats
     displayName: Set up dependencies

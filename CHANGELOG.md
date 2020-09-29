@@ -1,4 +1,4 @@
-# rc: micro bump
+# toasty 0.3.2 (2020-09-29)
 
 - Switch to Cranko for versioning and release management, and Azure Pipelines
   for CI/CD, and Codecov.io for coverage monitoring.

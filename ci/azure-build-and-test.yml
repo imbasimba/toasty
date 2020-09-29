@@ -63,7 +63,7 @@ jobs:
         conda activate build
         set -x
         \conda install -y pytest
-        pytest toasty
+        pytest --pyargs toasty
       displayName: Test
 
 - job: coverage

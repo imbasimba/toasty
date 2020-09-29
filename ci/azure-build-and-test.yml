@@ -62,7 +62,7 @@ jobs:
         source activate-conda.sh
         conda activate build
         set -x
-        \conda install -y astropy pytest
+        \conda install -y astropy healpy pytest
         pytest --pyargs toasty
       displayName: Test
 

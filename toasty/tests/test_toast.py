@@ -19,6 +19,12 @@ try:
 except ImportError:
     HAS_ASTRO = False
 
+try:
+    import OpenEXR
+    HAS_OPENEXR = True
+except ImportError:
+    HAS_OPENEXR = False
+
 from . import test_path
 from .. import toast
 from ..image import ImageLoader, ImageMode
@@ -168,17 +174,20 @@ class TestSampleLayer(object):
         sample_layer(self.pio, ImageMode.RGB, sampler, 1)
         self.verify_level1(ImageMode.RGB)
 
+    @pytest.mark.skipif('not HAS_OPENEXR')
     def test_earth_plate_caree_exr(self):
         img = ImageLoader().load_path(test_path('Equirectangular_projection_SW-tweaked.exr'))
         sampler = plate_carree_sampler(img.asarray())
         sample_layer(self.pio, ImageMode.RGB, sampler, 1)
         self.verify_level1(ImageMode.RGB)
 
+    @pytest.mark.skipif('not HAS_ASTRO')
     def test_healpix_equ(self):
         sampler = healpix_fits_file_sampler(test_path('earth_healpix_equ.fits'))
         sample_layer(self.pio, ImageMode.F32, sampler, 1)
         self.verify_level1(ImageMode.F32)
 
+    @pytest.mark.skipif('not HAS_ASTRO')
     def test_healpix_gal(self):
         sampler = healpix_fits_file_sampler(test_path('earth_healpix_gal.fits'))
         sample_layer(self.pio, ImageMode.F32, sampler, 1)

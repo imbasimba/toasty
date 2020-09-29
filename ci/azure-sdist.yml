@@ -52,9 +52,12 @@ jobs:
       conda activate
       conda config --add channels conda-forge
       conda install -y \
+        cython \
         numpy \
         pillow \
+        pip \
         pyyaml \
+        setuptools \
         tqdm \
         wwt_data_formats
     displayName: Set up dependencies

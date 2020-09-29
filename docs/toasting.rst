@@ -124,7 +124,7 @@ workflow in this case is as follows:
 
 11. Finally, upload the complete contents of your ``tiled`` subdirectory to your
     web server. In this case, the upload location should be such that the url
-    `<http://myserver.org/datasetname/index.wtml>`_ will yield the
+    ``http://myserver.org/datasetname/index.wtml``_ will yield the
     ``index.wtml`` file created in the previous step.
 
 .. _file a request: https://github.com/WorldWideTelescope/toasty/issues/

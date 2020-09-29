@@ -78,12 +78,12 @@ resolutions are available.
 .. _WorldWide Telescope: http://www.worldwidetelescope.org/home
 
 Currently, the best detailed TOAST reference is `McGlynn et al. 2019`_. See
-also the `WorldWide Telescope Projection Reference`_, although that document
+also the `WorldWide Telescope Data Guide`_, although that document
 is a bit out of date. (Which shouldn’t matter, in principle, but its current
 Web expression may be a bit busted.)
 
 .. _McGlynn et al. 2019: https://ui.adsabs.harvard.edu/abs/2019ApJS..240...22M/abstract
-.. _WorldWide Telescope Projection Reference: https://worldwidetelescope.gitbook.io/projection-reference/
+.. _WorldWide Telescope Data Guide: https://docs.worldwidetelescope.org/data-guide/1/spherical-projections/
 
 A high-resolution full-sphere TOAST map may weigh in at a million pixels *on a
 side*, or a trillion pixels total, which is why tiling is essential. With a

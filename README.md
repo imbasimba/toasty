@@ -57,10 +57,11 @@ use a standard workflow with issues and pull requests. All participants in
 
 ## Release History
 
-Releases of [toasty] are logged in the file [CHANGES.md](./CHANGES.md), as
-well as release listings maintained by
-[GitHub](https://github.com/WorldWideTelescope/toasty/releases) and
-[PyPI](https://pypi.org/project/toasty/#history).
+Releases of [toasty] are logged in the file
+[CHANGELOG.md](https://github.com/WorldWideTelescope/toasty/blob/release/CHANGELOG.md)
+on the `release` branch of this repository, as well as release listings
+maintained by [GitHub](https://github.com/WorldWideTelescope/toasty/releases)
+and [PyPI](https://pypi.org/project/toasty/#history).
 
 
 ## Dependencies

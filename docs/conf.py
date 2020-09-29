@@ -4,7 +4,7 @@ project = 'toasty'
 author = 'Chris Beaumont and the AAS WorldWide Telescope Team'
 copyright = '2014-2020, ' + author
 
-release = '0.3.2'  # cranko project-version
+release = '0.3.3'  # cranko project-version
 version = '.'.join(release.split('.')[:2])
 
 extensions = [

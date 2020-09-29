@@ -74,26 +74,26 @@ class Builder(object):
 
 
     def load_from_wwtl(self, cli_settings, wwtl_path):
+        from contextlib import closing
         from io import BytesIO
 
         # Load WWTL and see if it matches expectations
-        lc = LayerContainerReader.from_file(wwtl_path)
+        with closing(LayerContainerReader.from_file(wwtl_path)) as lc:
+            if len(lc.layers) != 1:
+                raise Exception('WWTL file must contain exactly one layer')
 
-        if len(lc.layers) != 1:
-            raise Exception('WWTL file must contain exactly one layer')
+            layer = lc.layers[0]
+            if not isinstance(layer, ImageSetLayer):
+                raise Exception('WWTL file must contain an imageset layer')
 
-        layer = lc.layers[0]
-        if not isinstance(layer, ImageSetLayer):
-            raise Exception('WWTL file must contain an imageset layer')
+            imgset = layer.image_set
+            if imgset.projection != ProjectionType.SKY_IMAGE:
+                raise Exception('WWTL imageset layer must have "SkyImage" projection type')
 
-        imgset = layer.image_set
-        if imgset.projection != ProjectionType.SKY_IMAGE:
-            raise Exception('WWTL imageset layer must have "SkyImage" projection type')
-
-        # Looks OK. Read and parse the image.
-        loader = ImageLoader.create_from_args(cli_settings)
-        img_data = lc.read_layer_file(layer, layer.extension)
-        img = loader.load_stream(BytesIO(img_data))
+            # Looks OK. Read and parse the image.
+            loader = ImageLoader.create_from_args(cli_settings)
+            img_data = lc.read_layer_file(layer, layer.extension)
+            img = loader.load_stream(BytesIO(img_data))
 
         # Transmogrify untiled image info to tiled image info. We reuse the
         # existing imageset as much as possible, but update the parameters that

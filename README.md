@@ -1,8 +1,8 @@
 # toasty
 
 [![PyPI version](https://badge.fury.io/py/toasty.svg)](https://badge.fury.io/py/toasty)
-[![Build Status](https://travis-ci.com/WorldWideTelescope/toasty.svg?branch=master)](https://travis-ci.com/WorldWideTelescope/toasty)
-[![Coverage Status](https://coveralls.io/repos/github/WorldWideTelescope/toasty/badge.svg?branch=master)](https://coveralls.io/github/WorldWideTelescope/toasty?branch=master)
+[![Build Status](https://dev.azure.com/aasworldwidetelescope/WWT/_apis/build/status/WorldWideTelescope.toasty?branchName=master)](https://dev.azure.com/aasworldwidetelescope/WWT/_build/latest?definitionId=23&branchName=master)
+[![codecov](https://codecov.io/gh/WorldWideTelescope/toasty/branch/master/graph/badge.svg?token=63Lgd07mGn)](https://codecov.io/gh/WorldWideTelescope/toasty)
 [![Documentation Status](https://readthedocs.org/projects/toasty/badge/?version=latest)](https://toasty.readthedocs.io/en/latest/?badge=latest)
 
 <!--pypi-begin-->

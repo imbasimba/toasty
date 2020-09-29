@@ -11,6 +11,13 @@ from . import test_path
 from .. import cli
 from .. import samplers
 
+try:
+    import healpy as hp
+    from astropy.io import fits
+    HAS_ASTRO = True
+except ImportError:
+    HAS_ASTRO = False
+
 
 class TestSamplers(object):
     def setup_method(self, method):
@@ -24,6 +31,7 @@ class TestSamplers(object):
     def work_path(self, *pieces):
         return os.path.join(self.work_dir, *pieces)
 
+    @pytest.mark.skipif('not HAS_ASTRO')
     def test_basic_cli(self):
         """Test some CLI interfaces. We don't go out of our way to validate the
         computations in detail -- that's for the unit tests that probe the

@@ -1,5 +1,10 @@
 # rc: micro bump
 
+- Make sure to close WWTL files after reading them in. May fix the test suite
+  on some Windows machines.
+
+# toasty 0.3.2 (2020-09-29)
+
 - Switch to Cranko for versioning and release management, and Azure Pipelines
   for CI/CD, and Codecov.io for coverage monitoring.
 - Fix tests on Windows, where there is no `healpy`

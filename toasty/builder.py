@@ -107,11 +107,15 @@ class Builder(object):
         return img
 
 
-    def toast_base(self, mode, sampler, depth, **kwargs):
+    def toast_base(self, mode, sampler, depth, is_planet=False, **kwargs):
         from .toast import sample_layer
         sample_layer(self.pio, mode, sampler, depth, **kwargs)
 
-        self.imgset.data_set_type = DataSetType.SKY
+        if is_planet:
+            self.imgset.data_set_type = DataSetType.PLANET
+        else:
+            self.imgset.data_set_type = DataSetType.SKY
+
         self.imgset.base_degrees_per_tile = 180
         self.imgset.file_type = '.png'
         self.imgset.projection = ProjectionType.TOAST

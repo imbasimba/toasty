@@ -363,6 +363,7 @@ def tile_allsky_impl(settings):
 
     img = ImageLoader.create_from_args(settings).load_path(settings.imgpath)
     pio = PyramidIO(settings.outdir)
+    is_planet = False
 
     if settings.projection == 'plate-carree':
         from .samplers import plate_carree_sampler
@@ -373,6 +374,7 @@ def tile_allsky_impl(settings):
     elif settings.projection == 'plate-carree-planet':
         from .samplers import plate_carree_planet_sampler
         sampler = plate_carree_planet_sampler(img.asarray())
+        is_planet = True
     else:
         die('the image projection type {!r} is not recognized'.format(settings.projection))
 
@@ -388,6 +390,7 @@ def tile_allsky_impl(settings):
         img.mode,
         sampler,
         settings.depth,
+        is_planet=is_planet,
         parallel=settings.parallelism,
         cli_progress=True,
     )

@@ -314,10 +314,16 @@ def tile_allsky_getparser(parser):
     ImageLoader.add_arguments(parser)
 
     parser.add_argument(
+        '--name',
+        metavar = 'NAME',
+        default = 'Toasty',
+        help = 'The image name to embed in the output WTML file (default: %(default)s)',
+    )
+    parser.add_argument(
         '--outdir',
         metavar = 'PATH',
         default = '.',
-        help = 'The root directory of the output tile pyramid',
+        help = 'The root directory of the output tile pyramid (default: %(default)s)',
     )
     parser.add_argument(
         '--placeholder-thumbnail',
@@ -335,7 +341,7 @@ def tile_allsky_getparser(parser):
         '--parallelism', '-j',
         metavar = 'COUNT',
         type = int,
-        help = 'The parallelization level (default: use all CPUs; specify `1` to force serial processing)',
+        help = 'The parallelization level (default: use all CPUs if OS supports; specify `1` to force serial processing)',
     )
     parser.add_argument(
         'imgpath',
@@ -357,6 +363,7 @@ def tile_allsky_impl(settings):
 
     img = ImageLoader.create_from_args(settings).load_path(settings.imgpath)
     pio = PyramidIO(settings.outdir)
+    is_planet = False
 
     if settings.projection == 'plate-carree':
         from .samplers import plate_carree_sampler
@@ -367,6 +374,7 @@ def tile_allsky_impl(settings):
     elif settings.projection == 'plate-carree-planet':
         from .samplers import plate_carree_planet_sampler
         sampler = plate_carree_planet_sampler(img.asarray())
+        is_planet = True
     else:
         die('the image projection type {!r} is not recognized'.format(settings.projection))
 
@@ -382,9 +390,11 @@ def tile_allsky_impl(settings):
         img.mode,
         sampler,
         settings.depth,
+        is_planet=is_planet,
         parallel=settings.parallelism,
         cli_progress=True,
     )
+    builder.set_name(settings.name)
     builder.write_index_rel_wtml()
 
     print(f'Successfully tiled input "{settings.imgpath}" at level {builder.imgset.tile_levels}.')
@@ -399,6 +409,12 @@ def tile_study_getparser(parser):
     from .image import ImageLoader
     ImageLoader.add_arguments(parser)
 
+    parser.add_argument(
+        '--name',
+        metavar = 'NAME',
+        default = 'Toasty',
+        help = 'The image name to embed in the output WTML file (default: %(default)s)',
+    )
     parser.add_argument(
         '--placeholder-thumbnail',
         action = 'store_true',
@@ -434,6 +450,7 @@ def tile_study_impl(settings):
         builder.make_thumbnail_from_other(img)
 
     builder.tile_base_as_study(img, cli_progress=True)
+    builder.set_name(settings.name)
     builder.write_index_rel_wtml()
 
     print(f'Successfully tiled input "{settings.imgpath}" at level {builder.imgset.tile_levels}.')

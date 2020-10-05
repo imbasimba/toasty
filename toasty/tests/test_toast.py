@@ -26,7 +26,7 @@ except ImportError:
     HAS_OPENEXR = False
 
 from . import test_path
-from .. import toast
+from .. import cli, toast
 from ..image import ImageLoader, ImageMode
 from ..pyramid import Pos, PyramidIO
 from ..samplers import plate_carree_sampler, healpix_fits_file_sampler
@@ -192,3 +192,31 @@ class TestSampleLayer(object):
         sampler = healpix_fits_file_sampler(test_path('earth_healpix_gal.fits'))
         sample_layer(self.pio, ImageMode.F32, sampler, 1)
         self.verify_level1(ImageMode.F32)
+
+
+class TestCliBasic(object):
+    """
+    Basic smoketests for the CLI. The more library-focused routines validate
+    detailed outputs.
+    """
+
+    def setup_method(self, method):
+        self.work_dir = mkdtemp()
+
+    def teardown_method(self, method):
+        from shutil import rmtree
+        rmtree(self.work_dir)
+
+    def work_path(self, *pieces):
+        return os.path.join(self.work_dir, *pieces)
+
+    def test_planet(self):
+        args = [
+            'tile-allsky',
+            '--name=Earth',
+            '--projection=plate-carree-planet',
+            '--outdir', self.work_path('basic_cli'),
+            test_path('Equirectangular_projection_SW-tweaked.jpg'),
+            '2',
+        ]
+        cli.entrypoint(args)

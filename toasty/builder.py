@@ -107,11 +107,15 @@ class Builder(object):
         return img
 
 
-    def toast_base(self, mode, sampler, depth, **kwargs):
+    def toast_base(self, mode, sampler, depth, is_planet=False, **kwargs):
         from .toast import sample_layer
         sample_layer(self.pio, mode, sampler, depth, **kwargs)
 
-        self.imgset.data_set_type = DataSetType.SKY
+        if is_planet:
+            self.imgset.data_set_type = DataSetType.PLANET
+        else:
+            self.imgset.data_set_type = DataSetType.SKY
+
         self.imgset.base_degrees_per_tile = 180
         self.imgset.file_type = '.png'
         self.imgset.projection = ProjectionType.TOAST
@@ -180,6 +184,12 @@ class Builder(object):
         return self
 
 
+    def set_name(self, name):
+        self.imgset.name = name
+        self.place.name = name
+        return self
+
+
     def write_index_rel_wtml(self):
         from wwt_data_formats import write_xml_doc
         from wwt_data_formats.folder import Folder
@@ -190,7 +200,16 @@ class Builder(object):
 
         folder = Folder()
         folder.name = self.imgset.name
-        folder.children = [self.place]
+
+        # For all-sky/all-planet datasets, don't associate the imageset with a
+        # particular Place. Otherwise, loading up the imageset causes the view
+        # to zoom to a particular RA/Dec or lat/lon, likely 0,0. We might want
+        # to make this manually configurable but this heuristic should Do The
+        # Right Thing most times.
+        if self.imgset.projection == ProjectionType.TOAST:
+            folder.children = [self.imgset]
+        else:
+            folder.children = [self.place]
 
         with self.pio.open_metadata_for_write('index_rel.wtml') as f:
             write_xml_doc(folder.to_xml(), dest_stream=f, dest_wants_bytes=True)

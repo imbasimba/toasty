@@ -16,6 +16,7 @@ Usage
       [standard image-loading options]
       [--placeholder-thumbnail]
       [--outdir DIR]
+      [--name NAME]
       [--projection TYPE]
       [--parallelism FACTOR]
       {IMAGE-PATH}
@@ -37,6 +38,9 @@ of the depth depends on your application.
 
 The ``--outdir DIR`` option specifies where the output data should be written.
 If unspecified, the data root will be the current directory.
+
+The ``--name NAME`` option specifies the descriptive name for the imagery to be
+embedded inside the output WTML file. It defaults to "Toasty".
 
 The ``--projection TYPE`` option specifies how the surface of the sphere is
 mapped on to the image. Allowed types are:

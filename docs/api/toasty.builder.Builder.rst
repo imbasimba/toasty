@@ -25,6 +25,7 @@ Builder
       ~Builder.load_from_wwtl
       ~Builder.make_placeholder_thumbnail
       ~Builder.make_thumbnail_from_other
+      ~Builder.set_name
       ~Builder.tile_base_as_study
       ~Builder.toast_base
       ~Builder.write_index_rel_wtml
@@ -44,6 +45,7 @@ Builder
    .. automethod:: load_from_wwtl
    .. automethod:: make_placeholder_thumbnail
    .. automethod:: make_thumbnail_from_other
+   .. automethod:: set_name
    .. automethod:: tile_base_as_study
    .. automethod:: toast_base
    .. automethod:: write_index_rel_wtml

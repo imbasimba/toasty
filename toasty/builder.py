@@ -180,6 +180,12 @@ class Builder(object):
         return self
 
 
+    def set_name(self, name):
+        self.imgset.name = name
+        self.place.name = name
+        return self
+
+
     def write_index_rel_wtml(self):
         from wwt_data_formats import write_xml_doc
         from wwt_data_formats.folder import Folder

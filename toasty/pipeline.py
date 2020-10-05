@@ -375,7 +375,7 @@ class AstroPixImageSource(ImageSource):
     def open_input(self, unique_id, cachedir):
         import json
 
-        with open(os.path.join(cachedir, 'astropix.json'), 'rt') as f:
+        with open(os.path.join(cachedir, 'astropix.json'), 'rt', encoding='utf8') as f:
             json_data = json.load(f)
 
         return AstroPixInputImage(unique_id, cachedir, json_data)
@@ -499,7 +499,7 @@ class AstroPixCandidateInput(CandidateInput):
 
         # Save the AstroPix metadata as well.
 
-        with open(os.path.join(cachedir, 'astropix.json'), 'wt') as f:
+        with open(os.path.join(cachedir, 'astropix.json'), 'wt', encoding='utf8') as f:
             json.dump(self._json, f)
 
 
@@ -843,7 +843,7 @@ class PipelineManager(object):
             with open(cfg_path, 'wb') as f:
                 self._pipeio.get_item('toasty-pipeline-config.yaml', dest=f)
 
-        with open(cfg_path, 'rt') as f:
+        with open(cfg_path, 'rt', encoding='utf8') as f:
             config = yaml.safe_load(f)
 
         if config is None:
@@ -926,7 +926,7 @@ class PipelineManager(object):
             # requires us to use some configuration data. The `place` that we
             # get out of the processing stage has relative URLs.
 
-            with open(self._path('out_todo', uniq_id, 'index_rel.wtml'), 'w') as f:
+            with open(self._path('out_todo', uniq_id, 'index_rel.wtml'), 'wt', encoding='utf8') as f:
                 write_xml_doc(folder.to_xml(), dest_stream=f)
 
             if pub_url_prefix:
@@ -936,7 +936,7 @@ class PipelineManager(object):
                 place.foreground_image_set.thumbnail_url = maybe_prefix_url(place.foreground_image_set.thumbnail_url, pfx)
                 place.thumbnail = maybe_prefix_url(place.thumbnail, pfx)
 
-                with open(self._path('out_todo', uniq_id, 'index.wtml'), 'w') as f:
+                with open(self._path('out_todo', uniq_id, 'index.wtml'), 'wt', encoding='utf8') as f:
                     write_xml_doc(folder.to_xml(), dest_stream=f)
 
             # All done here.

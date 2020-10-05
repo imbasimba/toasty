@@ -25,7 +25,7 @@ class LocalTestAstroPixCandidateInput(pipeline.AstroPixCandidateInput):
 
         self._json['toasty_cached_image_name'] = 'image.' + ext
 
-        with open(os.path.join(cachedir, 'astropix.json'), 'wt') as f:
+        with open(os.path.join(cachedir, 'astropix.json'), 'wt', encoding='utf8') as f:
             json.dump(self._json, f)
 
 
@@ -65,7 +65,7 @@ class LocalTestAstroPixImageSource(pipeline.AstroPixImageSource):
     def open_input(self, unique_id, cachedir):
         import json
 
-        with open(os.path.join(cachedir, 'astropix.json'), 'rt') as f:
+        with open(os.path.join(cachedir, 'astropix.json'), 'rt', encoding='utf8') as f:
             json_data = json.load(f)
 
         return pipeline.AstroPixInputImage(unique_id, cachedir, json_data)

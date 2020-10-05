@@ -200,7 +200,16 @@ class Builder(object):
 
         folder = Folder()
         folder.name = self.imgset.name
-        folder.children = [self.place]
+
+        # For all-sky/all-planet datasets, don't associate the imageset with a
+        # particular Place. Otherwise, loading up the imageset causes the view
+        # to zoom to a particular RA/Dec or lat/lon, likely 0,0. We might want
+        # to make this manually configurable but this heuristic should Do The
+        # Right Thing most times.
+        if self.imgset.projection == ProjectionType.TOAST:
+            folder.children = [self.imgset]
+        else:
+            folder.children = [self.place]
 
         with self.pio.open_metadata_for_write('index_rel.wtml') as f:
             write_xml_doc(folder.to_xml(), dest_stream=f, dest_wants_bytes=True)

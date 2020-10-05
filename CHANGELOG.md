@@ -1,3 +1,10 @@
+# toasty 0.4.0 (2020-10-05)
+
+- In WTML outputs, omit the <Place> wrapper for all-sky data sets
+- When using `tile-allsky` in `plate-carree-planet` mode, use the "Planet" data
+  set type
+- Add `--name` options to `tile-allsky` and `tile-study`
+
 # toasty 0.3.3 (2020-09-29)
 
 - Make sure to close WWTL files after reading them in. May fix the test suite

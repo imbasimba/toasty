@@ -288,7 +288,9 @@ class PyramidIO(object):
             if default == 'none':
                 return None
             elif default == 'masked':
-                return mode.make_maskable_buffer(256, 256)
+                buf = mode.make_maskable_buffer(256, 256)
+                buf.clear()
+                return buf
             else:
                 raise ValueError('unexpected value for "default": {!r}'.format(default))
 

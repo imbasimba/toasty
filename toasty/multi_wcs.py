@@ -146,14 +146,17 @@ class MultiWcsProcessor(object):
             desc.jmax = min(self._combined_shape[0], int(np.ceil(yc_out.max() + 0.5)))
 
             # Compute the sub-tiling now so that we can count how many total
-            # tiles we'll need to process.
+            # tiles we'll need to process. Note that the combined WCS coordinate
+            # system has y=0 on the bottom, whereas the tiling coordinate system
+            # has y=0 at the top. So we need to invert the coordinates
+            # vertically when determining the sub-tiling.
 
             if desc.imax < desc.imin or desc.jmax < desc.jmin:
                 raise Exception(f'segment {desc.ident} maps to zero size in the global mosaic')
 
             desc.sub_tiling = self._tiling.compute_for_subimage(
                 desc.imin,
-                desc.jmin,
+                self._combined_shape[0] - desc.jmax,
                 desc.imax - desc.imin,
                 desc.jmax - desc.jmin,
             )
@@ -209,7 +212,9 @@ class MultiWcsProcessor(object):
                     **kwargs
                 )
 
-                image = Image.from_array(ImageMode.F32, array.astype(np.float32))
+                # Once again, FITS coordinates have y=0 at the bottom and our
+                # coordinates have y=0 at the top, so we need a vertical flip.
+                image = Image.from_array(ImageMode.F32, array.astype(np.float32)[::-1])
 
                 for pos, width, height, image_x, image_y, tile_x, tile_y in desc.sub_tiling.generate_populated_positions():
                     iy_idx = slice(image_y, image_y + height)
@@ -284,7 +289,9 @@ def _mp_tile_worker(queue, pio, reproject_function, kwargs):
             **kwargs
         )
 
-        image = Image.from_array(ImageMode.F32, array.astype(np.float32))
+        # Once again, FITS coordinates have y=0 at the bottom and our
+        # coordinates have y=0 at the top, so we need a vertical flip.
+        image = Image.from_array(ImageMode.F32, array.astype(np.float32)[::-1])
 
         for pos, width, height, image_x, image_y, tile_x, tile_y in desc.sub_tiling.generate_populated_positions():
             iy_idx = slice(image_y, image_y + height)

@@ -31,6 +31,7 @@ import numpy as np
 import os
 import sys
 from tqdm import tqdm
+import warnings
 
 from . import pyramid
 from .image import Image
@@ -50,7 +51,12 @@ def averaging_merger(data):
 
     """
     s = (data.shape[0] // 2, 2, data.shape[1] // 2, 2) + data.shape[2:]
-    return np.nanmean(data.reshape(s), axis=(1, 3)).astype(data.dtype)
+
+    # nanmean will raise a RuntimeWarning if there are all-NaN quartets. This
+    # gets annoying, so we silence them.
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        return np.nanmean(data.reshape(s), axis=(1, 3)).astype(data.dtype)
 
 
 def cascade_images(pio, mode, start, merger, parallel=None, cli_progress=False):

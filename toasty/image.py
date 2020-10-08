@@ -547,6 +547,48 @@ class Image(object):
         else:
             raise Exception('unhandled mode in fill_into_maskable_buffer')
 
+    def update_into_maskable_buffer(self, buffer, iy_idx, ix_idx, by_idx, bx_idx):
+        """
+        Update a maskable buffer with data from this image.
+
+        Parameters
+        ----------
+        buffer : :class:`Image`
+            The destination buffer image, created with :meth:`ImageMode.make_maskable_buffer`.
+        iy_idx : slice or other indexer
+            The indexer into the Y axis of the source image (self).
+        ix_idx : slice or other indexer
+            The indexer into the X axis of the source image (self).
+        by_idx : slice or other indexer
+            The indexer into the Y axis of the destination *buffer*.
+        bx_idx : slice or other indexer
+            The indexer into the X axis of the destination *buffer*.
+
+        Notes
+        -----
+        Unlike :meth:`fill_into_maskable_buffer`, this function does not clear
+        the entire buffer. It only overwrites the portion of the buffer covered
+        by non-NaN-like values of the input image.
+
+        """
+        i = self.asarray()
+        b = buffer.asarray()
+
+        sub_b = b[by_idx,bx_idx]
+        sub_i = i[iy_idx,ix_idx]
+
+        if self.mode == ImageMode.RGB:
+            sub_b[...,:3] = sub_i
+            sub_b[...,3] = 255
+        elif self.mode == ImageMode.RGBA:
+            valid = (sub_i[...,3] != 0)
+            np.putmask(sub_b, valid, sub_i)
+        elif self.mode == ImageMode.F32:
+            valid = ~np.isnan(sub_i)
+            np.putmask(sub_b, valid, sub_i)
+        else:
+            raise Exception('unhandled mode in update_into_maskable_buffer')
+
     def save_default(self, path_or_stream):
         """
         Save this image to a filesystem path or stream

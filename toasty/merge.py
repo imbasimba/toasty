@@ -159,9 +159,8 @@ def _cascade_images_parallel(pio, mode, start, merger, cli_progress, parallel):
 
     first_level_to_do = start - 1
     n_todo = pyramid.depth2tiles(first_level_to_do)
-    ready_queue = mp.Queue(maxsize = 2 * parallel)
+    ready_queue = mp.Queue()
     done_queue = mp.Queue(maxsize = 2 * parallel)
-
 
     dispatcher = mp.Process(
         target=_mp_cascade_dispatcher,

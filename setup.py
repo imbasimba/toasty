@@ -72,6 +72,7 @@ setup_args = dict(
     },
 
     install_requires = [
+        'filelock>=3',
         'numpy>=1.7',
         'pillow>=7.0',
         'PyYAML>=5.0',

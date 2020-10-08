@@ -96,6 +96,7 @@ jobs:
       set -x
       \conda install -y \
         cython \
+        filelock \
         healpy \
         numpy \
         openexr-python \

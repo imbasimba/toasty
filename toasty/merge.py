@@ -114,10 +114,10 @@ def _cascade_images_serial(pio, mode, start, merger, cli_progress):
             # processed.
             children = pyramid.pos_children(pos)
 
-            img0 = pio.read_toasty_image(children[0], mode, default='none')
-            img1 = pio.read_toasty_image(children[1], mode, default='none')
-            img2 = pio.read_toasty_image(children[2], mode, default='none')
-            img3 = pio.read_toasty_image(children[3], mode, default='none')
+            img0 = pio.read_image(children[0], mode, default='none')
+            img1 = pio.read_image(children[1], mode, default='none')
+            img2 = pio.read_image(children[2], mode, default='none')
+            img3 = pio.read_image(children[3], mode, default='none')
 
             if img0 is None and img1 is None and img2 is None and img3 is None:
                 progress.update(1)
@@ -134,7 +134,7 @@ def _cascade_images_serial(pio, mode, start, merger, cli_progress):
                     buf.asarray()[slidx] = subimg.asarray()
 
             merged = Image.from_array(mode, merger(buf.asarray()))
-            pio.write_toasty_image(pos, merged)
+            pio.write_image(pos, merged)
             progress.update(1)
 
     if cli_progress:
@@ -272,10 +272,10 @@ def _mp_cascade_worker(done_queue, ready_queue, pio, merger, mode):
         # processed.
         children = pyramid.pos_children(pos)
 
-        img0 = pio.read_toasty_image(children[0], mode, default='none')
-        img1 = pio.read_toasty_image(children[1], mode, default='none')
-        img2 = pio.read_toasty_image(children[2], mode, default='none')
-        img3 = pio.read_toasty_image(children[3], mode, default='none')
+        img0 = pio.read_image(children[0], mode, default='none')
+        img1 = pio.read_image(children[1], mode, default='none')
+        img2 = pio.read_image(children[2], mode, default='none')
+        img3 = pio.read_image(children[3], mode, default='none')
 
         if img0 is None and img1 is None and img2 is None and img3 is None:
             pass  # No data here; ignore
@@ -291,6 +291,6 @@ def _mp_cascade_worker(done_queue, ready_queue, pio, merger, mode):
                     buf.asarray()[slidx] = subimg.asarray()
 
             merged = Image.from_array(mode, merger(buf.asarray()))
-            pio.write_toasty_image(pos, merged)
+            pio.write_image(pos, merged)
 
         done_queue.put(pos)

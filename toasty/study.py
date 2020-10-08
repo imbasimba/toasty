@@ -329,7 +329,7 @@ class StudyTiling(object):
                 by_idx = slice(tile_y, tile_y + height)
                 bx_idx = slice(tile_x, tile_x + width)
                 image.fill_into_maskable_buffer(buffer, iy_idx, ix_idx, by_idx, bx_idx)
-                pio.write_toasty_image(pos, buffer)
+                pio.write_image(pos, buffer)
                 progress.update(1)
 
         if cli_progress:

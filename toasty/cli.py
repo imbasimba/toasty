@@ -32,6 +32,13 @@ def cascade_getparser(parser):
         help = 'The parallelization level (default: use all CPUs; specify `1` to force serial processing)',
     )
     parser.add_argument(
+        '--type', '-t',
+        metavar = 'TYPE',
+        default = 'rgba',
+        choices = ['rgba', 'f16x3', 'f32'],
+        help = 'The kind of data file to cascade',
+    )
+    parser.add_argument(
         '--start',
         metavar = 'DEPTH',
         type = int,
@@ -55,9 +62,18 @@ def cascade_impl(settings):
     if start is None:
         die('currently, you must specify the start layer with the --start option')
 
+    if settings.type == 'rgba':
+        mode = ImageMode.RGBA
+    elif settings.type == 'f16x3':
+        mode = ImageMode.F16x3
+    elif settings.type == 'f32':
+        mode = ImageMode.F32
+    else:
+        die(f'unexpected "type" argument {settings.type}')
+
     cascade_images(
         pio,
-        ImageMode.RGBA,
+        mode,
         start,
         averaging_merger,
         parallel=settings.parallelism,

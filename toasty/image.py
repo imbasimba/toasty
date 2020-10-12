@@ -36,6 +36,7 @@ class ImageMode(Enum):
     RGB = 'RGB'
     RGBA = 'RGBA'
     F32 = 'F'
+    F16x3 = 'F16x3'
 
     def get_default_save_extension(self):
         """
@@ -50,7 +51,7 @@ class ImageMode(Enum):
 
         if self in (ImageMode.RGB, ImageMode.RGBA):
             return 'png'
-        elif self == ImageMode.F32:
+        elif self in (ImageMode.F32, ImageMode.F16x3):
             return 'npy'
         else:
             raise Exception('unhandled mode in get_default_save_extension')
@@ -86,6 +87,8 @@ class ImageMode(Enum):
             mask_mode = ImageMode.RGBA
         elif self == ImageMode.F32:
             arr = np.empty((buf_height, buf_width), dtype=np.float32)
+        elif self == ImageMode.F16x3:
+            arr = np.empty((buf_height, buf_width, 3), dtype=np.float16)
         else:
             raise Exception('unhandled mode in make_maskable_buffer()')
 
@@ -99,6 +102,8 @@ class ImageMode(Enum):
         -------
         A PIL image mode string, or None if there is no exact counterpart.
         """
+        if self == ImageMode.F16x3:
+            return None
         return self.value
 
 
@@ -321,8 +326,13 @@ class ImageLoader(object):
         # filetypes instead of just looking at extensions. But, lazy.
 
         if path.endswith('.npy'):
+            if self.desired_mode is not None:
+                mode = self.desired_mode
+            else:
+                mode = ImageMode.F32
+
             arr = np.load(path)
-            return Image.from_array(ImageMode.F32, arr.astype(np.float32))
+            return Image.from_array(mode, arr)
 
         # Special handling for Photoshop files, used for some very large mosaics
         # with transparency (e.g. the PHAT M31/M33 images).
@@ -351,7 +361,9 @@ class ImageLoader(object):
         if path.endswith('.exr'):
             from .openexr import load_openexr
             img = load_openexr(path)
-            return Image.from_array(ImageMode.RGB, img)
+            if img.dtype != np.float16:
+                raise Exception('only half-precision OpenEXR images are currently supported')
+            return Image.from_array(ImageMode.F16x3, img)
 
         # (One day, maybe we'll do more kinds of sniffing.) No special handling
         # came into play; just open the file and auto-detect.
@@ -431,6 +443,8 @@ class Image(object):
             array_ok = (array.ndim == 3 and array.shape[2] == 3 and array.dtype == np.dtype(np.uint8))
         elif mode == ImageMode.RGBA:
             array_ok = (array.ndim == 3 and array.shape[2] == 4 and array.dtype == np.dtype(np.uint8))
+        elif mode == ImageMode.F16x3:
+            array_ok = (array.ndim == 3 and array.shape[2] == 3 and array.dtype == np.dtype(np.float16))
         else:
             raise ValueError('unhandled image mode {} in from_array()'.format(mode))
 
@@ -479,6 +493,8 @@ class Image(object):
         """
         if self._pil is not None:
             return self._pil
+        if self._mode.try_as_pil() is None:
+            raise Exception(f'Toasty image with mode {self.mode} cannot be converted to PIL')
         return pil_image.fromarray(self._array)
 
     @property
@@ -541,7 +557,7 @@ class Image(object):
         elif self.mode == ImageMode.RGBA:
             b.fill(0)
             b[by_idx,bx_idx] = i[iy_idx,ix_idx]
-        elif self.mode == ImageMode.F32:
+        elif self.mode in (ImageMode.F32, ImageMode.F16x3):
             b.fill(np.nan)
             b[by_idx,bx_idx] = i[iy_idx,ix_idx]
         else:
@@ -586,6 +602,9 @@ class Image(object):
         elif self.mode == ImageMode.F32:
             valid = ~np.isnan(sub_i)
             np.putmask(sub_b, valid, sub_i)
+        elif self.mode == ImageMode.F16x3:
+            valid = ~np.any(np.isnan(sub_i), axis=2)
+            np.putmask(sub_b, valid, sub_i)
         else:
             raise Exception('unhandled mode in update_into_maskable_buffer')
 
@@ -602,7 +621,7 @@ class Image(object):
         """
         if self.mode in (ImageMode.RGB, ImageMode.RGBA):
             self.aspil().save(path_or_stream, format='PNG')
-        elif self.mode == ImageMode.F32:
+        elif self.mode in (ImageMode.F32, ImageMode.F16x3):
             np.save(path_or_stream, self.asarray())
         else:
             raise Exception('unhandled mode in save_default')
@@ -617,7 +636,7 @@ class Image(object):
         be saved in JPEG format.
 
         """
-        if self.mode == ImageMode.F32:
+        if self.mode in (ImageMode.F32, ImageMode.F16x3):
             raise Exception('cannot thumbnail-ify non-RGB Image')
 
         THUMB_SHAPE = (96, 45)
@@ -668,7 +687,7 @@ class Image(object):
         """
         if self._mode in (ImageMode.RGB, ImageMode.RGBA):
             self.asarray().fill(0)
-        elif self._mode == ImageMode.F32:
+        elif self._mode in (ImageMode.F32, ImageMode.F16x3):
             self.asarray().fill(np.nan)
         else:
             raise Exception('unhandled mode in clear()')

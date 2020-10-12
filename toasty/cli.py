@@ -156,7 +156,7 @@ def multi_tan_make_data_tiles_impl(settings):
     # TODO: this should populate and emit a stub index_rel.wtml file.
 
 
-# "pipeline_fetch_inputs" subcommand
+# "pipeline" subcommands
 
 def _pipeline_add_io_args(parser):
     parser.add_argument(
@@ -209,7 +209,10 @@ def _pipeline_io_from_settings(settings):
     die('An I/O backend must be specified with the arguments --local or --azure-*')
 
 
-def pipeline_fetch_inputs_getparser(parser):
+def pipeline_getparser(parser):
+    subparsers = parser.add_subparsers(dest='pipeline_command')
+
+    parser = subparsers.add_parser('fetch-inputs')
     _pipeline_add_io_args(parser)
     parser.add_argument(
         'workdir',
@@ -218,17 +221,7 @@ def pipeline_fetch_inputs_getparser(parser):
         help = 'The local working directory',
     )
 
-def pipeline_fetch_inputs_impl(settings):
-    from .pipeline import PipelineManager
-
-    pipeio = _pipeline_io_from_settings(settings)
-    mgr = PipelineManager(pipeio, settings.workdir)
-    mgr.fetch_inputs()
-
-
-# "pipeline_process_todos" subcommand
-
-def pipeline_process_todos_getparser(parser):
+    parser = subparsers.add_parser('process-todos')
     _pipeline_add_io_args(parser)
     parser.add_argument(
         'workdir',
@@ -237,17 +230,7 @@ def pipeline_process_todos_getparser(parser):
         help = 'The local working directory',
     )
 
-def pipeline_process_todos_impl(settings):
-    from .pipeline import PipelineManager
-
-    pipeio = _pipeline_io_from_settings(settings)
-    mgr = PipelineManager(pipeio, settings.workdir)
-    mgr.process_todos()
-
-
-# "pipeline_publish_todos" subcommand
-
-def pipeline_publish_todos_getparser(parser):
+    parser = subparsers.add_parser('publish-todos')
     _pipeline_add_io_args(parser)
     parser.add_argument(
         'workdir',
@@ -256,17 +239,7 @@ def pipeline_publish_todos_getparser(parser):
         help = 'The local working directory',
     )
 
-def pipeline_publish_todos_impl(settings):
-    from .pipeline import PipelineManager
-
-    pipeio = _pipeline_io_from_settings(settings)
-    mgr = PipelineManager(pipeio, settings.workdir)
-    mgr.publish_todos()
-
-
-# "pipeline_reindex" subcommand
-
-def pipeline_reindex_getparser(parser):
+    parser = subparsers.add_parser('reindex')
     _pipeline_add_io_args(parser)
     parser.add_argument(
         'workdir',
@@ -275,12 +248,27 @@ def pipeline_reindex_getparser(parser):
         help = 'The local working directory',
     )
 
-def pipeline_reindex_impl(settings):
+
+def pipeline_impl(settings):
     from .pipeline import PipelineManager
+
+    if settings.pipeline_command is None:
+        print('Run the "pipeline" command with `--help` for help on its subcommands')
+        return
 
     pipeio = _pipeline_io_from_settings(settings)
     mgr = PipelineManager(pipeio, settings.workdir)
-    mgr.reindex()
+
+    if settings.pipeline_command == 'fetch-inputs':
+        mgr.fetch_inputs()
+    elif settings.pipeline_command == 'process-todos':
+        mgr.process_todos()
+    elif settings.pipeline_command == 'publish-todos':
+        mgr.publish_todos()
+    elif settings.pipeline_command == 'reindex':
+        mgr.reindex()
+    else:
+        die('unrecognized "pipeline" subcommand ' + settings.pipeline_command)
 
 
 # "tile_allsky" subcommand

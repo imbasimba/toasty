@@ -11,6 +11,7 @@ StudyTiling
    .. autosummary::
 
       ~StudyTiling.apply_to_imageset
+      ~StudyTiling.compute_for_subimage
       ~StudyTiling.count_populated_positions
       ~StudyTiling.generate_populated_positions
       ~StudyTiling.image_to_tile
@@ -20,6 +21,7 @@ StudyTiling
    .. rubric:: Methods Documentation
 
    .. automethod:: apply_to_imageset
+   .. automethod:: compute_for_subimage
    .. automethod:: count_populated_positions
    .. automethod:: generate_populated_positions
    .. automethod:: image_to_tile

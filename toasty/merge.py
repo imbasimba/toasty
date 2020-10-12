@@ -31,6 +31,7 @@ import numpy as np
 import os
 import sys
 from tqdm import tqdm
+import warnings
 
 from . import pyramid
 from .image import Image
@@ -50,7 +51,12 @@ def averaging_merger(data):
 
     """
     s = (data.shape[0] // 2, 2, data.shape[1] // 2, 2) + data.shape[2:]
-    return np.nanmean(data.reshape(s), axis=(1, 3)).astype(data.dtype)
+
+    # nanmean will raise a RuntimeWarning if there are all-NaN quartets. This
+    # gets annoying, so we silence them.
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        return np.nanmean(data.reshape(s), axis=(1, 3)).astype(data.dtype)
 
 
 def cascade_images(pio, mode, start, merger, parallel=None, cli_progress=False):
@@ -108,10 +114,10 @@ def _cascade_images_serial(pio, mode, start, merger, cli_progress):
             # processed.
             children = pyramid.pos_children(pos)
 
-            img0 = pio.read_toasty_image(children[0], mode, default='none')
-            img1 = pio.read_toasty_image(children[1], mode, default='none')
-            img2 = pio.read_toasty_image(children[2], mode, default='none')
-            img3 = pio.read_toasty_image(children[3], mode, default='none')
+            img0 = pio.read_image(children[0], mode, default='none')
+            img1 = pio.read_image(children[1], mode, default='none')
+            img2 = pio.read_image(children[2], mode, default='none')
+            img3 = pio.read_image(children[3], mode, default='none')
 
             if img0 is None and img1 is None and img2 is None and img3 is None:
                 progress.update(1)
@@ -128,7 +134,7 @@ def _cascade_images_serial(pio, mode, start, merger, cli_progress):
                     buf.asarray()[slidx] = subimg.asarray()
 
             merged = Image.from_array(mode, merger(buf.asarray()))
-            pio.write_toasty_image(pos, merged)
+            pio.write_image(pos, merged)
             progress.update(1)
 
     if cli_progress:
@@ -153,9 +159,8 @@ def _cascade_images_parallel(pio, mode, start, merger, cli_progress, parallel):
 
     first_level_to_do = start - 1
     n_todo = pyramid.depth2tiles(first_level_to_do)
-    ready_queue = mp.Queue(maxsize = 2 * parallel)
+    ready_queue = mp.Queue()
     done_queue = mp.Queue(maxsize = 2 * parallel)
-
 
     dispatcher = mp.Process(
         target=_mp_cascade_dispatcher,
@@ -267,10 +272,10 @@ def _mp_cascade_worker(done_queue, ready_queue, pio, merger, mode):
         # processed.
         children = pyramid.pos_children(pos)
 
-        img0 = pio.read_toasty_image(children[0], mode, default='none')
-        img1 = pio.read_toasty_image(children[1], mode, default='none')
-        img2 = pio.read_toasty_image(children[2], mode, default='none')
-        img3 = pio.read_toasty_image(children[3], mode, default='none')
+        img0 = pio.read_image(children[0], mode, default='none')
+        img1 = pio.read_image(children[1], mode, default='none')
+        img2 = pio.read_image(children[2], mode, default='none')
+        img3 = pio.read_image(children[3], mode, default='none')
 
         if img0 is None and img1 is None and img2 is None and img3 is None:
             pass  # No data here; ignore
@@ -286,6 +291,6 @@ def _mp_cascade_worker(done_queue, ready_queue, pio, merger, mode):
                     buf.asarray()[slidx] = subimg.asarray()
 
             merged = Image.from_array(mode, merger(buf.asarray()))
-            pio.write_toasty_image(pos, merged)
+            pio.write_image(pos, merged)
 
         done_queue.put(pos)

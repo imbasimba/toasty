@@ -164,7 +164,7 @@ class TestSampleLayer(object):
                 expected = expected.mean(axis=2)
 
             pos = Pos(n=n, x=x, y=y)
-            observed = self.pio.read_toasty_image(pos, mode).asarray()
+            observed = self.pio.read_image(pos, mode).asarray()
 
             image_test(expected, observed, 'Failed for %s' % ref_path)
 

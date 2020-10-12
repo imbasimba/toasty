@@ -26,6 +26,7 @@ tiles_at_depth
 '''.split()
 
 from collections import namedtuple
+from contextlib import contextmanager
 import numpy as np
 import os.path
 
@@ -255,9 +256,9 @@ class PyramidIO(object):
         """
         return self._scheme
 
-    def read_toasty_image(self, pos, mode, default='none'):
+    def read_image(self, pos, mode, default='none'):
         """
-        Read a toasty Image for the specified tile position.
+        Read an Image for the specified tile position.
 
         Parameters
         ----------
@@ -288,15 +289,17 @@ class PyramidIO(object):
             if default == 'none':
                 return None
             elif default == 'masked':
-                return mode.make_maskable_buffer(256, 256)
+                buf = mode.make_maskable_buffer(256, 256)
+                buf.clear()
+                return buf
             else:
                 raise ValueError('unexpected value for "default": {!r}'.format(default))
 
         assert img.mode == mode
         return img
 
-    def write_toasty_image(self, pos, image):
-        """Write a toasty Image for the specified tile position.
+    def write_image(self, pos, image):
+        """Write an Image for the specified tile position.
 
         Parameters
         ----------
@@ -308,6 +311,17 @@ class PyramidIO(object):
         """
         p = self.tile_path(pos, image.mode.get_default_save_extension())
         image.save_default(p)
+
+    @contextmanager
+    def update_image(self, pos, mode, default='none'):
+        from filelock import FileLock
+
+        p = self.tile_path(pos, mode.get_default_save_extension())
+
+        with FileLock(p + '.lock'):
+            img = self.read_image(pos, mode, default=default)
+            yield img
+            self.write_image(pos, img)
 
     def open_metadata_for_read(self, basename):
         """

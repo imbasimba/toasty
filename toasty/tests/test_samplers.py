@@ -39,7 +39,7 @@ class TestSamplers(object):
 
         """
         args = [
-            'healpix-sample-data-tiles',
+            'tile-healpix',
             '--outdir', self.work_path('basic_cli'),
             test_path('earth_healpix_equ.fits'),
             '1',

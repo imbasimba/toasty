@@ -81,46 +81,6 @@ def cascade_impl(settings):
     )
 
 
-# "healpix_sample_data_tiles" subcommand
-
-def healpix_sample_data_tiles_getparser(parser):
-    parser.add_argument(
-        '--outdir',
-        metavar = 'PATH',
-        default = '.',
-        help = 'The root directory of the output tile pyramid',
-    )
-    parser.add_argument(
-        'fitspath',
-        metavar = 'PATH',
-        help = 'The HEALPix FITS file to be tiled',
-    )
-    parser.add_argument(
-        'depth',
-        metavar = 'DEPTH',
-        type = int,
-        help = 'The depth of the TOAST layer to sample',
-    )
-
-
-def healpix_sample_data_tiles_impl(settings):
-    from .builder import Builder
-    from .image import ImageMode
-    from .pyramid import PyramidIO
-    from .samplers import healpix_fits_file_sampler
-
-    pio = PyramidIO(settings.outdir)
-    sampler = healpix_fits_file_sampler(settings.fitspath)
-    builder = Builder(pio)
-    builder.toast_base(ImageMode.F32, sampler, settings.depth)
-    builder.write_index_rel_wtml()
-
-    print(f'Successfully tiled input "{settings.fitspath}" at level {builder.imgset.tile_levels}.')
-    print('To create parent tiles, consider running:')
-    print()
-    print(f'   toasty cascade --start {builder.imgset.tile_levels} {settings.outdir}')
-
-
 # "make_thumbnail" subcommand
 
 def make_thumbnail_getparser(parser):
@@ -414,6 +374,46 @@ def tile_allsky_impl(settings):
     builder.write_index_rel_wtml()
 
     print(f'Successfully tiled input "{settings.imgpath}" at level {builder.imgset.tile_levels}.')
+    print('To create parent tiles, consider running:')
+    print()
+    print(f'   toasty cascade --start {builder.imgset.tile_levels} {settings.outdir}')
+
+
+# "tile_healpix" subcommand
+
+def tile_healpix_getparser(parser):
+    parser.add_argument(
+        '--outdir',
+        metavar = 'PATH',
+        default = '.',
+        help = 'The root directory of the output tile pyramid',
+    )
+    parser.add_argument(
+        'fitspath',
+        metavar = 'PATH',
+        help = 'The HEALPix FITS file to be tiled',
+    )
+    parser.add_argument(
+        'depth',
+        metavar = 'DEPTH',
+        type = int,
+        help = 'The depth of the TOAST layer to sample',
+    )
+
+
+def tile_healpix_impl(settings):
+    from .builder import Builder
+    from .image import ImageMode
+    from .pyramid import PyramidIO
+    from .samplers import healpix_fits_file_sampler
+
+    pio = PyramidIO(settings.outdir)
+    sampler = healpix_fits_file_sampler(settings.fitspath)
+    builder = Builder(pio)
+    builder.toast_base(ImageMode.F32, sampler, settings.depth)
+    builder.write_index_rel_wtml()
+
+    print(f'Successfully tiled input "{settings.fitspath}" at level {builder.imgset.tile_levels}.')
     print('To create parent tiles, consider running:')
     print()
     print(f'   toasty cascade --start {builder.imgset.tile_levels} {settings.outdir}')

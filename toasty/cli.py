@@ -47,7 +47,7 @@ def cascade_getparser(parser):
     parser.add_argument(
         'pyramid_dir',
         metavar = 'DIR',
-        help = 'The directory containg the tile pyramid to cascade',
+        help = 'The directory containing the tile pyramid to cascade',
     )
 
 
@@ -509,6 +509,58 @@ def tile_wwtl_impl(settings):
     print('To create parent tiles, consider running:')
     print()
     print(f'   toasty cascade --start {builder.imgset.tile_levels} {settings.outdir}')
+
+
+# "transform" subcommand
+
+def transform_getparser(parser):
+    subparsers = parser.add_subparsers(dest='transform_command')
+
+    parser = subparsers.add_parser('fx3-to-rgb')
+    parser.add_argument(
+        '--parallelism', '-j',
+        metavar = 'COUNT',
+        type = int,
+        help = 'The parallelization level (default: use all CPUs; specify `1` to force serial processing)',
+    )
+    parser.add_argument(
+        '--start',
+        metavar = 'DEPTH',
+        type = int,
+        help = 'The depth of the pyramid layer to start the cascade',
+    )
+    parser.add_argument(
+        '--clip', '-c',
+        metavar = 'NUMBER',
+        type = float,
+        default = 1.0,
+        help = 'The level at which to start flipping the floating-point data',
+    )
+    parser.add_argument(
+        'pyramid_dir',
+        metavar = 'DIR',
+        help = 'The directory containing the tile pyramid to cascade',
+    )
+
+
+def transform_impl(settings):
+    from .pyramid import PyramidIO
+
+    if settings.transform_command is None:
+        print('Run the "transform" command with `--help` for help on its subcommands')
+        return
+
+    if settings.transform_command == 'fx3-to-rgb':
+        from .transform import f16x3_to_rgb
+        pio = PyramidIO(settings.pyramid_dir)
+        f16x3_to_rgb(
+            pio, settings.start,
+            clip = settings.clip,
+            parallel = settings.parallelism,
+            cli_progress = True,
+        )
+    else:
+        die('unrecognized "transform" subcommand ' + settings.transform_command)
 
 
 # The CLI driver:

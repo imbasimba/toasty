@@ -32,6 +32,13 @@ def cascade_getparser(parser):
         help = 'The parallelization level (default: use all CPUs; specify `1` to force serial processing)',
     )
     parser.add_argument(
+        '--type', '-t',
+        metavar = 'TYPE',
+        default = 'rgba',
+        choices = ['rgba', 'f16x3', 'f32'],
+        help = 'The kind of data file to cascade',
+    )
+    parser.add_argument(
         '--start',
         metavar = 'DEPTH',
         type = int,
@@ -40,7 +47,7 @@ def cascade_getparser(parser):
     parser.add_argument(
         'pyramid_dir',
         metavar = 'DIR',
-        help = 'The directory containg the tile pyramid to cascade',
+        help = 'The directory containing the tile pyramid to cascade',
     )
 
 
@@ -55,54 +62,23 @@ def cascade_impl(settings):
     if start is None:
         die('currently, you must specify the start layer with the --start option')
 
+    if settings.type == 'rgba':
+        mode = ImageMode.RGBA
+    elif settings.type == 'f16x3':
+        mode = ImageMode.F16x3
+    elif settings.type == 'f32':
+        mode = ImageMode.F32
+    else:
+        die(f'unexpected "type" argument {settings.type}')
+
     cascade_images(
         pio,
-        ImageMode.RGBA,
+        mode,
         start,
         averaging_merger,
         parallel=settings.parallelism,
         cli_progress=True
     )
-
-
-# "healpix_sample_data_tiles" subcommand
-
-def healpix_sample_data_tiles_getparser(parser):
-    parser.add_argument(
-        '--outdir',
-        metavar = 'PATH',
-        default = '.',
-        help = 'The root directory of the output tile pyramid',
-    )
-    parser.add_argument(
-        'fitspath',
-        metavar = 'PATH',
-        help = 'The HEALPix FITS file to be tiled',
-    )
-    parser.add_argument(
-        'depth',
-        metavar = 'DEPTH',
-        type = int,
-        help = 'The depth of the TOAST layer to sample',
-    )
-
-
-def healpix_sample_data_tiles_impl(settings):
-    from .builder import Builder
-    from .image import ImageMode
-    from .pyramid import PyramidIO
-    from .samplers import healpix_fits_file_sampler
-
-    pio = PyramidIO(settings.outdir)
-    sampler = healpix_fits_file_sampler(settings.fitspath)
-    builder = Builder(pio)
-    builder.toast_base(ImageMode.F32, sampler, settings.depth)
-    builder.write_index_rel_wtml()
-
-    print(f'Successfully tiled input "{settings.fitspath}" at level {builder.imgset.tile_levels}.')
-    print('To create parent tiles, consider running:')
-    print()
-    print(f'   toasty cascade --start {builder.imgset.tile_levels} {settings.outdir}')
 
 
 # "make_thumbnail" subcommand
@@ -180,7 +156,7 @@ def multi_tan_make_data_tiles_impl(settings):
     # TODO: this should populate and emit a stub index_rel.wtml file.
 
 
-# "pipeline_fetch_inputs" subcommand
+# "pipeline" subcommands
 
 def _pipeline_add_io_args(parser):
     parser.add_argument(
@@ -233,7 +209,10 @@ def _pipeline_io_from_settings(settings):
     die('An I/O backend must be specified with the arguments --local or --azure-*')
 
 
-def pipeline_fetch_inputs_getparser(parser):
+def pipeline_getparser(parser):
+    subparsers = parser.add_subparsers(dest='pipeline_command')
+
+    parser = subparsers.add_parser('fetch-inputs')
     _pipeline_add_io_args(parser)
     parser.add_argument(
         'workdir',
@@ -242,17 +221,7 @@ def pipeline_fetch_inputs_getparser(parser):
         help = 'The local working directory',
     )
 
-def pipeline_fetch_inputs_impl(settings):
-    from .pipeline import PipelineManager
-
-    pipeio = _pipeline_io_from_settings(settings)
-    mgr = PipelineManager(pipeio, settings.workdir)
-    mgr.fetch_inputs()
-
-
-# "pipeline_process_todos" subcommand
-
-def pipeline_process_todos_getparser(parser):
+    parser = subparsers.add_parser('process-todos')
     _pipeline_add_io_args(parser)
     parser.add_argument(
         'workdir',
@@ -261,17 +230,7 @@ def pipeline_process_todos_getparser(parser):
         help = 'The local working directory',
     )
 
-def pipeline_process_todos_impl(settings):
-    from .pipeline import PipelineManager
-
-    pipeio = _pipeline_io_from_settings(settings)
-    mgr = PipelineManager(pipeio, settings.workdir)
-    mgr.process_todos()
-
-
-# "pipeline_publish_todos" subcommand
-
-def pipeline_publish_todos_getparser(parser):
+    parser = subparsers.add_parser('publish-todos')
     _pipeline_add_io_args(parser)
     parser.add_argument(
         'workdir',
@@ -280,17 +239,7 @@ def pipeline_publish_todos_getparser(parser):
         help = 'The local working directory',
     )
 
-def pipeline_publish_todos_impl(settings):
-    from .pipeline import PipelineManager
-
-    pipeio = _pipeline_io_from_settings(settings)
-    mgr = PipelineManager(pipeio, settings.workdir)
-    mgr.publish_todos()
-
-
-# "pipeline_reindex" subcommand
-
-def pipeline_reindex_getparser(parser):
+    parser = subparsers.add_parser('reindex')
     _pipeline_add_io_args(parser)
     parser.add_argument(
         'workdir',
@@ -299,12 +248,27 @@ def pipeline_reindex_getparser(parser):
         help = 'The local working directory',
     )
 
-def pipeline_reindex_impl(settings):
+
+def pipeline_impl(settings):
     from .pipeline import PipelineManager
+
+    if settings.pipeline_command is None:
+        print('Run the "pipeline" command with `--help` for help on its subcommands')
+        return
 
     pipeio = _pipeline_io_from_settings(settings)
     mgr = PipelineManager(pipeio, settings.workdir)
-    mgr.reindex()
+
+    if settings.pipeline_command == 'fetch-inputs':
+        mgr.fetch_inputs()
+    elif settings.pipeline_command == 'process-todos':
+        mgr.process_todos()
+    elif settings.pipeline_command == 'publish-todos':
+        mgr.publish_todos()
+    elif settings.pipeline_command == 'reindex':
+        mgr.reindex()
+    else:
+        die('unrecognized "pipeline" subcommand ' + settings.pipeline_command)
 
 
 # "tile_allsky" subcommand
@@ -398,6 +362,46 @@ def tile_allsky_impl(settings):
     builder.write_index_rel_wtml()
 
     print(f'Successfully tiled input "{settings.imgpath}" at level {builder.imgset.tile_levels}.')
+    print('To create parent tiles, consider running:')
+    print()
+    print(f'   toasty cascade --start {builder.imgset.tile_levels} {settings.outdir}')
+
+
+# "tile_healpix" subcommand
+
+def tile_healpix_getparser(parser):
+    parser.add_argument(
+        '--outdir',
+        metavar = 'PATH',
+        default = '.',
+        help = 'The root directory of the output tile pyramid',
+    )
+    parser.add_argument(
+        'fitspath',
+        metavar = 'PATH',
+        help = 'The HEALPix FITS file to be tiled',
+    )
+    parser.add_argument(
+        'depth',
+        metavar = 'DEPTH',
+        type = int,
+        help = 'The depth of the TOAST layer to sample',
+    )
+
+
+def tile_healpix_impl(settings):
+    from .builder import Builder
+    from .image import ImageMode
+    from .pyramid import PyramidIO
+    from .samplers import healpix_fits_file_sampler
+
+    pio = PyramidIO(settings.outdir)
+    sampler = healpix_fits_file_sampler(settings.fitspath)
+    builder = Builder(pio)
+    builder.toast_base(ImageMode.F32, sampler, settings.depth)
+    builder.write_index_rel_wtml()
+
+    print(f'Successfully tiled input "{settings.fitspath}" at level {builder.imgset.tile_levels}.')
     print('To create parent tiles, consider running:')
     print()
     print(f'   toasty cascade --start {builder.imgset.tile_levels} {settings.outdir}')
@@ -505,6 +509,58 @@ def tile_wwtl_impl(settings):
     print('To create parent tiles, consider running:')
     print()
     print(f'   toasty cascade --start {builder.imgset.tile_levels} {settings.outdir}')
+
+
+# "transform" subcommand
+
+def transform_getparser(parser):
+    subparsers = parser.add_subparsers(dest='transform_command')
+
+    parser = subparsers.add_parser('fx3-to-rgb')
+    parser.add_argument(
+        '--parallelism', '-j',
+        metavar = 'COUNT',
+        type = int,
+        help = 'The parallelization level (default: use all CPUs; specify `1` to force serial processing)',
+    )
+    parser.add_argument(
+        '--start',
+        metavar = 'DEPTH',
+        type = int,
+        help = 'The depth of the pyramid layer to start the cascade',
+    )
+    parser.add_argument(
+        '--clip', '-c',
+        metavar = 'NUMBER',
+        type = float,
+        default = 1.0,
+        help = 'The level at which to start flipping the floating-point data',
+    )
+    parser.add_argument(
+        'pyramid_dir',
+        metavar = 'DIR',
+        help = 'The directory containing the tile pyramid to cascade',
+    )
+
+
+def transform_impl(settings):
+    from .pyramid import PyramidIO
+
+    if settings.transform_command is None:
+        print('Run the "transform" command with `--help` for help on its subcommands')
+        return
+
+    if settings.transform_command == 'fx3-to-rgb':
+        from .transform import f16x3_to_rgb
+        pio = PyramidIO(settings.pyramid_dir)
+        f16x3_to_rgb(
+            pio, settings.start,
+            clip = settings.clip,
+            parallel = settings.parallelism,
+            cli_progress = True,
+        )
+    else:
+        die('unrecognized "transform" subcommand ' + settings.transform_command)
 
 
 # The CLI driver:

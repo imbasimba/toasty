@@ -90,28 +90,28 @@ class TestPipeline(object):
 
     def test_workflow(self):
         args = [
-            'pipeline-fetch-inputs',
+            'pipeline', 'fetch-inputs',
             '--local', self.work_path('repo'),
             self.work_path('work'),
         ]
         cli.entrypoint(args)
 
         args = [
-            'pipeline-process-todos',
+            'pipeline', 'process-todos',
             '--local', self.work_path('repo'),
             self.work_path('work'),
         ]
         cli.entrypoint(args)
 
         args = [
-            'pipeline-publish-todos',
+            'pipeline', 'publish-todos',
             '--local', self.work_path('repo'),
             self.work_path('work'),
         ]
         cli.entrypoint(args)
 
         args = [
-            'pipeline-reindex',
+            'pipeline', 'reindex',
             '--local', self.work_path('repo'),
             self.work_path('work'),
         ]
@@ -120,14 +120,14 @@ class TestPipeline(object):
     def test_args(self):
         with pytest.raises(SystemExit):
             args = [
-                'pipeline-fetch-inputs',
+                'pipeline', 'fetch-inputs',
                 self.work_path('work'),
             ]
             cli.entrypoint(args)
 
         with pytest.raises(SystemExit):
             args = [
-                'pipeline-fetch-inputs',
+                'pipeline', 'fetch-inputs',
                 '--azure-conn-env', 'NOTAVARIABLE',
                 self.work_path('work'),
             ]
@@ -137,7 +137,7 @@ class TestPipeline(object):
 
         with pytest.raises(SystemExit):
             args = [
-                'pipeline-fetch-inputs',
+                'pipeline', 'fetch-inputs',
                 '--azure-conn-env', 'FAKECONNSTRING',
                 self.work_path('work'),
             ]

@@ -31,6 +31,7 @@ from ..image import ImageLoader, ImageMode
 from ..pyramid import Pos, PyramidIO
 from ..samplers import plate_carree_sampler, healpix_fits_file_sampler
 from ..toast import sample_layer
+from ..transform import f16x3_to_rgb
 
 
 def test_mid():
@@ -179,8 +180,8 @@ class TestSampleLayer(object):
         img = ImageLoader().load_path(test_path('Equirectangular_projection_SW-tweaked.exr'))
         sampler = plate_carree_sampler(img.asarray())
         sample_layer(self.pio, ImageMode.F16x3, sampler, 1)
-        # XXX just smoketest until we get F16-to-RGB conversion going
-        #self.verify_level1(ImageMode.RGB)
+        f16x3_to_rgb(self.pio, 1, parallel=1)
+        self.verify_level1(ImageMode.RGB)
 
     @pytest.mark.skipif('not HAS_ASTRO')
     def test_healpix_equ(self):

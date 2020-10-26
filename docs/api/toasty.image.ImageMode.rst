@@ -10,6 +10,7 @@ ImageMode
 
    .. autosummary::
 
+      ~ImageMode.F16x3
       ~ImageMode.F32
       ~ImageMode.RGB
       ~ImageMode.RGBA
@@ -24,6 +25,7 @@ ImageMode
 
    .. rubric:: Attributes Documentation
 
+   .. autoattribute:: F16x3
    .. autoattribute:: F32
    .. autoattribute:: RGB
    .. autoattribute:: RGBA

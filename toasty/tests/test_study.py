@@ -83,7 +83,7 @@ class TestStudy(object):
             ]
             cli.entrypoint(args)
 
-        with open(self.work_path('index_rel.wtml')) as f:
+        with open(self.work_path('index_rel.wtml'), 'rt', encoding='utf8') as f:
             observed = etree.fromstring(f.read())
 
         assert_xml_elements_equal(observed, expected)

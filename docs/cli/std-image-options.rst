@@ -27,6 +27,20 @@ This option specifies how to handle the color profile of the source image.
 - ``none``: no color profile conversions will be performed.
 
 
+``--crop=TOP,RIGHT,BOTTOM,LEFT``
+================================
+
+If this option is provided, the input image will have its edges cropped before
+further processing. The argument should be a list of four non-negative integers,
+each representing how many pixels to crop off from the specified edge of the
+image. For instance, ``--crop=0,10,0,0`` indicates that 10 pixels should be
+cropped off the right edge of the image, while other edges should remain
+unmodified.
+
+As a shorthand, ``--crop=X``, means to crop off X pixels from all edges of the
+image. Writing ``--crop=V,H`` is shorthand for ``--crop=V,H,V,H``.
+
+
 ``--psd-single-layer=NUMBER``
 =============================
 

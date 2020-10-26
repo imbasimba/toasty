@@ -87,6 +87,49 @@ class StudyTiling(object):
         self._img_gy0 = (self._p2n - self._height) // 2
 
 
+    def compute_for_subimage(self, subim_ix, subim_iy, subim_width, subim_height):
+        """
+        Create a new compatible tiling whose underlying image is a subset of this one.
+
+        Parameters
+        ----------
+        subim_ix : integer
+            The 0-based horizontal pixel position of the left edge of the sub-image,
+            relative to this tiling's image.
+        subim_iy : integer
+            The 0-based vertical pixel position of the top edge of the sub-image,
+            relative to this tiling's image.
+        subim_width : nonnegative integer
+            The width of the sub-image, in pixels.
+        subim_height : nonnegative integer
+            The height of the sub-image, in pixels.
+
+        Returns
+        -------
+        A new :class:`~StudyTiling` with the same number of tile levels as this one.
+        However, the internal information about where the available data land within
+        that tiling will be appropriate for the specified sub-image. Methods like
+        :meth:`count_populated_positions`, :meth:`generate_populated_positions`, and
+        :meth:`tile_image` will behave differently.
+
+        """
+        if subim_width < 0 or subim_width > self._width:
+            raise ValueError('bad subimage width value {!r}'.format(subim_width))
+        if subim_height < 0 or subim_height > self._height:
+            raise ValueError('bad subimage height value {!r}'.format(subim_height))
+        if subim_ix < 0 or subim_ix + subim_width > self._width:
+            raise ValueError('bad subimage ix value {!r}'.format(subim_ix))
+        if subim_iy < 0 or subim_iy + subim_height > self._height:
+            raise ValueError('bad subimage iy value {!r}'.format(subim_iy))
+
+        sub_tiling = StudyTiling(self._width, self._height)
+        sub_tiling._width = subim_width
+        sub_tiling._height = subim_height
+        sub_tiling._img_gx0 += subim_ix
+        sub_tiling._img_gy0 += subim_iy
+        return sub_tiling
+
+
     def n_deepest_layer_tiles(self):
         """Return the number of tiles in the highest-resolution layer."""
         return 4**self._tile_levels
@@ -157,7 +200,7 @@ class StudyTiling(object):
 
     def count_populated_positions(self):
         """
-        Count how man tiles contain image data.
+        Count how many tiles contain image data.
 
         This is used for progress reporting.
 
@@ -286,7 +329,7 @@ class StudyTiling(object):
                 by_idx = slice(tile_y, tile_y + height)
                 bx_idx = slice(tile_x, tile_x + width)
                 image.fill_into_maskable_buffer(buffer, iy_idx, ix_idx, by_idx, bx_idx)
-                pio.write_toasty_image(pos, buffer)
+                pio.write_image(pos, buffer)
                 progress.update(1)
 
         if cli_progress:

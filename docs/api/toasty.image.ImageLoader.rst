@@ -12,6 +12,7 @@ ImageLoader
 
       ~ImageLoader.black_to_transparent
       ~ImageLoader.colorspace_processing
+      ~ImageLoader.crop
       ~ImageLoader.desired_mode
       ~ImageLoader.psd_single_layer
 
@@ -29,6 +30,7 @@ ImageLoader
 
    .. autoattribute:: black_to_transparent
    .. autoattribute:: colorspace_processing
+   .. autoattribute:: crop
    .. autoattribute:: desired_mode
    .. autoattribute:: psd_single_layer
 

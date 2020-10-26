@@ -459,7 +459,7 @@ def _sample_layer_serial(pio, mode, sampler, depth, cli_progress):
                 tile.increasing,
             )
             sampled_data = sampler(lon, lat)
-            pio.write_toasty_image(tile.pos, Image.from_array(mode, sampled_data))
+            pio.write_image(tile.pos, Image.from_array(mode, sampled_data))
             progress.update(1)
 
     if cli_progress:
@@ -525,4 +525,4 @@ def _mp_sample_worker(queue, pio, sampler, mode):
             tile.increasing,
         )
         sampled_data = sampler(lon, lat)
-        pio.write_toasty_image(tile.pos, Image.from_array(mode, sampled_data))
+        pio.write_image(tile.pos, Image.from_array(mode, sampled_data))

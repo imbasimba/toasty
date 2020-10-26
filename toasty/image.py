@@ -36,6 +36,7 @@ class ImageMode(Enum):
     RGB = 'RGB'
     RGBA = 'RGBA'
     F32 = 'F'
+    F16x3 = 'F16x3'
 
     def get_default_save_extension(self):
         """
@@ -50,7 +51,7 @@ class ImageMode(Enum):
 
         if self in (ImageMode.RGB, ImageMode.RGBA):
             return 'png'
-        elif self == ImageMode.F32:
+        elif self in (ImageMode.F32, ImageMode.F16x3):
             return 'npy'
         else:
             raise Exception('unhandled mode in get_default_save_extension')
@@ -86,6 +87,8 @@ class ImageMode(Enum):
             mask_mode = ImageMode.RGBA
         elif self == ImageMode.F32:
             arr = np.empty((buf_height, buf_width), dtype=np.float32)
+        elif self == ImageMode.F16x3:
+            arr = np.empty((buf_height, buf_width, 3), dtype=np.float16)
         else:
             raise Exception('unhandled mode in make_maskable_buffer()')
 
@@ -99,6 +102,8 @@ class ImageMode(Enum):
         -------
         A PIL image mode string, or None if there is no exact counterpart.
         """
+        if self == ImageMode.F16x3:
+            return None
         return self.value
 
 
@@ -114,6 +119,7 @@ class ImageLoader(object):
     """
     black_to_transparent = False
     colorspace_processing = 'srgb'
+    crop = None
     desired_mode = None
     psd_single_layer = None
 
@@ -150,6 +156,11 @@ class ImageLoader(object):
             help = 'What kind of RGB colorspace processing to perform (default: %(default)s; choices: %(choices)s)',
             choices = ['srgb', 'none'],
         )
+        parser.add_argument(
+            '--crop',
+            metavar = 'TOP,RIGHT,BOTTOM,LEFT',
+            help = 'Crop the input image by discarding pixels from each edge (default: 0,0,0,0)',
+        )
         # not exposing desired_mode -- shouldn't be something the for the user to deal with
         parser.add_argument(
             '--psd-single-layer',
@@ -177,6 +188,24 @@ class ImageLoader(object):
         loader.black_to_transparent = settings.black_to_transparent
         loader.colorspace_processing = settings.colorspace_processing
         loader.psd_single_layer = settings.psd_single_layer
+
+        if settings.crop is not None:
+            try:
+                crop = list(map(int, settings.crop.split(',')))
+                assert all(c >= 0 for c in crop)
+                assert len(crop) in (1, 2, 4)
+            except Exception:
+                raise Exception('cannot parse `--crop` setting `{settings.crop!r}`: should be a comma-separated list of 1, 2, or 4 non-negative integers')
+
+            if len(crop) == 1:
+                c = crop[0]
+                crop = [c, c, c, c]
+            elif len(crop) == 2:
+                cv, ch = crop
+                crop = [cv, ch, cv, ch]
+
+            loader.crop = crop
+
         return loader
 
     def load_pil(self, pil_img):
@@ -199,6 +228,22 @@ class ImageLoader(object):
         configuration.
 
         """
+        # If we're cropping, do it.
+        if self.crop is not None:
+            upper = self.crop[0]
+            right = pil_img.width - self.crop[1]
+            lower = pil_img.height - self.crop[2]
+            left = self.crop[3]
+
+            # This operation can trigger PIL decompression-bomb aborts, so
+            # avoid them in the standard, non-thread-safe, way.
+            old_max = pil_image.MAX_IMAGE_PIXELS
+            try:
+                pil_image.MAX_IMAGE_PIXELS = None
+                pil_img = pil_img.crop((left, upper, right, lower))
+            finally:
+                pil_image.MAX_IMAGE_PIXELS = old_max
+
         # If 8-bit grayscale, convert to RGB. Added for
         # https://www.flickr.com/photos/10795027@N08/43023455582 . That file
         # also comes with an ICC profile so we do the conversion before
@@ -321,8 +366,13 @@ class ImageLoader(object):
         # filetypes instead of just looking at extensions. But, lazy.
 
         if path.endswith('.npy'):
+            if self.desired_mode is not None:
+                mode = self.desired_mode
+            else:
+                mode = ImageMode.F32
+
             arr = np.load(path)
-            return Image.from_array(ImageMode.F32, arr.astype(np.float32))
+            return Image.from_array(mode, arr)
 
         # Special handling for Photoshop files, used for some very large mosaics
         # with transparency (e.g. the PHAT M31/M33 images).
@@ -351,7 +401,9 @@ class ImageLoader(object):
         if path.endswith('.exr'):
             from .openexr import load_openexr
             img = load_openexr(path)
-            return Image.from_array(ImageMode.RGB, img)
+            if img.dtype != np.float16:
+                raise Exception('only half-precision OpenEXR images are currently supported')
+            return Image.from_array(ImageMode.F16x3, img)
 
         # (One day, maybe we'll do more kinds of sniffing.) No special handling
         # came into play; just open the file and auto-detect.
@@ -431,6 +483,8 @@ class Image(object):
             array_ok = (array.ndim == 3 and array.shape[2] == 3 and array.dtype == np.dtype(np.uint8))
         elif mode == ImageMode.RGBA:
             array_ok = (array.ndim == 3 and array.shape[2] == 4 and array.dtype == np.dtype(np.uint8))
+        elif mode == ImageMode.F16x3:
+            array_ok = (array.ndim == 3 and array.shape[2] == 3 and array.dtype == np.dtype(np.float16))
         else:
             raise ValueError('unhandled image mode {} in from_array()'.format(mode))
 
@@ -479,6 +533,8 @@ class Image(object):
         """
         if self._pil is not None:
             return self._pil
+        if self._mode.try_as_pil() is None:
+            raise Exception(f'Toasty image with mode {self.mode} cannot be converted to PIL')
         return pil_image.fromarray(self._array)
 
     @property
@@ -541,11 +597,56 @@ class Image(object):
         elif self.mode == ImageMode.RGBA:
             b.fill(0)
             b[by_idx,bx_idx] = i[iy_idx,ix_idx]
-        elif self.mode == ImageMode.F32:
+        elif self.mode in (ImageMode.F32, ImageMode.F16x3):
             b.fill(np.nan)
             b[by_idx,bx_idx] = i[iy_idx,ix_idx]
         else:
             raise Exception('unhandled mode in fill_into_maskable_buffer')
+
+    def update_into_maskable_buffer(self, buffer, iy_idx, ix_idx, by_idx, bx_idx):
+        """
+        Update a maskable buffer with data from this image.
+
+        Parameters
+        ----------
+        buffer : :class:`Image`
+            The destination buffer image, created with :meth:`ImageMode.make_maskable_buffer`.
+        iy_idx : slice or other indexer
+            The indexer into the Y axis of the source image (self).
+        ix_idx : slice or other indexer
+            The indexer into the X axis of the source image (self).
+        by_idx : slice or other indexer
+            The indexer into the Y axis of the destination *buffer*.
+        bx_idx : slice or other indexer
+            The indexer into the X axis of the destination *buffer*.
+
+        Notes
+        -----
+        Unlike :meth:`fill_into_maskable_buffer`, this function does not clear
+        the entire buffer. It only overwrites the portion of the buffer covered
+        by non-NaN-like values of the input image.
+
+        """
+        i = self.asarray()
+        b = buffer.asarray()
+
+        sub_b = b[by_idx,bx_idx]
+        sub_i = i[iy_idx,ix_idx]
+
+        if self.mode == ImageMode.RGB:
+            sub_b[...,:3] = sub_i
+            sub_b[...,3] = 255
+        elif self.mode == ImageMode.RGBA:
+            valid = (sub_i[...,3] != 0)
+            np.putmask(sub_b, valid, sub_i)
+        elif self.mode == ImageMode.F32:
+            valid = ~np.isnan(sub_i)
+            np.putmask(sub_b, valid, sub_i)
+        elif self.mode == ImageMode.F16x3:
+            valid = ~np.any(np.isnan(sub_i), axis=2)
+            np.putmask(sub_b, valid, sub_i)
+        else:
+            raise Exception('unhandled mode in update_into_maskable_buffer')
 
     def save_default(self, path_or_stream):
         """
@@ -560,7 +661,7 @@ class Image(object):
         """
         if self.mode in (ImageMode.RGB, ImageMode.RGBA):
             self.aspil().save(path_or_stream, format='PNG')
-        elif self.mode == ImageMode.F32:
+        elif self.mode in (ImageMode.F32, ImageMode.F16x3):
             np.save(path_or_stream, self.asarray())
         else:
             raise Exception('unhandled mode in save_default')
@@ -575,7 +676,7 @@ class Image(object):
         be saved in JPEG format.
 
         """
-        if self.mode == ImageMode.F32:
+        if self.mode in (ImageMode.F32, ImageMode.F16x3):
             raise Exception('cannot thumbnail-ify non-RGB Image')
 
         THUMB_SHAPE = (96, 45)
@@ -626,7 +727,7 @@ class Image(object):
         """
         if self._mode in (ImageMode.RGB, ImageMode.RGBA):
             self.asarray().fill(0)
-        elif self._mode == ImageMode.F32:
+        elif self._mode in (ImageMode.F32, ImageMode.F16x3):
             self.asarray().fill(np.nan)
         else:
             raise Exception('unhandled mode in clear()')

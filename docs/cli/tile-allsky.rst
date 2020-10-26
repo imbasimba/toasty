@@ -55,6 +55,9 @@ mapped on to the image. Allowed types are:
   coordinates rather than (celestial) equatorial. This is often the case for
   all-sky astronomical press release images.
 
+- ``plate-carree-ecliptic`` — like the above, but the image is in barycentric
+  true ecliptic coordinates rather than (celestial) equatorial.
+
 - ``plate-carree-planet`` — like the above, but the image is that of a planet
   and so the sense of the longitude/RA axis is inverted. Longitude increases to
   the right. This is the format in which planetary maps are typically

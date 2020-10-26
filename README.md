@@ -68,8 +68,9 @@ and [PyPI](https://pypi.org/project/toasty/#history).
 
 [toasty] is a Python package so, yes, Python is required.
 
-- [astropy]
+- [astropy] if using FITS files or WCS coordinates
 - [cython]
+- [filelock]
 - [healpy] if using [HEALPix] maps
 - [numpy]
 - [pillow]
@@ -80,6 +81,7 @@ and [PyPI](https://pypi.org/project/toasty/#history).
 
 [astropy]: https://www.astropy.org/
 [cython]: https://cython.org/
+[filelock]: https://github.com/benediktschmitt/py-filelock
 [healpy]: https://healpy.readthedocs.io/
 [HEALPix]: https://healpix.jpl.nasa.gov/
 [numpy]: https://numpy.org/

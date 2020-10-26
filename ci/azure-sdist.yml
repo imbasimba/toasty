@@ -53,6 +53,7 @@ jobs:
       conda config --add channels conda-forge
       conda install -y \
         cython \
+        filelock \
         numpy \
         pillow \
         pip \

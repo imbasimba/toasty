@@ -12,13 +12,26 @@ Usage
 
 .. code-block:: shell
 
-   toasty cascade [--parallelism FACTOR] {--start DEPTH} PYRAMID-DIR
+   toasty cascade
+      [--parallelism FACTOR]
+      [--type TYPE]
+      {--start DEPTH}
+      PYRAMID-DIR
 
 The ``PYRAMID-DIR`` argument gives the location of a directory containing tile
 pyramid data files. The ``--start DEPTH`` argument gives the depth at which
 tiles *already exist*. For instance, with ``--start 5``, the pyramid should
 contain level-5 tiles, and the cascade will fill in tiles between levels 4 and
 0, inclusive.
+
+Each tile pyramid directory may contain multiple ”types” of data. The ``--type``
+argument specifies which one the cascade operation shoul apply to. Valid choices
+are ``rgba`` (the default), ``f16x3``, and ``f32``. The ``f32`` option applies
+to single-plan 32-bit floating-point data. The ``f16x3`` option applies to
+three-plane, 16-bit (“half precision”) floating point data such as may be stored
+in an `OpenEXR`_ file.
+
+.. _OpenEXR: https://www.openexr.com/
 
 The ``--parallelism FACTOR`` argument specifies the level of parallism to use.
 On operating systems that support parallel processing, the default is to use

@@ -36,7 +36,7 @@ project homepage].
 
 setup_args = dict(
     name = 'toasty',  # cranko project-name
-    version = '0.4.0',  # cranko project-version
+    version = '0.5.0',  # cranko project-version
     description = 'Generate TOAST image tile pyramids from existing image data',
     long_description = get_long_desc(),
     long_description_content_type = 'text/markdown',
@@ -72,6 +72,7 @@ setup_args = dict(
     },
 
     install_requires = [
+        'filelock>=3',
         'numpy>=1.7',
         'pillow>=7.0',
         'PyYAML>=5.0',

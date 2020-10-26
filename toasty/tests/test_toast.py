@@ -29,8 +29,8 @@ from . import test_path
 from .. import cli, toast
 from ..image import ImageLoader, ImageMode
 from ..pyramid import Pos, PyramidIO
-from ..samplers import plate_carree_sampler, healpix_fits_file_sampler
 from ..toast import sample_layer
+from ..transform import f16x3_to_rgb
 
 
 def test_mid():
@@ -156,39 +156,56 @@ class TestSampleLayer(object):
     def teardown_method(self, method):
         rmtree(self.base)
 
-    def verify_level1(self, mode):
+    def verify_level1(self, mode, ref='earth_toasted_sky'):
         for n, x, y in [(1, 0, 0), (1, 0, 1), (1, 1, 0), (1, 1, 1)]:
-            ref_path = test_path('earth_toasted_sky', str(n), str(y), "%i_%i.png" % (y, x))
+            ref_path = test_path(ref, str(n), str(y), "%i_%i.png" % (y, x))
             expected = ImageLoader().load_path(ref_path).asarray()
             if mode == ImageMode.F32:
                 expected = expected.mean(axis=2)
 
             pos = Pos(n=n, x=x, y=y)
-            observed = self.pio.read_toasty_image(pos, mode).asarray()
+            observed = self.pio.read_image(pos, mode).asarray()
 
             image_test(expected, observed, 'Failed for %s' % ref_path)
 
     def test_plate_carree(self):
+        from ..samplers import plate_carree_sampler
+
         img = ImageLoader().load_path(test_path('Equirectangular_projection_SW-tweaked.jpg'))
         sampler = plate_carree_sampler(img.asarray())
         sample_layer(self.pio, ImageMode.RGB, sampler, 1)
         self.verify_level1(ImageMode.RGB)
 
+    def test_plate_carree_ecliptic(self):
+        from ..samplers import plate_carree_ecliptic_sampler
+
+        img = ImageLoader().load_path(test_path('tess_platecarree_ecliptic_512.jpg'))
+        sampler = plate_carree_ecliptic_sampler(img.asarray())
+        sample_layer(self.pio, ImageMode.RGB, sampler, 1)
+        self.verify_level1(ImageMode.RGB, ref='tess')
+
     @pytest.mark.skipif('not HAS_OPENEXR')
     def test_earth_plate_caree_exr(self):
+        from ..samplers import plate_carree_sampler
+
         img = ImageLoader().load_path(test_path('Equirectangular_projection_SW-tweaked.exr'))
         sampler = plate_carree_sampler(img.asarray())
-        sample_layer(self.pio, ImageMode.RGB, sampler, 1)
+        sample_layer(self.pio, ImageMode.F16x3, sampler, 1)
+        f16x3_to_rgb(self.pio, 1, parallel=1)
         self.verify_level1(ImageMode.RGB)
 
     @pytest.mark.skipif('not HAS_ASTRO')
     def test_healpix_equ(self):
+        from ..samplers import healpix_fits_file_sampler
+
         sampler = healpix_fits_file_sampler(test_path('earth_healpix_equ.fits'))
         sample_layer(self.pio, ImageMode.F32, sampler, 1)
         self.verify_level1(ImageMode.F32)
 
     @pytest.mark.skipif('not HAS_ASTRO')
     def test_healpix_gal(self):
+        from ..samplers import healpix_fits_file_sampler
+
         sampler = healpix_fits_file_sampler(test_path('earth_healpix_gal.fits'))
         sample_layer(self.pio, ImageMode.F32, sampler, 1)
         self.verify_level1(ImageMode.F32)

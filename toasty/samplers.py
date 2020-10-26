@@ -24,6 +24,7 @@ from __future__ import absolute_import, division, print_function
 __all__ = '''
 plate_carree_sampler
 plate_carree_galactic_sampler
+plate_carree_ecliptic_sampler
 plate_carree_planet_sampler
 healpix_fits_file_sampler
 healpix_sampler
@@ -221,6 +222,52 @@ def plate_carree_galactic_sampler(data):
         lon, lat = gal.l.rad, gal.b.rad
 
         lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
+        ix = (lon0 - lon) * dx
+        ix = np.round(ix).astype(np.int)
+        ix = np.clip(ix, 0, nx - 1)
+
+        iy = (lat0 - lat) * dy  # *assume* in range [-pi/2, pi/2]
+        iy = np.round(iy).astype(np.int)
+        iy = np.clip(iy, 0, ny - 1)
+
+        return data[iy, ix]
+
+    return vec2pix
+
+
+def plate_carree_ecliptic_sampler(data):
+    """
+    Create a sampler function for all-sky data in a “plate carrée” projection
+    using ecliptic coordinates.
+
+    Parameters
+    ----------
+    data : array-like, at least 2D
+        The map to sample in plate carrée projection.
+
+    Returns
+    -------
+    A function that samples the image. The call signature is
+    ``sampler(lon, lat) -> data``, where the inputs and output are 2D arrays and
+    *lon* and *lat* are in radians.
+
+    """
+    from astropy.coordinates import BarycentricTrueEcliptic as Ecliptic, ICRS
+    import astropy.units as u
+
+    data = np.asarray(data)
+    ny, nx = data.shape[:2]
+
+    dx = nx / (2 * np.pi)  # pixels per radian in the X direction
+    dy = ny / np.pi  # ditto, for the Y direction
+    lon0 = np.pi - 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
+    lat0 = 0.5 * np.pi - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
+
+    def vec2pix(lon, lat):
+        ecl = ICRS(lon * u.rad, lat * u.rad).transform_to(Ecliptic)
+        lon, lat = ecl.lon.rad, ecl.lat.rad
+        lon = lon % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
+
         ix = (lon0 - lon) * dx
         ix = np.round(ix).astype(np.int)
         ix = np.clip(ix, 0, nx - 1)

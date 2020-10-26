@@ -2,6 +2,7 @@
 # Copyright 2020 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
+import argparse
 import numpy as np
 import numpy.testing as nt
 import os.path
@@ -33,3 +34,19 @@ class TestMiscCli(object):
             self.work_path('basic_cli'),
         ]
         cli.entrypoint(args)
+
+    def test_crop(self):
+        """
+        Test the generic --crop argument.
+        """
+        from ..image import ImageLoader
+
+        parser = argparse.ArgumentParser()
+        ImageLoader.add_arguments(parser)
+        settings = parser.parse_args(['--crop=1,2,3,4'])
+        img = ImageLoader.create_from_args(settings).load_path(test_path('crop_input.png'))
+        arr = img.asarray()
+        assert arr.shape == (256, 256, 3)
+        assert arr.max() == 0
+
+

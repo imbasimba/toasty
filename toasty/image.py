@@ -119,6 +119,7 @@ class ImageLoader(object):
     """
     black_to_transparent = False
     colorspace_processing = 'srgb'
+    crop = None
     desired_mode = None
     psd_single_layer = None
 
@@ -155,6 +156,11 @@ class ImageLoader(object):
             help = 'What kind of RGB colorspace processing to perform (default: %(default)s; choices: %(choices)s)',
             choices = ['srgb', 'none'],
         )
+        parser.add_argument(
+            '--crop',
+            metavar = 'TOP,RIGHT,BOTTOM,LEFT',
+            help = 'Crop the input image by discarding pixels from each edge (default: 0,0,0,0)',
+        )
         # not exposing desired_mode -- shouldn't be something the for the user to deal with
         parser.add_argument(
             '--psd-single-layer',
@@ -182,6 +188,24 @@ class ImageLoader(object):
         loader.black_to_transparent = settings.black_to_transparent
         loader.colorspace_processing = settings.colorspace_processing
         loader.psd_single_layer = settings.psd_single_layer
+
+        if settings.crop is not None:
+            try:
+                crop = list(map(int, settings.crop.split(',')))
+                assert all(c >= 0 for c in crop)
+                assert len(crop) in (1, 2, 4)
+            except Exception:
+                raise Exception('cannot parse `--crop` setting `{settings.crop!r}`: should be a comma-separated list of 1, 2, or 4 non-negative integers')
+
+            if len(crop) == 1:
+                c = crop[0]
+                crop = [c, c, c, c]
+            elif len(crop) == 2:
+                cv, ch = crop
+                crop = [cv, ch, cv, ch]
+
+            loader.crop = crop
+
         return loader
 
     def load_pil(self, pil_img):
@@ -204,6 +228,22 @@ class ImageLoader(object):
         configuration.
 
         """
+        # If we're cropping, do it.
+        if self.crop is not None:
+            upper = self.crop[0]
+            right = pil_img.width - self.crop[1]
+            lower = pil_img.height - self.crop[2]
+            left = self.crop[3]
+
+            # This operation can trigger PIL decompression-bomb aborts, so
+            # avoid them in the standard, non-thread-safe, way.
+            old_max = pil_image.MAX_IMAGE_PIXELS
+            try:
+                pil_image.MAX_IMAGE_PIXELS = None
+                pil_img = pil_img.crop((left, upper, right, lower))
+            finally:
+                pil_image.MAX_IMAGE_PIXELS = old_max
+
         # If 8-bit grayscale, convert to RGB. Added for
         # https://www.flickr.com/photos/10795027@N08/43023455582 . That file
         # also comes with an ICC profile so we do the conversion before

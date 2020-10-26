@@ -299,7 +299,7 @@ def tile_allsky_getparser(parser):
         metavar = 'PROJTYPE',
         default = 'plate-carree',
         help = 'The projection type of the input image (default: %(default)s; choices: %(choices)s)',
-        choices = ['plate-carree', 'plate-carree-galactic', 'plate-carree-planet'],
+        choices = ['plate-carree', 'plate-carree-galactic', 'plate-carree-ecliptic', 'plate-carree-planet'],
     )
     parser.add_argument(
         '--parallelism', '-j',
@@ -335,6 +335,9 @@ def tile_allsky_impl(settings):
     elif settings.projection == 'plate-carree-galactic':
         from .samplers import plate_carree_galactic_sampler
         sampler = plate_carree_galactic_sampler(img.asarray())
+    elif settings.projection == 'plate-carree-ecliptic':
+        from .samplers import plate_carree_ecliptic_sampler
+        sampler = plate_carree_ecliptic_sampler(img.asarray())
     elif settings.projection == 'plate-carree-planet':
         from .samplers import plate_carree_planet_sampler
         sampler = plate_carree_planet_sampler(img.asarray())

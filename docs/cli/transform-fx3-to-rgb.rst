@@ -22,7 +22,9 @@ See the :ref:`cli-std-image-options` section for documentation on those options.
 
 The ``PYRAMID-DIR`` argument gives the name of a tile pyramid. It should contain
 Numpy data files in one of the supported Toasty “Fx3” formats. One potential
-source of such data is tiling an OpenEXR file.
+source of such data is tiling an `OpenEXR`_ file.
+
+.. _OpenEXR: https://www.openexr.com/
 
 The ``--clip NUMBER`` argument specifies the point at which the floating-point
 values will be clipped. By default, the input floating-point data are expected

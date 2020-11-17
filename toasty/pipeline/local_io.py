@@ -36,6 +36,16 @@ class LocalPipelineIo(PipelineIo):
     def __init__(self, path_prefix):
         self._path_prefix = path_prefix
 
+    def _export_config(self):
+        return {
+            '_type': 'local',
+            'path': self._path_prefix,
+        }
+
+    @classmethod
+    def _new_from_config(cls, config):
+        return cls(config['path'])
+
     def _make_item_name(self, path_array):
         return os.path.join(self._path_prefix, *path_array)
 

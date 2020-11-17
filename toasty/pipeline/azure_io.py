@@ -18,10 +18,12 @@ ENABLED
 assert_enabled
 '''.split()
 
+import shutil
+
 from . import PipelineIo
 
 try:
-    from azure.storage.blob import BlockBlobService
+    from azure.storage.blob import BlobServiceClient
     ENABLED = True
 except ImportError:
     ENABLED = False
@@ -47,7 +49,9 @@ class AzureBlobPipelineIo(PipelineIo):
       prepended to all paths accessed through this object.
 
     """
-    _svc = None
+    _connection_string = None
+    _svc_client = None
+    _cnt_client = None
     _container_name = None
     _path_prefix = None
 
@@ -65,40 +69,56 @@ class AzureBlobPipelineIo(PipelineIo):
                 raise ValueError('path_prefix should be a string or iterable of strings; '
                                  'got %r' % (path_prefix, ))
 
-        self._svc = BlockBlobService(connection_string=connection_string)
+        self._connection_string = connection_string
         self._container_name = container_name
+        self._svc_client = BlobServiceClient.from_connection_string(connection_string)
+        self._cnt_client = self._svc_client.get_container_client(container_name)
         self._path_prefix = path_prefix
+
+    def _export_config(self):
+        return {
+            '_type': 'azure-blob',
+            'connection_secret': self._connection_string,
+            'container_name': self._container_name,
+            'path_prefix': self._path_prefix,
+        }
+
+    @classmethod
+    def _new_from_config(cls, config):
+        return cls(
+            config['connection_secret'],
+            config['container_name'],
+            config['path_prefix'],
+        )
 
     def _make_blob_name(self, path_array):
         """TODO: is this actually correct? Escaping?"""
         return '/'.join(self._path_prefix + tuple(path_array))
 
     def check_exists(self, *path):
-        return self._svc.exists(
-            self._container_name,
-            self._make_blob_name(path),
-        )
+        from azure.core.exceptions import ResourceNotFoundError
+
+        blob_client = self._cnt_client.get_blob_client(self._make_blob_name(path))
+
+        try:
+            blob_client.get_blob_properties()
+        except ResourceNotFoundError:
+            return False
+        return True
 
     def get_item(self, *path, dest=None):
-        self._svc.get_blob_to_stream(
-            self._container_name,
-            self._make_blob_name(path),
-            dest,
-        )
+        blob_client = self._cnt_client.get_blob_client(self._make_blob_name(path))
+        blob_client.download_blob().readinto(dest)
 
     def put_item(self, *path, source=None):
-        self._svc.create_blob_from_stream(
-            self._container_name,
-            self._make_blob_name(path),
-            source,
-        )
+        blob_client = self._cnt_client.get_blob_client(self._make_blob_name(path))
+        blob_client.upload_blob(source)
 
     def list_items(self, *path):
         from azure.storage.blob.models import BlobPrefix
         prefix = self._make_blob_name(path) + '/'
 
-        for item in self._svc.list_blobs(
-                self._container_name,
+        for item in self._cnt_client.list_blobs(
                 prefix = prefix,
                 delimiter = '/'
         ):

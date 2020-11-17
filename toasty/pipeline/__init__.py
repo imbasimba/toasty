@@ -82,11 +82,82 @@ EXTENSION_REMAPPING = {
 # The `PipelineIo` ABC
 
 class PipelineIo(ABC):
-    """An abstract base class for I/O relating to pipeline processing. An instance
+    """
+    An abstract base class for I/O relating to pipeline processing. An instance
     of this class might be used to fetch files from, and send them to, a cloud
     storage system like S3 or Azure Storage.
-
     """
+
+    @abstractmethod
+    def _export_config(self):
+        """
+        Export this object's configuration for serialization.
+
+        Returns
+        -------
+        A dictionary of settings that can be saved as YAML format. There should
+        be a key named "_type" with a string value identifying the I/O
+        implementation type.
+        """
+
+    def save_config(self, path):
+        """
+        Save this object's configuration to the specified filesystem path.
+        """
+        cfg = self._export_config()
+
+        # The config contains secrets, so create it privately and securely.
+        opener = lambda path, _mode: os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode=0o600)
+
+        with open(path, 'wt', opener=opener, encoding='utf8') as f:
+            yaml.dump(cfg, f, yaml.SafeDumper)
+
+    @abstractclassmethod
+    def _new_from_config(cls, config):
+        """
+        Create a new instance of this class based on serialized configuration.
+
+        Parameters
+        ----------
+        config : dict
+            A dict of configuration that was created with ``_export_config``
+
+        Returns
+        -------
+        A new instance of the class.
+        """
+
+    @classmethod
+    def load_from_config(self, path):
+        """
+        Create a new I/O backend from saved configuration.
+
+        Parameters
+        ----------
+        path : path-like
+            The path where the configuration was saved.
+
+        Returns
+        -------
+        A new instance implementing the PipelineIO abstract base class.
+        """
+
+        with open(path, 'rt', encoding='utf8') as f:
+            config = yaml.safe_load(f)
+
+        ty = config.get('_type')
+
+        if ty == 'local':
+            from .local_io import LocalPipelineIo
+            cls = LocalPipelineIo
+        elif ty == 'azure-blob':
+            from .azure_io import AzureBlobPipelineIo
+            cls = AzureBlobPipelineIo
+        else:
+            raise Exception(f'unrecognized pipeline I/O storage type {ty!r}')
+
+        return cls._new_from_config(config)
+
     @abstractmethod
     def check_exists(self, *path):
         """Test whether an item at the specified path exists.
@@ -699,9 +770,9 @@ class PipelineManager(object):
     _workdir = None
     _img_source = None
 
-    def __init__(self, pipeio, workdir):
-        self._pipeio = pipeio
+    def __init__(self, workdir):
         self._workdir = workdir
+        self._pipeio = PipelineIo.load_from_config(self._path('toasty-store-config.yaml'))
 
     def _path(self, *path):
         return os.path.join(self._workdir, *path)

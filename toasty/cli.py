@@ -172,10 +172,10 @@ def _pipeline_add_io_args(parser):
     )
 
 def _pipeline_io_from_settings(settings):
-    from .pipeline import azure_io, LocalPipelineIo
+    from .pipeline import azure_io, local_io
 
     if settings.local:
-        return LocalPipelineIo(settings.local)
+        return local_io.LocalPipelineIo(settings.local)
 
     if settings.azure_conn_env:
         conn_str = os.environ.get(settings.azure_conn_env)

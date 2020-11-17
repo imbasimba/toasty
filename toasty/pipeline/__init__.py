@@ -16,7 +16,6 @@ BitmapInputImage
 CandidateInput
 ImageSource
 InputImage
-LocalPipelineIo
 NotActionableError
 PipelineIo
 '''.split()
@@ -80,7 +79,7 @@ EXTENSION_REMAPPING = {
 }
 
 
-# The `PipelineIo` ABC and implementations
+# The `PipelineIo` ABC
 
 class PipelineIo(ABC):
     """An abstract base class for I/O relating to pipeline processing. An instance
@@ -155,46 +154,6 @@ class PipelineIo(ABC):
         indicating whether this item appears to be a folder itself.
 
         """
-
-
-class LocalPipelineIo(PipelineIo):
-    """I/O for pipeline processing using the local disk.
-
-    Parameters
-    ----------
-    path_prefix : str
-      A path prefix that will be used for all I/O options.
-
-    """
-    _path_prefix = None
-
-    def __init__(self, path_prefix):
-        self._path_prefix = path_prefix
-
-    def _make_item_name(self, path_array):
-        return os.path.join(self._path_prefix, *path_array)
-
-    def check_exists(self, *path):
-        return os.path.exists(self._make_item_name(path))
-
-    def get_item(self, *path, dest=None):
-        with open(self._make_item_name(path), 'rb') as f:
-            shutil.copyfileobj(f, dest)
-
-    def put_item(self, *path, source=None):
-        fpath = self._make_item_name(path)
-
-        cdir = os.path.split(fpath)[0]
-        os.makedirs(cdir, exist_ok=True)
-
-        with open(fpath, 'wb') as f:
-            shutil.copyfileobj(source, f)
-
-    def list_items(self, *path):
-        dpath = self._make_item_name(path)
-
-        for stem in os.listdir(dpath):
-            yield stem, os.path.isdir(os.path.join(dpath, stem))
 
 
 # The `ImageSource` ABC and implementations

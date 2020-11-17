@@ -11,6 +11,7 @@ ImageSource
    .. autosummary::
 
       ~ImageSource.deserialize
+      ~ImageSource.fetch_candidate
       ~ImageSource.get_config_key
       ~ImageSource.open_input
       ~ImageSource.query_candidates
@@ -18,6 +19,7 @@ ImageSource
    .. rubric:: Methods Documentation
 
    .. automethod:: deserialize
+   .. automethod:: fetch_candidate
    .. automethod:: get_config_key
    .. automethod:: open_input
    .. automethod:: query_candidates

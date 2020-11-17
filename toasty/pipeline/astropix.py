@@ -20,6 +20,7 @@ import os.path
 from PIL import Image as PilImage
 import requests
 import shutil
+from urllib.parse import quote as urlquote
 
 from . import BitmapInputImage, CandidateInput, ImageSource, NotActionableError
 
@@ -53,6 +54,62 @@ class AstroPixImageSource(ImageSource):
         for item in feed_data:
             yield AstroPixCandidateInput(item)
 
+    def fetch_candidate(self, unique_id, cand_data_stream, cachedir):
+        with codecs.getreader('utf8')(cand_data_stream) as text_stream:
+            info = json.load(text_stream)
+
+        lower_id = info['image_id'].lower()
+        global_id = info['publisher_id'] + '_' + lower_id
+
+        if info['resource_url'] and len(info['resource_url']):
+            source_url = info['resource_url']
+        else:
+            # Original image not findable. Get the best version available from
+            # AstroPix.
+            #
+            # GROSS: saving this code since I won't be testing this super
+            # thoroughly ... but it looks like now the original is being made
+            # available consistently?
+
+            ##size = int(info['image_max_boundry'])
+            ##if size >= 24000:
+            ##    best_astropix_size = 24000
+            ##elif size >= 12000:
+            ##    best_astropix_size = 12000
+            ##elif size >= 6000:
+            ##    best_astropix_size = 6000
+            ##elif size >= 3000:
+            ##    best_astropix_size = 3000
+            ##elif size >= 1600:
+            ##    best_astropix_size = 1600
+            ##elif size > 1024:  # transition point to sizes that are always generated
+            ##    best_astropix_size = 1280
+            ##elif size > 500:
+            ##    best_astropix_size = 1024
+            ##elif size > 320:
+            ##    best_astropix_size = 500
+            ##else:
+            ##    best_astropix_size = 320
+
+            source_url = 'http://astropix.ipac.caltech.edu/archive/%s/%s/%s_original.jpg' % (
+                urlquote(info['publisher_id']),
+                urlquote(lower_id),
+                urlquote(global_id),
+            )
+
+        # Now ready to download the image.
+
+        ext = source_url.rsplit('.', 1)[-1].lower()
+        ext = EXTENSION_REMAPPING.get(ext, ext)
+
+        with requests.get(source_url, stream=True) as resp:
+            if not resp.ok:
+                raise Exception(f'error downloading {source_url}: {resp.status_code}')
+
+            with open(os.path.join(cachedir, 'image.' + ext), 'wb') as f:
+                shutil.copyfileobj(resp.raw, f)
+
+
     def open_input(self, unique_id, cachedir):
         with open(os.path.join(cachedir, 'astropix.json'), 'rt', encoding='utf8') as f:
             json_data = json.load(f)
@@ -61,7 +118,8 @@ class AstroPixImageSource(ImageSource):
 
 
 class AstroPixCandidateInput(CandidateInput):
-    """A CandidateInput obtained from an AstroPix query.
+    """
+    A CandidateInput obtained from an AstroPix query.
 
     """
     def __init__(self, json_dict):

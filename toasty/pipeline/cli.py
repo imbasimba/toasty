@@ -19,6 +19,45 @@ from ..cli import die, warn
 from . import NotActionableError
 
 
+# The "fetch" subcommand
+
+def fetch_setup_parser(parser):
+    parser.add_argument(
+        '--workdir',
+        metavar = 'PATH',
+        default = '.',
+        help = 'The working directory for this processing session'
+    )
+    parser.add_argument(
+        'cand_ids',
+        nargs = '+',
+        metavar = 'CAND-ID',
+        help = 'Name(s) of candidate(s) to fetch and prepare for processing'
+    )
+
+
+def fetch_impl(settings):
+    from . import PipelineManager
+
+    mgr = PipelineManager(settings.workdir)
+    cand_dir = mgr._ensure_dir('candidates')
+    src = mgr.get_image_source()
+
+    for cid in settings.cand_ids:
+        try:
+            cdata = open(os.path.join(cand_dir, cid), 'rb')
+        except FileNotFoundError:
+            die(f'no such candidate ID {cid!r}')
+
+        print(f'fetching {cid} ...', end='')
+        sys.stdout.flush()
+
+        cachedir = mgr._ensure_dir('cache_todo', cid)
+        src.fetch_candidate(cid, cdata, cachedir)
+        cdata.close()
+        print('done')
+
+
 # The "init" subcommand
 
 def init_setup_parser(parser):
@@ -155,16 +194,7 @@ def refresh_impl(settings):
 
 def pipeline_getparser(parser):
     subparsers = parser.add_subparsers(dest='pipeline_command')
-
-    parser = subparsers.add_parser('fetch-inputs')
-    parser.add_argument(
-        'workdir',
-        nargs = '?',
-        metavar = 'WORKDIR',
-        default = '.',
-        help = 'The local working directory',
-    )
-
+    fetch_setup_parser(subparsers.add_parser('fetch'))
     init_setup_parser(subparsers.add_parser('init'))
 
     parser = subparsers.add_parser('process-todos')
@@ -204,9 +234,8 @@ def pipeline_impl(settings):
         print('Run the "pipeline" command with `--help` for help on its subcommands')
         return
 
-    if settings.pipeline_command == 'fetch-inputs':
-        mgr = PipelineManager(settings.workdir)
-        mgr.fetch_inputs()
+    if settings.pipeline_command == 'fetch':
+        fetch_impl(settings)
     elif settings.pipeline_command == 'init':
         init_impl(settings)
     elif settings.pipeline_command == 'process-todos':

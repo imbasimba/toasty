@@ -261,13 +261,32 @@ class ImageSource(ABC):
 
     @abstractmethod
     def query_candidates(self):
-        """Generate a sequence of candidate input images that the pipeline may want to
-        process.
+        """
+        Generate a sequence of candidate input images that the pipeline may want
+        to process.
 
         Returns
         -------
-        A generator that yields a sequence of :class:`CandidateInput` instances.
+        A generator that yields a sequence of :class:`toasty.pipeline.CandidateInput` instances.
 
+        """
+
+    @abstractmethod
+    def fetch_candidate(self, unique_id, cand_data_stream, cachedir):
+        """
+        Download a candidate image and prepare it for processing.
+
+        Parameters
+        ----------
+        unique_id : str
+            The unique ID returned by the :class:`toasty.pipeline.CandidateInput` instance
+            that was returned from the initial query.
+        cand_data_stream : readable stream returning bytes
+            A data stream returning the data that were saved when the candidate
+            was queried (:meth:`toasty.pipeline.CandidateInput.save`).
+        cachedir : path-like
+           A path pointing to a local directory inside of which the
+           full image data and metadata should be cached.
         """
 
     @abstractmethod
@@ -277,7 +296,7 @@ class ImageSource(ABC):
         Parameters
         ----------
         unique_id : str
-            The unique ID returned by the :class:`CandidateInput` instance that created
+            The unique ID returned by the :class:`toasty.pipeline.CandidateInput` instance that created
             the cached data for this input image.
         cachedir : str
            A path pointing to a local directory inside of which the
@@ -285,7 +304,7 @@ class ImageSource(ABC):
 
         Returns
         -------
-        An instance of :class:`InputImage` corresponding to the cached data.
+        An instance of :class:`toasty.pipeline.InputImage` corresponding to the cached data.
 
         """
 
@@ -301,7 +320,7 @@ class CandidateInput(ABC):
     @abstractmethod
     def get_unique_id(self):
         """
-        Get an ID for this image that will be unique in its :class:`ImageSource`.
+        Get an ID for this image that will be unique in its :class:`toasty.pipeline.ImageSource`.
 
         Returns
         -------
@@ -322,7 +341,7 @@ class CandidateInput(ABC):
 
         Raises
         ------
-        May raise :exc:`NotActionableError` if it turns out that this
+        May raise :exc:`toasty.pipeline.NotActionableError` if it turns out that this
         candidate is not one that can be imported into WWT.
 
         Returns
@@ -343,7 +362,7 @@ class CandidateInput(ABC):
 
         Raises
         ------
-        May raise :exc:`NotActionableError` if it turns out that this
+        May raise :exc:`toasty.pipeline.NotActionableError` if it turns out that this
         candidate is not one that can be imported into WWT.
 
         Returns
@@ -604,32 +623,6 @@ class PipelineManager(object):
 
         self._img_source = cls.deserialize(source_config)
         return self._img_source
-
-    def fetch_inputs(self):
-        src = self.get_image_source()
-        n_cand = 0
-        n_cached = 0
-
-        for cand in src.query_candidates():
-            n_cand += 1
-            uniq_id = cand.get_unique_id()
-            if self._pipeio.check_exists(uniq_id, 'index.wtml'):
-                continue  # skip already-done inputs
-            if self._pipeio.check_exists(uniq_id, 'skip.flag'):
-                continue  # skip inputs that are explicitly flagged
-
-            cachedir = self._ensure_dir('cache_todo', uniq_id)
-
-            # XXX printing is lame
-            try:
-                print(f'caching candidate input {uniq_id} ...')
-                cand.cache_data(cachedir)
-                n_cached += 1
-            except NotActionableError as e:
-                print(f'skipping {uniq_id}: not ingestible into WWT: {e}')
-                shutil.rmtree(cachedir)
-
-        print(f'queued {n_cached} images for processing, out of {n_cand} candidates')
 
     def process_todos(self):
         src = self.get_image_source()

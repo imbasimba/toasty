@@ -85,7 +85,7 @@ class TestMultiTan(object):
         assert_xml_elements_equal(folder, expected)
 
         from ..pyramid import PyramidIO
-        pio = PyramidIO(self.work_path('basic'))
+        pio = PyramidIO(self.work_path('basic'), default_format='npy')
         percentiles = ds.generate_deepest_layer_numpy(pio)
 
         # These are all hardcoded parameters of this test dataset, derived

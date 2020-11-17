@@ -397,7 +397,7 @@ class MultiTanDataSource(object):
                     ###      f'{img_overlap_x0} {img_overlap_y0} {img_overlap_x1} {img_overlap_y1}')
 
                     pos = Pos(self._tile_levels, ix, iy)
-                    p = pio.tile_path(pos, extension='npy')
+                    p = pio.tile_path(pos)
 
                     try:
                         a = np.load(p)

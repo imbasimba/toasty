@@ -22,6 +22,10 @@ from enum import Enum
 from PIL import Image as pil_image
 import numpy as np
 import sys
+from astropy.io import fits
+
+PIL_FORMATS = {'jpg': 'JPEG', 'png': 'PNG'}
+SUPPORTED_FORMATS = list(PIL_FORMATS) + ['npy', 'fits']
 
 
 class ImageMode(Enum):
@@ -36,25 +40,18 @@ class ImageMode(Enum):
     RGB = 'RGB'
     RGBA = 'RGBA'
     F32 = 'F'
+    F64 = 'D'
     F16x3 = 'F16x3'
 
-    def get_default_save_extension(self):
-        """
-        Get the file extension to be used in this mode's "default" save format.
-
-        Returns
-        -------
-        The extension, without a period; either "png" or "npy"
-
-        """
-        # For RGB, could use JPG? But would complexify lots of things downstream.
-
-        if self in (ImageMode.RGB, ImageMode.RGBA):
-            return 'png'
-        elif self in (ImageMode.F32, ImageMode.F16x3):
-            return 'npy'
-        else:
-            raise Exception('unhandled mode in get_default_save_extension')
+    @staticmethod
+    def from_dtype(dtype):
+        # TODO: expand this to more dtypes
+        if dtype.kind == 'f':
+            if dtype.itemsize == 4:
+                return ImageMode.F32
+            elif dtype.itemsize == 8:
+                return ImageMode.F64
+        raise NotImplementedError("dtype {0} not supported".format(dtype))
 
     def make_maskable_buffer(self, buf_height, buf_width):
         """
@@ -372,7 +369,20 @@ class ImageLoader(object):
                 mode = ImageMode.F32
 
             arr = np.load(path)
-            return Image.from_array(mode, arr)
+            return Image.from_array(mode, arr, format='npy')
+
+        if path.lower().endswith(('.fits', '.fts', '.fits.gz', '.fts.gz')):
+
+            # TODO: implement a better way to recognize FITS files
+
+            arr = fits.getdata(path)
+
+            if self.desired_mode is not None:
+                mode = self.desired_mode
+            else:
+                mode = ImageMode.from_dtype(arr.dtype)
+
+            return Image.from_array(mode, arr, format='fits')
 
         # Special handling for Photoshop files, used for some very large mosaics
         # with transparency (e.g. the PHAT M31/M33 images).
@@ -422,9 +432,10 @@ class Image(object):
     _mode = None
     _pil = None
     _array = None
+    _default_format = 'png'
 
     @classmethod
-    def from_pil(cls, pil_img):
+    def from_pil(cls, pil_img, format=None):
         """
         Create a new Image from a PIL image.
 
@@ -445,6 +456,7 @@ class Image(object):
 
         inst = cls()
         inst._pil = pil_img
+        inst._default_format = format or cls._default_format
 
         try:
             inst._mode = ImageMode(pil_img.mode)
@@ -454,7 +466,7 @@ class Image(object):
         return inst
 
     @classmethod
-    def from_array(cls, mode, array):
+    def from_array(cls, mode, array, format=None):
         """Create a new Image from an array-like data variable.
 
         Parameters
@@ -494,6 +506,7 @@ class Image(object):
 
         inst = cls()
         inst._mode = mode
+        inst._default_format = format or cls._default_format
         inst._array = array
         return inst
 
@@ -517,7 +530,6 @@ class Image(object):
         if self._array is None:
             self._array = np.asarray(self._pil)
         return self._array
-
 
     def aspil(self):
         """Obtain the image data as :class:`PIL.Image.Image`.
@@ -560,6 +572,17 @@ class Image(object):
     @property
     def height(self):
         return self.shape[0]
+
+    @property
+    def default_format(self):
+        return self._default_format
+
+    @default_format.setter
+    def default_format(self, value):
+        if value in SUPPORTED_FORMATS:
+            self._default_format = value
+        else:
+            raise ValueError('Unrecognized format: {0}'.format(value))
 
     def fill_into_maskable_buffer(self, buffer, iy_idx, ix_idx, by_idx, bx_idx):
         """
@@ -648,7 +671,7 @@ class Image(object):
         else:
             raise Exception('unhandled mode in update_into_maskable_buffer')
 
-    def save_default(self, path_or_stream):
+    def save_default(self, path_or_stream, format=None):
         """
         Save this image to a filesystem path or stream
 
@@ -659,12 +682,17 @@ class Image(object):
             the stream should accept bytes.
 
         """
-        if self.mode in (ImageMode.RGB, ImageMode.RGBA):
-            self.aspil().save(path_or_stream, format='PNG')
-        elif self.mode in (ImageMode.F32, ImageMode.F16x3):
+
+        format = format or self._default_format
+
+        if format in PIL_FORMATS:
+            self.aspil().save(path_or_stream, format=PIL_FORMATS[format])
+        elif format == 'npy':
             np.save(path_or_stream, self.asarray())
+        elif format == 'fits':
+            fits.writeto(path_or_stream, self.asarray(), overwrite=True)
         else:
-            raise Exception('unhandled mode in save_default')
+            raise Exception('Unrecognised preferred format: {0}'.format(format))
 
     def make_thumbnail_bitmap(self):
         """Create a thumbnail bitmap from the image.
@@ -676,7 +704,7 @@ class Image(object):
         be saved in JPEG format.
 
         """
-        if self.mode in (ImageMode.F32, ImageMode.F16x3):
+        if self.mode in (ImageMode.F32, ImageMode.F64, ImageMode.F16x3):
             raise Exception('cannot thumbnail-ify non-RGB Image')
 
         THUMB_SHAPE = (96, 45)
@@ -727,7 +755,7 @@ class Image(object):
         """
         if self._mode in (ImageMode.RGB, ImageMode.RGBA):
             self.asarray().fill(0)
-        elif self._mode in (ImageMode.F32, ImageMode.F16x3):
+        elif self._mode in (ImageMode.F32, ImageMode.F64, ImageMode.F16x3):
             self.asarray().fill(np.nan)
         else:
             raise Exception('unhandled mode in clear()')

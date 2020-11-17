@@ -140,7 +140,7 @@ def multi_tan_make_data_tiles_impl(settings):
     from .multi_tan import MultiTanDataSource
     from .pyramid import PyramidIO
 
-    pio = PyramidIO(settings.outdir)
+    pio = PyramidIO(settings.outdir, default_format='npy')
     ds = MultiTanDataSource(settings.paths, hdu_index=settings.hdu_index)
     ds.compute_global_pixelization()
 
@@ -398,7 +398,7 @@ def tile_healpix_impl(settings):
     from .pyramid import PyramidIO
     from .samplers import healpix_fits_file_sampler
 
-    pio = PyramidIO(settings.outdir)
+    pio = PyramidIO(settings.outdir, default_format='npy')
     sampler = healpix_fits_file_sampler(settings.fitspath)
     builder = Builder(pio)
     builder.toast_base(ImageMode.F32, sampler, settings.depth)
@@ -446,7 +446,7 @@ def tile_study_impl(settings):
     from .pyramid import PyramidIO
 
     img = ImageLoader.create_from_args(settings).load_path(settings.imgpath)
-    pio = PyramidIO(settings.outdir)
+    pio = PyramidIO(settings.outdir, default_format=img.default_format)
     builder = Builder(pio)
     builder.default_tiled_study_astrometry()
 

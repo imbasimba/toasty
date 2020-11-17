@@ -14,9 +14,10 @@ import sys
 from . import assert_xml_elements_equal, test_path
 from .. import cli
 from .. import pipeline
+from ..pipeline import astropix
 
 
-class LocalTestAstroPixCandidateInput(pipeline.AstroPixCandidateInput):
+class LocalTestAstroPixCandidateInput(astropix.AstroPixCandidateInput):
     def cache_data(self, cachedir):
         import json
 
@@ -29,7 +30,7 @@ class LocalTestAstroPixCandidateInput(pipeline.AstroPixCandidateInput):
             json.dump(self._json, f)
 
 
-class LocalTestAstroPixImageSource(pipeline.AstroPixImageSource):
+class LocalTestAstroPixImageSource(astropix.AstroPixImageSource):
     def query_candidates(self):
         # NB all these values are wrong for the input image!!!
         item = {
@@ -68,9 +69,7 @@ class LocalTestAstroPixImageSource(pipeline.AstroPixImageSource):
         with open(os.path.join(cachedir, 'astropix.json'), 'rt', encoding='utf8') as f:
             json_data = json.load(f)
 
-        return pipeline.AstroPixInputImage(unique_id, cachedir, json_data)
-
-pipeline._image_source_types['_local_test_astropix'] = LocalTestAstroPixImageSource
+        return astropix.AstroPixInputImage(unique_id, cachedir, json_data)
 
 
 class TestPipeline(object):

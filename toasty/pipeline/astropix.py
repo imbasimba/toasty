@@ -12,6 +12,7 @@ AstroPixInputImage
 AstroPixCandidateInput
 '''.split()
 
+import codecs
 from datetime import datetime
 import json
 import numpy as np
@@ -70,6 +71,21 @@ class AstroPixCandidateInput(CandidateInput):
 
     def get_unique_id(self):
         return self._global_id.replace('/', '_')
+
+    def save(self, stream):
+        # First check that this input is usable. The NRAO feed contains an
+        # item like this, and based on my investigations they are just not
+        # usable right now because the server APIs don't work. So: skip any
+        # like this.
+        if '/' in self._json['image_id']:
+            raise NotActionableError('AstroPix images with "/" in their IDs aren\'t retrievable')
+
+        # TODO? A few NRAO images have SIN projection. Try to recover them?
+        if self._json['wcs_projection'] != 'TAN':
+            raise NotActionableError('cannot ingest images in non-TAN projections')
+
+        with codecs.getwriter('utf8')(stream) as text_stream:
+            json.dump(self._json, text_stream, ensure_ascii=False, indent=2)
 
     def cache_data(self, cachedir):
         # First check that this input is usable. The NRAO feed contains an

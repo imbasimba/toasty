@@ -16,6 +16,7 @@ import os.path
 import sys
 
 from ..cli import die, warn
+from . import NotActionableError
 
 
 # The "init" subcommand
@@ -87,39 +88,75 @@ def init_impl(settings):
     pipeio.save_config(os.path.join(settings.workdir, 'toasty-store-config.yaml'))
 
 
-# Other subcommands not yet split out.
+# The "refresh" subcommand
+#
+# TODO: for large feeds, we should potentially add features to make it so that
+# we don't re-check every single candidate that's ever been posted.
 
-def _pipeline_add_io_args(parser):
+def refresh_setup_parser(parser):
     parser.add_argument(
-        '--azure-conn-env',
-        metavar = 'ENV-VAR-NAME',
-        help = 'The name of an environment variable contain an Azure Storage '
-                'connection string'
-    )
-    parser.add_argument(
-        '--azure-container',
-        metavar = 'CONTAINER-NAME',
-        help = 'The name of a blob container in the Azure storage account'
-    )
-    parser.add_argument(
-        '--azure-path-prefix',
-        metavar = 'PATH-PREFIX',
-        help = 'A slash-separated path prefix for blob I/O within the container'
-    )
-    parser.add_argument(
-        '--local',
+        'workdir',
+        nargs = '?',
         metavar = 'PATH',
-        help = 'Use the local-disk I/O backend'
+        default = '.',
+        help = 'The working directory for this processing session'
     )
 
 
+def refresh_impl(settings):
+    from . import PipelineManager
 
+    mgr = PipelineManager(settings.workdir)
+    cand_dir = mgr._ensure_dir('candidates')
+    rej_dir = mgr._ensure_dir('rejects')
+    src = mgr.get_image_source()
+    n_cand = 0
+    n_saved = 0
+    n_done = 0
+    n_skipped = 0
+    n_rejected = 0
+
+    for cand in src.query_candidates():
+        n_cand += 1
+        uniq_id = cand.get_unique_id()
+
+        if mgr._pipeio.check_exists(uniq_id, 'index.wtml'):
+            n_done += 1
+            continue  # skip already-done inputs
+
+        if mgr._pipeio.check_exists(uniq_id, 'skip.flag'):
+            n_skipped += 1
+            continue  # skip inputs that are explicitly flagged
+
+        cand_path = os.path.join(cand_dir, uniq_id)
+
+        try:
+            with open(cand_path, 'wb') as f:
+                cand.save(f)
+            n_saved += 1
+        except NotActionableError as e:
+            os.remove(cand_path)
+
+            with open(os.path.join(rej_dir, uniq_id, 'wb')) as f:
+                pass  # for now, just touch the file
+
+            n_rejected += 1
+
+    print(f'analyzed {n_cand} candidates from the image source')
+    print(f'  - {n_saved} processing candidates saved')
+    print(f'  - {n_rejected} rejected as definitely unusable')
+    print(f'  - {n_done} were already done')
+    print(f'  - {n_skipped} were already marked to be ignored')
+    print()
+    print('See the `candidates` directory for candidate image IDs.')
+
+
+# Other subcommands not yet split out.
 
 def pipeline_getparser(parser):
     subparsers = parser.add_subparsers(dest='pipeline_command')
 
     parser = subparsers.add_parser('fetch-inputs')
-    _pipeline_add_io_args(parser)
     parser.add_argument(
         'workdir',
         nargs = '?',
@@ -131,7 +168,6 @@ def pipeline_getparser(parser):
     init_setup_parser(subparsers.add_parser('init'))
 
     parser = subparsers.add_parser('process-todos')
-    _pipeline_add_io_args(parser)
     parser.add_argument(
         'workdir',
         nargs = '?',
@@ -141,7 +177,6 @@ def pipeline_getparser(parser):
     )
 
     parser = subparsers.add_parser('publish-todos')
-    _pipeline_add_io_args(parser)
     parser.add_argument(
         'workdir',
         nargs = '?',
@@ -150,8 +185,9 @@ def pipeline_getparser(parser):
         help = 'The local working directory',
     )
 
+    refresh_setup_parser(subparsers.add_parser('refresh'))
+
     parser = subparsers.add_parser('reindex')
-    _pipeline_add_io_args(parser)
     parser.add_argument(
         'workdir',
         nargs = '?',
@@ -179,6 +215,8 @@ def pipeline_impl(settings):
     elif settings.pipeline_command == 'publish-todos':
         mgr = PipelineManager(settings.workdir)
         mgr.publish_todos()
+    elif settings.pipeline_command == 'refresh':
+        refresh_impl(settings)
     elif settings.pipeline_command == 'reindex':
         mgr = PipelineManager(settings.workdir)
         mgr.reindex()

@@ -300,12 +300,34 @@ class CandidateInput(ABC):
     """
     @abstractmethod
     def get_unique_id(self):
-        """Get an ID for this image that will be unique in its :class:`ImageSource`.
+        """
+        Get an ID for this image that will be unique in its :class:`ImageSource`.
 
         Returns
         -------
         An identifier as a string. Should be limited to path-friendly
         characters, i.e. ASCII without spaces.
+
+        """
+
+    @abstractmethod
+    def save(self, stream):
+        """
+        Serialize candidate information for future processing
+
+        Parameters
+        ----------
+        stream : writeable stream accepting bytes
+           The stream into which the candidate information should be serialized.
+
+        Raises
+        ------
+        May raise :exc:`NotActionableError` if it turns out that this
+        candidate is not one that can be imported into WWT.
+
+        Returns
+        -------
+        None.
 
         """
 

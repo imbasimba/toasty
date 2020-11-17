@@ -350,27 +350,6 @@ class CandidateInput(ABC):
 
         """
 
-    @abstractmethod
-    def cache_data(self, cachedir):
-        """Cache all of the source image data and metadata locally.
-
-        Parameters
-        ----------
-        cachedir : str
-           A path pointing to a local directory inside of which the
-           source data should be cached.
-
-        Raises
-        ------
-        May raise :exc:`toasty.pipeline.NotActionableError` if it turns out that this
-        candidate is not one that can be imported into WWT.
-
-        Returns
-        -------
-        None.
-
-        """
-
 
 # The `InputImage` ABC and implementation
 

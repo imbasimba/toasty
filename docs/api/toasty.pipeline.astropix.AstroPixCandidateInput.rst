@@ -10,12 +10,10 @@ AstroPixCandidateInput
 
    .. autosummary::
 
-      ~AstroPixCandidateInput.cache_data
       ~AstroPixCandidateInput.get_unique_id
       ~AstroPixCandidateInput.save
 
    .. rubric:: Methods Documentation
 
-   .. automethod:: cache_data
    .. automethod:: get_unique_id
    .. automethod:: save

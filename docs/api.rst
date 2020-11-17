@@ -38,6 +38,10 @@ Python API Reference
    :no-inheritance-diagram:
    :no-inherited-members:
 
+.. automodapi:: toasty.pipeline.cli
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
 .. automodapi:: toasty.pipeline.local_io
    :no-inheritance-diagram:
    :no-inherited-members:

@@ -1,7 +1,7 @@
 AzureBlobPipelineIo
 ===================
 
-.. currentmodule:: toasty.pipeline
+.. currentmodule:: toasty.pipeline.azure_io
 
 .. autoclass:: AzureBlobPipelineIo
    :show-inheritance:

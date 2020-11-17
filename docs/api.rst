@@ -34,6 +34,10 @@ Python API Reference
    :no-inheritance-diagram:
    :no-inherited-members:
 
+.. automodapi:: toasty.pipeline.azure_io
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
 .. automodapi:: toasty.pyramid
    :no-inheritance-diagram:
    :no-inherited-members:

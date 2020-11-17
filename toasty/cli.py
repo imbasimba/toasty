@@ -172,7 +172,7 @@ def _pipeline_add_io_args(parser):
     )
 
 def _pipeline_io_from_settings(settings):
-    from .pipeline import AzureBlobPipelineIo, LocalPipelineIo
+    from .pipeline import azure_io, LocalPipelineIo
 
     if settings.local:
         return LocalPipelineIo(settings.local)
@@ -190,7 +190,9 @@ def _pipeline_io_from_settings(settings):
         if not path_prefix:
             path_prefix = ''
 
-        return AzureBlobPipelineIo(
+        azure_io.assert_enabled()
+
+        return azure_io.AzureBlobPipelineIo(
             conn_str,
             settings.azure_container,
             path_prefix

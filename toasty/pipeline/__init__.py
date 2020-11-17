@@ -658,7 +658,7 @@ class BitmapInputImage(InputImage):
         return self._bitmap
 
     def _process_image_data(self, imgset, outdir):
-        from .image import Image, ImageMode
+        from ..image import Image, ImageMode
         self._ensure_bitmap()
 
         needs_tiling = self._bitmap.width > 2048 or self._bitmap.height > 2048
@@ -669,9 +669,9 @@ class BitmapInputImage(InputImage):
             imgset.url = 'image.jpg'
             imgset.file_type = '.jpg'
         else:
-            from .study import tile_study_image
-            from .pyramid import PyramidIO
-            from .merge import averaging_merger, cascade_images
+            from ..study import tile_study_image
+            from ..pyramid import PyramidIO
+            from ..merge import averaging_merger, cascade_images
 
             # Create the base layer
             pio = PyramidIO(outdir, scheme='LXY')

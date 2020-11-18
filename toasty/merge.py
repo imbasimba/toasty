@@ -130,6 +130,7 @@ def _cascade_images_serial(pio, mode, start, merger, cli_progress):
                 if subimg is not None:
                     if buf is None:
                         buf = mode.make_maskable_buffer(512, 512)
+                        buf.clear()
 
                     buf.asarray()[slidx] = subimg.asarray()
 
@@ -287,6 +288,7 @@ def _mp_cascade_worker(done_queue, ready_queue, pio, merger, mode):
                 if subimg is not None:
                     if buf is None:
                         buf = mode.make_maskable_buffer(512, 512)
+                        buf.clear()
 
                     buf.asarray()[slidx] = subimg.asarray()
 

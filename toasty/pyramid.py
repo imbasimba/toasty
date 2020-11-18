@@ -176,7 +176,19 @@ def generate_pos(depth):
 
 
 class PyramidIO(object):
-    """Manage I/O on a tile pyramid."""
+    """
+    Manage I/O on a tile pyramid.
+
+    Parameters
+    ----------
+    base_dir : str
+        The base directory containing the tiles
+    scheme : str
+        The tile organizatio scheme, should be either 'L/Y/YX' or 'LXY'
+    default_format : str
+        The file format to assume for the tiles if none is specified when
+        reading/writing tiles. Defaults to 'png'.
+    """
 
     def __init__(self, base_dir, scheme='L/Y/YX', default_format='png'):
 
@@ -312,7 +324,7 @@ class PyramidIO(object):
 
         """
         p = self.tile_path(pos, format=format or self._default_format)
-        image.save_default(p, format=format or self._default_format)
+        image.save(p, format=format or self._default_format)
 
     @contextmanager
     def update_image(self, pos, mode, default='none', format=None):

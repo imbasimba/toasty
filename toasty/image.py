@@ -36,6 +36,11 @@ if ASTROPY_INSTALLED:
     SUPPORTED_FORMATS += ['fits']
 
 
+def _validate_format(name, fmt):
+    if fmt is not None and fmt not in SUPPORTED_FORMATS:
+        raise ValueError('{0} should be one of {1}'.format(name, '/'.join(sorted(SUPPORTED_FORMATS))))
+
+
 class ImageMode(Enum):
     """
     Allowed image "modes", describing their pixel data formats.
@@ -377,7 +382,7 @@ class ImageLoader(object):
                 mode = ImageMode.F32
 
             arr = np.load(path)
-            return Image.from_array(mode, arr, format='npy')
+            return Image.from_array(mode, arr, default_format='npy')
 
         if path.lower().endswith(('.fits', '.fts', '.fits.gz', '.fts.gz')):
 
@@ -390,7 +395,7 @@ class ImageLoader(object):
             else:
                 mode = ImageMode.from_dtype(arr.dtype)
 
-            return Image.from_array(mode, arr, format='fits')
+            return Image.from_array(mode, arr, default_format='fits')
 
         # Special handling for Photoshop files, used for some very large mosaics
         # with transparency (e.g. the PHAT M31/M33 images).
@@ -443,7 +448,7 @@ class Image(object):
     _default_format = 'png'
 
     @classmethod
-    def from_pil(cls, pil_img, format=None):
+    def from_pil(cls, pil_img, default_format=None):
         """
         Create a new Image from a PIL image.
 
@@ -451,11 +456,17 @@ class Image(object):
         ----------
         pil_img : :class:`PIL.Image.Image`
             The source image.
+        default_format : str
+            The default format to use when writing the image if none is
+            specified explicitly.
 
         Returns
         -------
         A new :class:`Image` wrapping the PIL image.
         """
+
+        _validate_format('default_format', default_format)
+
         # Make sure that the image data are actually loaded from disk. Pillow
         # lazy-loads such that sometimes `np.asarray(img)` ends up failing
         # mysteriously if the image is loaded from a file handle that is closed
@@ -464,7 +475,7 @@ class Image(object):
 
         inst = cls()
         inst._pil = pil_img
-        inst._default_format = format or cls._default_format
+        inst._default_format = default_format or cls._default_format
 
         try:
             inst._mode = ImageMode(pil_img.mode)
@@ -474,7 +485,7 @@ class Image(object):
         return inst
 
     @classmethod
-    def from_array(cls, mode, array, format=None):
+    def from_array(cls, mode, array, default_format=None):
         """Create a new Image from an array-like data variable.
 
         Parameters
@@ -483,6 +494,9 @@ class Image(object):
             The image mode.
         array : array-like object
             The source data.
+        default_format : str
+            The default format to use when writing the image if none is
+            specified explicitly.
 
         Returns
         -------
@@ -494,6 +508,9 @@ class Image(object):
         array shape should match the requirements of the mode.
 
         """
+
+        _validate_format('default_format', default_format)
+
         array = np.atleast_2d(array)
         array_ok = False
 
@@ -514,7 +531,7 @@ class Image(object):
 
         inst = cls()
         inst._mode = mode
-        inst._default_format = format or cls._default_format
+        inst._default_format = default_format or cls._default_format
         inst._array = array
         return inst
 
@@ -679,7 +696,7 @@ class Image(object):
         else:
             raise Exception('unhandled mode in update_into_maskable_buffer')
 
-    def save_default(self, path_or_stream, format=None):
+    def save(self, path_or_stream, format=None):
         """
         Save this image to a filesystem path or stream
 
@@ -691,6 +708,8 @@ class Image(object):
 
         """
 
+        _validate_format('format', format)
+
         format = format or self._default_format
 
         if format in PIL_FORMATS:
@@ -699,8 +718,6 @@ class Image(object):
             np.save(path_or_stream, self.asarray())
         elif format == 'fits':
             fits.writeto(path_or_stream, self.asarray(), overwrite=True)
-        else:
-            raise Exception('Unrecognised preferred format: {0}'.format(format))
 
     def make_thumbnail_bitmap(self):
         """Create a thumbnail bitmap from the image.

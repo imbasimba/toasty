@@ -387,18 +387,28 @@ class ImageLoader(object):
         if path.lower().endswith(('.fits', '.fts', '.fits.gz', '.fts.gz')):
 
             # TODO: implement a better way to recognize FITS files
+            # TODO: decide how to handle multiple HDUs
+            # TODO: decide how to handle non-TAN projections
 
-            arr = fits.getdata(path)
+            hdu = fits.open(path)[0]
+            arr = hdu.data
+            if ASTROPY_INSTALLED:
+                from astropy.wcs import WCS
+                wcs = WCS(hdu.header)
+            else:
+                wcs = None
 
             if self.desired_mode is not None:
                 mode = self.desired_mode
             else:
                 mode = ImageMode.from_dtype(arr.dtype)
 
-            return Image.from_array(mode, arr, default_format='fits')
+            return Image.from_array(mode, arr, wcs=wcs, default_format='fits')
 
         # Special handling for Photoshop files, used for some very large mosaics
         # with transparency (e.g. the PHAT M31/M33 images).
+
+        # TODO: check for AVM in following formats and set WCS using this if needed.
 
         if path.endswith('.psd') or path.endswith('.psb'):
             try:
@@ -446,9 +456,10 @@ class Image(object):
     _pil = None
     _array = None
     _default_format = 'png'
+    _wcs = None
 
     @classmethod
-    def from_pil(cls, pil_img, default_format=None):
+    def from_pil(cls, pil_img, wcs=None, default_format=None):
         """
         Create a new Image from a PIL image.
 
@@ -456,6 +467,8 @@ class Image(object):
         ----------
         pil_img : :class:`PIL.Image.Image`
             The source image.
+        wcs : :class:`~astropy.wcs.WCS`
+            The WCS coordinate system for the image.
         default_format : str
             The default format to use when writing the image if none is
             specified explicitly.
@@ -475,6 +488,7 @@ class Image(object):
 
         inst = cls()
         inst._pil = pil_img
+        inst._wcs = wcs
         inst._default_format = default_format or cls._default_format
 
         try:
@@ -485,7 +499,7 @@ class Image(object):
         return inst
 
     @classmethod
-    def from_array(cls, mode, array, default_format=None):
+    def from_array(cls, mode, array, wcs=None, default_format=None):
         """Create a new Image from an array-like data variable.
 
         Parameters
@@ -494,6 +508,8 @@ class Image(object):
             The image mode.
         array : array-like object
             The source data.
+        wcs : :class:`~astropy.wcs.WCS`
+            The WCS coordinate system for the image.
         default_format : str
             The default format to use when writing the image if none is
             specified explicitly.
@@ -533,6 +549,7 @@ class Image(object):
         inst._mode = mode
         inst._default_format = default_format or cls._default_format
         inst._array = array
+        inst._wcs = wcs
         return inst
 
     def asarray(self):
@@ -582,6 +599,10 @@ class Image(object):
     def dtype(self):
         # TODO: can this be more efficient? Does it need to be?
         return self.asarray().dtype
+
+    @property
+    def wcs(self):
+        return self._wcs
 
     @property
     def shape(self):
@@ -717,7 +738,10 @@ class Image(object):
         elif format == 'npy':
             np.save(path_or_stream, self.asarray())
         elif format == 'fits':
-            fits.writeto(path_or_stream, self.asarray(), overwrite=True)
+            if self._wcs is None:
+                header = None if self._wcs is None else self._wcs.toheader()
+            fits.writeto(path_or_stream, self.asarray(),
+                         header=header, overwrite=True)
 
     def make_thumbnail_bitmap(self):
         """Create a thumbnail bitmap from the image.

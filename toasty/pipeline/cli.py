@@ -41,6 +41,7 @@ def fetch_impl(settings):
 
     mgr = PipelineManager(settings.workdir)
     cand_dir = mgr._ensure_dir('candidates')
+    rej_dir = mgr._ensure_dir('rejects')
     src = mgr.get_image_source()
 
     for cid in settings.cand_ids:
@@ -49,13 +50,19 @@ def fetch_impl(settings):
         except FileNotFoundError:
             die(f'no such candidate ID {cid!r}')
 
-        print(f'fetching {cid} ...', end='')
+        print(f'fetching {cid} ... ', end='')
         sys.stdout.flush()
 
-        cachedir = mgr._ensure_dir('cache_todo', cid)
-        src.fetch_candidate(cid, cdata, cachedir)
-        cdata.close()
-        print('done')
+        try:
+            cachedir = mgr._ensure_dir('cache_todo', cid)
+            src.fetch_candidate(cid, cdata, cachedir)
+            print('done')
+        except NotActionableError:
+            print('not usable')
+            os.rename(os.path.join(cand_dir, cid), os.path.join(rej_dir, cid))
+            os.rmdir(cachedir)
+        finally:
+            cdata.close()
 
 
 # The "init" subcommand

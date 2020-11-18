@@ -190,7 +190,7 @@ class TestSampleLayer(object):
 
         img = ImageLoader().load_path(test_path('Equirectangular_projection_SW-tweaked.exr'))
         sampler = plate_carree_sampler(img.asarray())
-        sample_layer(self.pio, ImageMode.F16x3, sampler, 1)
+        sample_layer(self.pio, ImageMode.F16x3, sampler, 1, format='npy')
         f16x3_to_rgb(self.pio, 1, parallel=1)
         self.verify_level1(ImageMode.RGB)
 

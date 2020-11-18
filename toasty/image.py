@@ -22,10 +22,18 @@ from enum import Enum
 from PIL import Image as pil_image
 import numpy as np
 import sys
-from astropy.io import fits
+
+try:
+    from astropy.io import fits
+    ASTROPY_INSTALLED = True
+except ImportError:
+    ASTROPY_INSTALLED = False
 
 PIL_FORMATS = {'jpg': 'JPEG', 'png': 'PNG'}
-SUPPORTED_FORMATS = list(PIL_FORMATS) + ['npy', 'fits']
+SUPPORTED_FORMATS = list(PIL_FORMATS) + ['npy']
+
+if ASTROPY_INSTALLED:
+    SUPPORTED_FORMATS += ['fits']
 
 
 class ImageMode(Enum):

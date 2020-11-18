@@ -8,7 +8,6 @@ Support for loading images from an AstroPix feed.
 
 __all__ = '''
 AstroPixImageSource
-AstroPixInputImage
 AstroPixCandidateInput
 '''.split()
 
@@ -17,12 +16,12 @@ from datetime import datetime
 import json
 import numpy as np
 import os.path
-from PIL import Image as PilImage
 import requests
 import shutil
 from urllib.parse import quote as urlquote
 
-from . import BitmapInputImage, CandidateInput, ImageSource, NotActionableError
+from ..image import ImageLoader
+from . import CandidateInput, ImageSource, NotActionableError
 
 
 EXTENSION_REMAPPING = {
@@ -47,12 +46,14 @@ class AstroPixImageSource(ImageSource):
         inst._json_query_url = data['json_query_url']
         return inst
 
+
     def query_candidates(self):
         with requests.get(self._json_query_url, stream=True) as resp:
             feed_data = json.load(resp.raw)
 
         for item in feed_data:
             yield AstroPixCandidateInput(item)
+
 
     def fetch_candidate(self, unique_id, cand_data_stream, cachedir):
         with codecs.getreader('utf8')(cand_data_stream) as text_stream:
@@ -110,18 +111,48 @@ class AstroPixImageSource(ImageSource):
                 shutil.copyfileobj(resp.raw, f)
 
 
-    def open_input(self, unique_id, cachedir):
-        with open(os.path.join(cachedir, 'astropix.json'), 'rt', encoding='utf8') as f:
-            json_data = json.load(f)
+    def process(self, unique_id, cand_data_stream, cachedir, builder):
+        # Set up the metadata.
 
-        return AstroPixInputImage(unique_id, cachedir, json_data)
+        with codecs.getreader('utf8')(cand_data_stream) as text_stream:
+            info = json.load(text_stream)
+
+        if info['resource_url'] and len(info['resource_url']):
+            ext = info['resource_url'].rsplit('.', 1)[-1].lower()
+            ext = EXTENSION_REMAPPING.get(ext, ext)
+        else:
+            ext = 'jpg'
+
+        img_path = os.path.join(cachedir, 'image.' + ext)
+        md = AstroPixMetadata(info)
+
+        # Load up the image.
+
+        img = ImageLoader().load_path(img_path)
+
+        # Do the processing.
+
+        builder.tile_base_as_study(img)
+        builder.make_thumbnail_from_other(img)
+
+        builder.imgset.set_position_from_wcs(
+            md.as_wcs_headers(img.width, img.height),
+            img.width,
+            img.height,
+            place = builder.place,
+        )
+
+        builder.set_name(info['title'])
+        builder.imgset.credits_url = md.get_credit_url()
+
+        builder.cascade()
 
 
 class AstroPixCandidateInput(CandidateInput):
     """
     A CandidateInput obtained from an AstroPix query.
-
     """
+
     def __init__(self, json_dict):
         self._json = json_dict
         self._lower_id = self._json['image_id'].lower()
@@ -157,14 +188,12 @@ ASTROPIX_FLOAT_SCALAR_KEYS = [
     'wcs_rotation',
 ]
 
-class AstroPixInputImage(BitmapInputImage):
+class AstroPixMetadata(object):
     """
-    An InputImage obtained from an AstroPix query result.
+    Metadata derived from AstroPix query results.
     """
-    global_id = None
+
     image_id = None
-    lower_id = None
-    normalized_extension = None
     publisher_id = None
     resource_url = None
     wcs_coordinate_frame = None  # ex: 'ICRS'
@@ -176,10 +205,8 @@ class AstroPixInputImage(BitmapInputImage):
     wcs_rotation = None  # ex: -0.07 (deg, presumably)
     wcs_scale = None  # ex: [-6e-7, 6e-7]
 
-    def __init__(self, unique_id, cachedir, json_dict):
-        super(AstroPixInputImage, self).__init__(unique_id, cachedir)
-
-        # Some massaging for consistency
+    def __init__(self, json_dict):
+        # Some massaging for consistency:
 
         for k in ASTROPIX_FLOAT_ARRAY_KEYS:
             if k in json_dict:
@@ -192,10 +219,8 @@ class AstroPixInputImage(BitmapInputImage):
         for k, v in json_dict.items():
             setattr(self, k, v)
 
-    def _load_bitmap(self):
-        return PilImage.open(os.path.join(self._cachedir, self.toasty_cached_image_name))
 
-    def _as_wcs_headers(self):
+    def as_wcs_headers(self, width, height):
         headers = {}
 
         #headers['RADECSYS'] = self.wcs_coordinate_frame  # causes Astropy warnings
@@ -226,8 +251,8 @@ class AstroPixInputImage(BitmapInputImage):
         # should map to [W' + 0.5, H' + 0.5] (where the primed quantities are
         # the new width and height).
 
-        factor0 = self._bitmap.width / self.wcs_reference_dimension[0]
-        factor1 = self._bitmap.height / self.wcs_reference_dimension[1]
+        factor0 = width / self.wcs_reference_dimension[0]
+        factor1 = height / self.wcs_reference_dimension[1]
 
         headers['CRPIX1'] = (self.wcs_reference_pixel[0] - 0.5) * factor0 + 0.5
         headers['CRPIX2'] = (self.wcs_reference_pixel[1] - 0.5) * factor1 + 0.5
@@ -236,14 +261,8 @@ class AstroPixInputImage(BitmapInputImage):
 
         return headers
 
-    def _process_image_coordinates(self, imgset, place):
-        imgset.set_position_from_wcs(
-            self._as_wcs_headers(),
-            self._bitmap.width, self._bitmap.height,
-            place = place,
-        )
 
-    def _get_credit_url(self):
+    def get_credit_url(self):
         if self.reference_url:
             return self.reference_url
 
@@ -251,16 +270,3 @@ class AstroPixInputImage(BitmapInputImage):
             urlquote(self.publisher_id),
             urlquote(self.image_id),
         )
-
-    def _process_image_metadata(self, imgset, place):
-        imgset.name = self.title
-        imgset.description = self.description
-        imgset.credits = self.image_credit
-        imgset.credits_url = self._get_credit_url()
-
-        # Parse the last-updated time and normalize it.
-        ludt = datetime.fromisoformat(self.last_updated)
-        if ludt.tzinfo is None:
-            ludt = ludt.replace(tzinfo=timezone.utc)
-
-        place.xmeta.LastUpdated = str(ludt)

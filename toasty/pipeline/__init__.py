@@ -9,10 +9,8 @@ used by AAS WorldWide Telescope.
 from __future__ import absolute_import, division, print_function
 
 __all__ = '''
-BitmapInputImage
 CandidateInput
 ImageSource
-InputImage
 NotActionableError
 PipelineIo
 '''.split()
@@ -22,6 +20,7 @@ from datetime import datetime, timezone
 import numpy as np
 import os.path
 import shutil
+import sys
 from urllib.parse import urlsplit, quote as urlquote
 from wwt_data_formats import write_xml_doc
 from wwt_data_formats.folder import Folder
@@ -29,19 +28,6 @@ from wwt_data_formats.imageset import ImageSet
 from wwt_data_formats.place import Place
 import yaml
 
-
-def maybe_prefix_url(url, prefix):
-    """Add a prefix to a URL *if* it is relative URL. This function is used to
-    manipulate URLs such as credits_url but only if they're not absolute URLs
-    pointing to external resources. Empty URLs will also be unmodified
-
-    """
-    if not url:
-        return url
-    is_relative = not bool(urlsplit(url).netloc)
-    if is_relative:
-        return prefix + url
-    return url
 
 def splitall(path):
     """Split a path into individual components.
@@ -65,18 +51,13 @@ def splitall(path):
             allparts.insert(0, parts[1])
     return allparts
 
+
 class NotActionableError(Exception):
     """Raised when an image is provided to the pipeline but for some reason we're
     not going to be able to get it into a WWT-compatible form.
 
     """
 
-EXTENSION_REMAPPING = {
-    'jpeg': 'jpg',
-}
-
-
-# The `PipelineIo` ABC
 
 class PipelineIo(ABC):
     """
@@ -224,8 +205,6 @@ class PipelineIo(ABC):
         """
 
 
-# The `ImageSource` ABC and implementations
-
 class ImageSource(ABC):
     """An abstract base class representing a source of images to be processed in
     the image-processing pipeline. An instance of this class might fetch
@@ -285,31 +264,35 @@ class ImageSource(ABC):
             A data stream returning the data that were saved when the candidate
             was queried (:meth:`toasty.pipeline.CandidateInput.save`).
         cachedir : path-like
-           A path pointing to a local directory inside of which the
-           full image data and metadata should be cached.
+            A path pointing to a local directory inside of which the
+            full image data and metadata should be cached.
         """
 
     @abstractmethod
-    def open_input(self, unique_id, cachedir):
-        """Open an input image for processing.
+    def process(self, unique_id, cand_data_stream, cachedir, builder):
+        """
+        Process an input into WWT format.
 
         Parameters
         ----------
         unique_id : str
-            The unique ID returned by the :class:`toasty.pipeline.CandidateInput` instance that created
-            the cached data for this input image.
-        cachedir : str
-           A path pointing to a local directory inside of which the
-           source data were cached.
+            The unique ID returned by the :class:`toasty.pipeline.CandidateInput` instance
+            that was returned from the initial query.
+        cand_data_stream : readable stream returning bytes
+            A data stream returning the data that were saved when the candidate
+            was queried (:meth:`toasty.pipeline.CandidateInput.save`).
+        cachedir : path-like
+            A path pointing to a local directory inside of which the
+            full image data and metadata should be cached.
+        builder : :class:`toasty.builder.Builder`
+            State object for constructing the WWT data files.
 
-        Returns
-        -------
-        An instance of :class:`toasty.pipeline.InputImage` corresponding to the cached data.
-
+        Notes
+        -----
+        Your image processor should run the tile cascade, if needed, but the
+        caller will take care of emitting the ``index_rel.wtml`` file.
         """
 
-
-# The `CandidateInput` ABC and implementation
 
 class CandidateInput(ABC):
     """An abstract base class representing an image from one of our sources. If it
@@ -349,194 +332,6 @@ class CandidateInput(ABC):
         None.
 
         """
-
-
-# The `InputImage` ABC and implementation
-
-class InputImage(ABC):
-    """An abstract base class representing an image to be processed by the
-    pipeline. Such an "image" need not correspond to a single RGB image, but
-    it does have to be convertible into some kind of WWT-compatible format
-    expressible as a :class:`wwt_data_formats.imageset.ImageSet` item.
-
-    Parameters
-    ----------
-    unique_id : str
-        The unique ID returned by the :class:`CandidateInput` instance that created
-        the cached data for this input image.
-    cachedir : str
-       A path pointing to a local directory inside of which the
-       image source data were cached locally.
-
-    """
-    def __init__(self, unique_id, cachedir):
-        self._unique_id = unique_id
-        self._cachedir = cachedir
-
-    @abstractmethod
-    def _process_image_data(self, imgset, outdir):
-        """Convert the image data into a WWT-compatible format.
-
-        Parameters
-        ----------
-        imgset : :class:`wwt_data_formats.imageset.ImageSet`
-           An object representing metadata about the resulting WWT-compatible
-           imagery. Fields inside this object should be filled in as
-           appropriate to correspond to the data processing done here. Data URLs
-           should be filled in as URLs relative to *outdir*.
-        outdir : str
-           A path pointing to a local directory inside of which the
-           WWT-compatible output data files should be written.
-
-        Returns
-        -------
-        None.
-
-        Notes
-        -----
-        This function should also take care of creating the thumbnail.
-
-        """
-
-    @abstractmethod
-    def _process_image_coordinates(self, imgset, place):
-        """Fill the ImageSet object with sky coordinate information.
-
-        Parameters
-        ----------
-        imgset : :class:`wwt_data_formats.imageset.ImageSet`
-           An object representing metadata about the resulting WWT-compatible
-           imagery. Fields inside this object should be filled in as
-           appropriate to correspond to sky positioning of this image.
-        place : :class:`wwt_data_formats.place.Place`
-           A "Place" object that will contain the imgset.
-
-        Returns
-        -------
-        None.
-
-        """
-
-    @abstractmethod
-    def _process_image_metadata(self, imgset, place):
-        """Fill the ImageSet object with metadata.
-
-        Parameters
-        ----------
-        imgset : :class:`wwt_data_formats.imageset.ImageSet`
-           An object representing metadata about the resulting WWT-compatible
-           imagery. Fields inside this object should be filled in as
-           appropriate to correspond to the image metadata.
-        place : :class:`wwt_data_formats.place.Place`
-           A "Place" object that will contain the imgset.
-
-        Returns
-        -------
-        None.
-
-        """
-
-    def process_image(self, baseoutdir):
-        """Convert the image into WWT-compatible data and metadata.
-
-        Parameters
-        ----------
-        baseoutdir : str
-           A path pointing to a local directory inside of which the
-           WWT-compatible data files will be written. The data for
-           this particular image will be written inside a subdirectory
-           corresponding to this image's unique ID.
-
-        Returns
-        -------
-        A :class:`wwt_data_formats.place.Place` object containing a single
-        "foreground image set" with data about the processed image. URLs for
-        any locally-generated data will be relative to the image-specific
-        subdirectory.
-
-        """
-        place = Place()
-        imgset = ImageSet()
-        place.foreground_image_set = imgset
-
-        outdir = os.path.join(baseoutdir, self._unique_id)
-        os.makedirs(outdir, exist_ok=True)
-
-        self._process_image_data(imgset, outdir)
-        self._process_image_coordinates(imgset, place)
-        self._process_image_metadata(imgset, place)
-
-        place.name = imgset.name
-        place.data_set_type = imgset.data_set_type
-        place.thumbnail = imgset.thumbnail_url
-
-        return place
-
-
-class BitmapInputImage(InputImage):
-    """An abstract base class for an input image whose data are stored as an RGB
-    bitmap that we will read into memory all at once using the ``PIL``
-    module.
-
-    This ABC implements the :meth:`_process_image_data` method on the parent
-    :class:`InputImage` ABC but adds a new abstract method :meth:`_load_bitmap`
-
-    """
-    _bitmap = None
-
-    @abstractmethod
-    def _load_bitmap(self):
-        """Load the image data as a :class:`PIL.Image`.
-
-        Returns
-        -------
-        A :class:`PIL.Image` of the image data.
-
-        Notes
-        -----
-        This function will only be called once. It can assume that
-        :meth:`InputImage.ensure_input_cached` has already been called.
-
-        """
-
-    def _ensure_bitmap(self):
-        """Ensure that ``self._bitmap`` is loaded."""
-        if self._bitmap is None:
-            self._bitmap = self._load_bitmap()
-        return self._bitmap
-
-    def _process_image_data(self, imgset, outdir):
-        from ..image import Image, ImageMode
-        self._ensure_bitmap()
-
-        needs_tiling = self._bitmap.width > 2048 or self._bitmap.height > 2048
-
-        if not needs_tiling:
-            dest_path = os.path.join(outdir, 'image.jpg')
-            self._bitmap.save(dest_path, format='JPEG')
-            imgset.url = 'image.jpg'
-            imgset.file_type = '.jpg'
-        else:
-            from ..study import tile_study_image
-            from ..pyramid import PyramidIO
-            from ..merge import averaging_merger, cascade_images
-
-            # Create the base layer
-            pio = PyramidIO(outdir, scheme='LXY')
-            image = Image.from_pil(self._bitmap)
-            tiling = tile_study_image(image, pio)
-            tiling.apply_to_imageset(imgset)
-
-            # Cascade to create the coarser tiles
-            cascade_images(pio, imgset.tile_levels, averaging_merger)
-
-            imgset.url = pio.get_path_scheme() + '.png'
-            imgset.file_type = '.png'
-
-        # Deal with the thumbnail
-        thumb = Image.from_pil(self._bitmap).make_thumbnail_bitmap()
-        thumb.save(os.path.join(outdir, 'thumb.jpg'), format='JPEG')
-        imgset.thumbnail_url = 'thumb.jpg'
 
 
 # The PipelineManager class that orchestrates it all
@@ -604,46 +399,31 @@ class PipelineManager(object):
         return self._img_source
 
     def process_todos(self):
-        src = self.get_image_source()
-        self._ensure_dir('cache_done')
-        baseoutdir = self._ensure_dir('out_todo')
+        from ..builder import Builder
+        from ..pyramid import PyramidIO
 
-        pub_url_prefix = self._config.get('publish_url_prefix')
-        if pub_url_prefix:
-            if pub_url_prefix[-1] != '/':
-                pub_url_prefix += '/'
+        src = self.get_image_source()
+        cand_dir = self._path('candidates')
+        self._ensure_dir('cache_done')
+        baseoutdir = self._ensure_dir('processed')
 
         for uniq_id in os.listdir(self._path('cache_todo')):
             cachedir = self._path('cache_todo', uniq_id)
-            inp_img = src.open_input(uniq_id, cachedir)
-            print(f'processing {uniq_id} ...')
-            place = inp_img.process_image(baseoutdir)
+            outdir = self._path('processed', uniq_id)
 
-            folder = Folder()
-            folder.name = uniq_id
-            folder.children = [place]
+            pio = PyramidIO(outdir, scheme='LXY')
+            builder = Builder(pio)
+            cdata = open(os.path.join(cand_dir, uniq_id), 'rb')
 
-            # We potentially generate two WTML files. `index_rel.wtml` may
-            # contain URLs that are relative to the `index_rel.wtml` file for
-            # local data. `index.wtml` contains only absolute URLs, which
-            # requires us to use some configuration data. The `place` that we
-            # get out of the processing stage has relative URLs.
+            print(f'processing {uniq_id} ... ', end='')
+            sys.stdout.flush()
 
-            with open(self._path('out_todo', uniq_id, 'index_rel.wtml'), 'wt', encoding='utf8') as f:
-                write_xml_doc(folder.to_xml(), dest_stream=f)
+            src.process(uniq_id, cdata, cachedir, builder)
+            cdata.close()
+            builder.write_index_rel_wtml()
+            print('done')
 
-            if pub_url_prefix:
-                pfx = pub_url_prefix + uniq_id + '/'
-                place.foreground_image_set.url = maybe_prefix_url(place.foreground_image_set.url, pfx)
-                place.foreground_image_set.credits_url = maybe_prefix_url(place.foreground_image_set.credits_url, pfx)
-                place.foreground_image_set.thumbnail_url = maybe_prefix_url(place.foreground_image_set.thumbnail_url, pfx)
-                place.thumbnail = maybe_prefix_url(place.thumbnail, pfx)
-
-                with open(self._path('out_todo', uniq_id, 'index.wtml'), 'wt', encoding='utf8') as f:
-                    write_xml_doc(folder.to_xml(), dest_stream=f)
-
-            # All done here.
-
+            # Woohoo, done!
             os.rename(cachedir, self._path('cache_done', uniq_id))
 
     def publish_todos(self):

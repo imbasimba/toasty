@@ -387,6 +387,9 @@ class PipelineManager(object):
         if source_type == 'astropix':
             from .astropix import AstroPixImageSource
             cls = AstroPixImageSource
+        elif source_type == 'djangoplicity':
+            from .djangoplicity import DjangoplicityImageSource
+            cls = DjangoplicityImageSource
         else:
             raise Exception('unrecognized image source type %s' % source_type)
 

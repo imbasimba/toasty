@@ -211,8 +211,8 @@ class DjangoplicityMetadata(object):
         factor0 = width / float(self.metadata['Spatial.ReferenceDimension'][0])
         factor1 = height / float(self.metadata['Spatial.ReferenceDimension'][1])
 
-        headers['CRPIX1'] = (headers['CRVAL1'] - 0.5) * factor0 + 0.5
-        headers['CRPIX2'] = (headers['CRVAL2'] - 0.5) * factor1 + 0.5
+        headers['CRPIX1'] = (float(self.metadata['Spatial.ReferencePixel'][0]) - 0.5) * factor0 + 0.5
+        headers['CRPIX2'] = (float(self.metadata['Spatial.ReferencePixel'][1]) - 0.5) * factor1 + 0.5
         headers['CDELT1'] = scale0 / factor0
         headers['CDELT2'] = scale1 / factor1
 

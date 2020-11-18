@@ -448,7 +448,11 @@ def tile_study_impl(settings):
     img = ImageLoader.create_from_args(settings).load_path(settings.imgpath)
     pio = PyramidIO(settings.outdir, default_format=img.default_format)
     builder = Builder(pio)
-    builder.default_tiled_study_astrometry()
+
+    if img.wcs is None:
+        builder.default_tiled_study_astrometry()
+    else:
+        builder.apply_wcs_info(img.wcs, img.width, img.height)
 
     # Do the thumbnail first since for large inputs it can be the memory high-water mark!
     if settings.placeholder_thumbnail:

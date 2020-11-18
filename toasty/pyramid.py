@@ -289,8 +289,6 @@ class PyramidIO(object):
         """
         p = self.tile_path(pos, format=format)
 
-        print('read_image', format, p)
-
         loader = ImageLoader()
         loader.desired_mode = mode
 

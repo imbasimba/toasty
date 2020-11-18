@@ -151,7 +151,6 @@ def image_test(expected, actual, err_msg):
 class TestSampleLayer(object):
     def setup_method(self, method):
         self.base = mkdtemp()
-        print(self.base)
         self.pio = PyramidIO(self.base)
 
     # def teardown_method(self, method):
@@ -207,8 +206,8 @@ class TestSampleLayer(object):
         from ..samplers import healpix_fits_file_sampler
 
         sampler = healpix_fits_file_sampler(test_path('earth_healpix_gal.fits'))
-        sample_layer(self.pio, ImageMode.F32, sampler, 1, format='npy')
-        self.verify_level1(ImageMode.F32, format='npy')
+        sample_layer(self.pio, ImageMode.F32, sampler, 1, format='fits')
+        self.verify_level1(ImageMode.F32, format='fits')
 
 
 class TestCliBasic(object):

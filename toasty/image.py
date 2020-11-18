@@ -530,8 +530,12 @@ class Image(object):
         array = np.atleast_2d(array)
         array_ok = False
 
+        # NOTE: we need to be careful to allow both little and big-endian data,
+        # hence the check of .kind and .itemsize.
         if mode == ImageMode.F32:
-            array_ok = (array.ndim == 2 and array.dtype == np.dtype(np.float32))
+            array_ok = (array.ndim == 2 and array.dtype.kind == 'f' and array.dtype.itemsize == 4)
+        elif mode == ImageMode.F64:
+            array_ok = (array.ndim == 2 and array.dtype.kind == 'f' and array.dtype.itemsize == 8)
         elif mode == ImageMode.RGB:
             array_ok = (array.ndim == 3 and array.shape[2] == 3 and array.dtype == np.dtype(np.uint8))
         elif mode == ImageMode.RGBA:

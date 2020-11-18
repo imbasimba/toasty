@@ -460,7 +460,6 @@ def _sample_layer_serial(pio, mode, format, sampler, depth, cli_progress):
                 tile.increasing,
             )
             sampled_data = sampler(lon, lat)
-            print("FORMAT", format, mode)
             pio.write_image(tile.pos, Image.from_array(mode, sampled_data), format=format)
             progress.update(1)
 

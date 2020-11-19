@@ -192,6 +192,9 @@ class PyramidIO(object):
 
     def __init__(self, base_dir, scheme='L/Y/YX', default_format='png'):
 
+        # TODO: could auto-detect default_format based on tiles inside
+        # pyramid directory instead of defaulting to PNG?
+
         self._base_dir = base_dir
         self._default_format = default_format
 

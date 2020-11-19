@@ -97,6 +97,8 @@ class ImageMode(Enum):
             mask_mode = ImageMode.RGBA
         elif self == ImageMode.F32:
             arr = np.empty((buf_height, buf_width), dtype=np.float32)
+        elif self == ImageMode.F64:
+            arr = np.empty((buf_height, buf_width), dtype=np.float64)
         elif self == ImageMode.F16x3:
             arr = np.empty((buf_height, buf_width, 3), dtype=np.float16)
         else:

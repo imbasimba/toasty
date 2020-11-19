@@ -153,8 +153,8 @@ class TestSampleLayer(object):
         self.base = mkdtemp()
         self.pio = PyramidIO(self.base)
 
-    # def teardown_method(self, method):
-    #     rmtree(self.base)
+    def teardown_method(self, method):
+        rmtree(self.base)
 
     def verify_level1(self, mode, ref='earth_toasted_sky', format=None):
         for n, x, y in [(1, 0, 0), (1, 0, 1), (1, 1, 0), (1, 1, 1)]:

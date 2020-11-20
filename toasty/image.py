@@ -473,7 +473,8 @@ class Image(object):
             The WCS coordinate system for the image.
         default_format : str
             The default format to use when writing the image if none is
-            specified explicitly.
+            specified explicitly. If not specified, the default format is set
+            depending on the mode.
 
         Returns
         -------
@@ -514,7 +515,8 @@ class Image(object):
             The WCS coordinate system for the image.
         default_format : str
             The default format to use when writing the image if none is
-            specified explicitly.
+            specified explicitly. If not specified, the default format is set
+            depending on the mode.
 
         Returns
         -------
@@ -627,7 +629,13 @@ class Image(object):
 
     @property
     def default_format(self):
-        return self._default_format
+        if self._default_format is None:
+            if self.mode in (ImageMode.RGB, ImageMode.RGBA):
+                return 'png'
+            elif self.mode in (ImageMode.F32, ImageMode.F16x3):
+                return 'npy'
+        else:
+            return self._default_format
 
     @default_format.setter
     def default_format(self, value):

@@ -30,7 +30,7 @@ from contextlib import contextmanager
 import numpy as np
 import os.path
 
-from .image import ImageLoader
+from .image import ImageLoader, SUPPORTED_FORMATS
 
 Pos = namedtuple('Pos', 'n x y')
 
@@ -187,15 +187,28 @@ class PyramidIO(object):
         The tile organizatio scheme, should be either 'L/Y/YX' or 'LXY'
     default_format : str
         The file format to assume for the tiles if none is specified when
-        reading/writing tiles. Defaults to 'png'.
+        reading/writing tiles. If not specified, and base_dir exists and
+        contains files, these are used to guess default_format. Otherwise
+        defaults to 'png'.
     """
 
-    def __init__(self, base_dir, scheme='L/Y/YX', default_format='png'):
+    def __init__(self, base_dir, scheme='L/Y/YX', default_format=None):
 
         # TODO: could auto-detect default_format based on tiles inside
         # pyramid directory instead of defaulting to PNG?
 
         self._base_dir = base_dir
+
+        if default_format is None and os.path.exists(base_dir) and os.path.isdir(base_dir):
+            for _, _, filenames in os.walk(base_dir):
+                for filename in filenames:
+                    extension = os.path.splitext(filename)[1][1:]
+                    if extension in SUPPORTED_FORMATS:
+                        default_format = extension
+                        break
+                if default_format is not None:
+                    break
+
         self._default_format = default_format
 
         if scheme == 'L/Y/YX':

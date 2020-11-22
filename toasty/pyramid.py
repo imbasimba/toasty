@@ -208,6 +208,8 @@ class PyramidIO(object):
                         break
                 if default_format is not None:
                     break
+            else:
+                default_format = 'png'
 
         self._default_format = default_format
 
@@ -284,7 +286,7 @@ class PyramidIO(object):
         """
         return self._scheme
 
-    def read_image(self, pos, mode, default='none', format=None):
+    def read_image(self, pos, default='none', format=None):
         """
         Read an Image for the specified tile position.
 
@@ -292,9 +294,6 @@ class PyramidIO(object):
         ----------
         pos : :class:`Pos`
             The tile position to read.
-        mode : :class:`toasty.image.ImageMode`
-            The image data mode to read. This will affect the file extension probed
-            and the mode of the returned image.
         default : str, defaults to "none"
             What to do if the specified tile file does not exist. If this is
             "none", ``None`` will be returned instead of an image. If this is
@@ -306,7 +305,6 @@ class PyramidIO(object):
         p = self.tile_path(pos, format=format)
 
         loader = ImageLoader()
-        loader.desired_mode = mode
 
         try:
             img = loader.load_path(p)
@@ -323,10 +321,9 @@ class PyramidIO(object):
             else:
                 raise ValueError('unexpected value for "default": {!r}'.format(default))
 
-        assert img.mode == mode
         return img
 
-    def write_image(self, pos, image, format=None):
+    def write_image(self, pos, image, format=None, mode=None):
         """Write an Image for the specified tile position.
 
         Parameters
@@ -338,7 +335,7 @@ class PyramidIO(object):
 
         """
         p = self.tile_path(pos, format=format or self._default_format)
-        image.save(p, format=format or self._default_format)
+        image.save(p, format=format or self._default_format, mode=mode)
 
     @contextmanager
     def update_image(self, pos, mode, default='none', format=None):

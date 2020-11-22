@@ -29,8 +29,11 @@ try:
 except ImportError:
     ASTROPY_INSTALLED = False
 
-PIL_FORMATS = {'jpg': 'JPEG', 'png': 'PNG'}
-SUPPORTED_FORMATS = list(PIL_FORMATS) + ['npy']
+PIL_RGB_FORMATS = {'jpg': 'JPEG'}
+PIL_RGBA_FORMATS = {'png': 'PNG'}
+PIL_FORMATS = PIL_RGB_FORMATS.copy()
+PIL_FORMATS.update(PIL_RGBA_FORMATS)
+SUPPORTED_FORMATS = list(PIL_RGB_FORMATS) + list(PIL_RGBA_FORMATS) + ['npy']
 
 if ASTROPY_INSTALLED:
     SUPPORTED_FORMATS += ['fits']
@@ -39,6 +42,24 @@ if ASTROPY_INSTALLED:
 def _validate_format(name, fmt):
     if fmt is not None and fmt not in SUPPORTED_FORMATS:
         raise ValueError('{0} should be one of {1}'.format(name, '/'.join(sorted(SUPPORTED_FORMATS))))
+
+
+def _array_to_mode(array):
+    if array.ndim == 2 and array.dtype.kind == 'f':
+        if array.dtype.itemsize == 4:
+            return ImageMode.F32
+        elif array.dtype.itemsize == 8:
+            return ImageMode.F64
+    elif array.ndim == 3:
+        if array.shape[2] == 3:
+            if array.dtype.kind == 'f' and array.itemsize == 2:
+                return ImageMode.F16x3
+            elif array.dtype.kind == 'u' and array.dtype.itemsize == 1:
+                return ImageMode.RGB
+        elif array.shape[2] == 4:
+            if array.dtype.kind == 'u' and array.dtype.itemsize == 1:
+                return ImageMode.RGBA
+    raise ValueError('Could not determine mode for array with dtype {0} and shape {1}'.format(array.dtype, array.shape))
 
 
 class ImageMode(Enum):
@@ -55,16 +76,6 @@ class ImageMode(Enum):
     F32 = 'F'
     F64 = 'D'
     F16x3 = 'F16x3'
-
-    @staticmethod
-    def from_dtype(dtype):
-        # TODO: expand this to more dtypes
-        if dtype.kind == 'f':
-            if dtype.itemsize == 4:
-                return ImageMode.F32
-            elif dtype.itemsize == 8:
-                return ImageMode.F64
-        raise NotImplementedError("dtype {0} not supported".format(dtype))
 
     def make_maskable_buffer(self, buf_height, buf_width):
         """
@@ -90,11 +101,9 @@ class ImageMode(Enum):
         will be able to accept NaNs.
 
         """
-        mask_mode = self
 
         if self in (ImageMode.RGB, ImageMode.RGBA):
             arr = np.empty((buf_height, buf_width, 4), dtype=np.uint8)
-            mask_mode = ImageMode.RGBA
         elif self == ImageMode.F32:
             arr = np.empty((buf_height, buf_width), dtype=np.float32)
         elif self == ImageMode.F64:
@@ -104,7 +113,7 @@ class ImageMode(Enum):
         else:
             raise Exception('unhandled mode in make_maskable_buffer()')
 
-        return Image.from_array(mask_mode, arr)
+        return Image.from_array(arr)
 
     def try_as_pil(self):
         """
@@ -125,14 +134,10 @@ class ImageLoader(object):
 
     This is implemented as its own class since there can be some options
     involved, and we want to provide a centralized place for handling them all.
-
-    TODO: support FITS, Numpy, etc.
-
     """
     black_to_transparent = False
     colorspace_processing = 'srgb'
     crop = None
-    desired_mode = None
     psd_single_layer = None
 
     @classmethod
@@ -173,7 +178,6 @@ class ImageLoader(object):
             metavar = 'TOP,RIGHT,BOTTOM,LEFT',
             help = 'Crop the input image by discarding pixels from each edge (default: 0,0,0,0)',
         )
-        # not exposing desired_mode -- shouldn't be something the for the user to deal with
         parser.add_argument(
             '--psd-single-layer',
             type = int,
@@ -319,16 +323,6 @@ class ImageLoader(object):
                 xform = ImageCms.buildTransform(in_prof, out_prof, pil_img.mode, pil_img.mode)
                 ImageCms.applyTransform(pil_img, xform, inPlace=True)
 
-        # Make sure that we end up with the right mode, if requested.
-
-        if self.desired_mode is not None:
-            desired_pil = self.desired_mode.try_as_pil()
-            if desired_pil is None:
-                raise Exception('cannot convert PIL image to desired mode {}'.format(self.desired_mode))
-
-            if pil_img.mode != desired_pil:
-                pil_img = pil_img.convert(desired_pil)
-
         return Image.from_pil(pil_img)
 
     def load_stream(self, stream):
@@ -378,13 +372,8 @@ class ImageLoader(object):
         # filetypes instead of just looking at extensions. But, lazy.
 
         if path.endswith('.npy'):
-            if self.desired_mode is not None:
-                mode = self.desired_mode
-            else:
-                mode = ImageMode.F32
-
             arr = np.load(path)
-            return Image.from_array(mode, arr, default_format='npy')
+            return Image.from_array(arr, default_format='npy')
 
         if path.lower().endswith(('.fits', '.fts', '.fits.gz', '.fts.gz')):
 
@@ -400,12 +389,7 @@ class ImageLoader(object):
             else:
                 wcs = None
 
-            if self.desired_mode is not None:
-                mode = self.desired_mode
-            else:
-                mode = ImageMode.from_dtype(arr.dtype)
-
-            return Image.from_array(mode, arr, wcs=wcs, default_format='fits')
+            return Image.from_array(arr, wcs=wcs, default_format='fits')
 
         # Special handling for Photoshop files, used for some very large mosaics
         # with transparency (e.g. the PHAT M31/M33 images).
@@ -438,7 +422,7 @@ class ImageLoader(object):
             img = load_openexr(path)
             if img.dtype != np.float16:
                 raise Exception('only half-precision OpenEXR images are currently supported')
-            return Image.from_array(ImageMode.F16x3, img)
+            return Image.from_array(img)
 
         # (One day, maybe we'll do more kinds of sniffing.) No special handling
         # came into play; just open the file and auto-detect.
@@ -454,9 +438,9 @@ class Image(object):
     have "bitmap" RGB(A) images and "science" floating-point images.
 
     """
-    _mode = None
     _pil = None
     _array = None
+    _mode = None
     _default_format = 'png'
     _wcs = None
 
@@ -473,8 +457,7 @@ class Image(object):
             The WCS coordinate system for the image.
         default_format : str
             The default format to use when writing the image if none is
-            specified explicitly. If not specified, the default format is set
-            depending on the mode.
+            specified explicitly.
 
         Returns
         -------
@@ -502,21 +485,21 @@ class Image(object):
         return inst
 
     @classmethod
-    def from_array(cls, mode, array, wcs=None, default_format=None):
+    def from_array(cls, array, wcs=None, default_format=None):
         """Create a new Image from an array-like data variable.
 
         Parameters
         ----------
-        mode : :class:`ImageMode`
-            The image mode.
         array : array-like object
-            The source data.
+            The source data. This should either be a 2-d floating point array a
+            3-d floating-point or uint8 array with shape (3, ny, nx), or a 3-d
+            uint8 array with shape (4, ny, nx).
         wcs : :class:`~astropy.wcs.WCS`
             The WCS coordinate system for the image.
         default_format : str
             The default format to use when writing the image if none is
-            specified explicitly. If not specified, the default format is set
-            depending on the mode.
+            specified explicitly. If not specified, this is automatically
+            chosen at write time based on the array type.
 
         Returns
         -------
@@ -524,37 +507,16 @@ class Image(object):
 
         Notes
         -----
-        The array will be converted to be at least two-dimensional. The data
-        array shape should match the requirements of the mode.
+        The array will be converted to be at least two-dimensional.
 
         """
 
         _validate_format('default_format', default_format)
 
         array = np.atleast_2d(array)
-        array_ok = False
-
-        # NOTE: we need to be careful to allow both little and big-endian data,
-        # hence the check of .kind and .itemsize.
-        if mode == ImageMode.F32:
-            array_ok = (array.ndim == 2 and array.dtype.kind == 'f' and array.dtype.itemsize == 4)
-        elif mode == ImageMode.F64:
-            array_ok = (array.ndim == 2 and array.dtype.kind == 'f' and array.dtype.itemsize == 8)
-        elif mode == ImageMode.RGB:
-            array_ok = (array.ndim == 3 and array.shape[2] == 3 and array.dtype == np.dtype(np.uint8))
-        elif mode == ImageMode.RGBA:
-            array_ok = (array.ndim == 3 and array.shape[2] == 4 and array.dtype == np.dtype(np.uint8))
-        elif mode == ImageMode.F16x3:
-            array_ok = (array.ndim == 3 and array.shape[2] == 3 and array.dtype == np.dtype(np.float16))
-        else:
-            raise ValueError('unhandled image mode {} in from_array()'.format(mode))
-
-        if not array_ok:
-            raise ValueError('expected array compatible with mode {}, but got shape/dtype = {}/{}'
-                             .format(mode, array.shape, array.dtype))
 
         inst = cls()
-        inst._mode = mode
+        inst._mode = _array_to_mode(array)
         inst._default_format = default_format or cls._default_format
         inst._array = array
         inst._wcs = wcs
@@ -595,7 +557,7 @@ class Image(object):
         """
         if self._pil is not None:
             return self._pil
-        if self._mode.try_as_pil() is None:
+        if self.mode.try_as_pil() is None:
             raise Exception(f'Toasty image with mode {self.mode} cannot be converted to PIL')
         return pil_image.fromarray(self._array)
 
@@ -731,7 +693,7 @@ class Image(object):
         else:
             raise Exception('unhandled mode in update_into_maskable_buffer')
 
-    def save(self, path_or_stream, format=None):
+    def save(self, path_or_stream, format=None, mode=None):
         """
         Save this image to a filesystem path or stream
 
@@ -748,7 +710,12 @@ class Image(object):
         format = format or self._default_format
 
         if format in PIL_FORMATS:
-            self.aspil().save(path_or_stream, format=PIL_FORMATS[format])
+            pil_image = self.aspil()
+            if format in PIL_RGB_FORMATS and mode is None:
+                mode = ImageMode.RGB
+            if mode is not None:
+                pil_image = pil_image.convert(mode.try_as_pil())
+            pil_image.save(path_or_stream, format=PIL_FORMATS[format])
         elif format == 'npy':
             np.save(path_or_stream, self.asarray())
         elif format == 'fits':

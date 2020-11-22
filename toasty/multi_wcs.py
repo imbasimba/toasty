@@ -214,7 +214,7 @@ class MultiWcsProcessor(object):
 
                 # Once again, FITS coordinates have y=0 at the bottom and our
                 # coordinates have y=0 at the top, so we need a vertical flip.
-                image = Image.from_array(ImageMode.F32, array.astype(np.float32)[::-1])
+                image = Image.from_array(array.astype(np.float32)[::-1])
 
                 for pos, width, height, image_x, image_y, tile_x, tile_y in desc.sub_tiling.generate_populated_positions():
                     iy_idx = slice(image_y, image_y + height)
@@ -291,7 +291,7 @@ def _mp_tile_worker(queue, pio, reproject_function, kwargs):
 
         # Once again, FITS coordinates have y=0 at the bottom and our
         # coordinates have y=0 at the top, so we need a vertical flip.
-        image = Image.from_array(ImageMode.F32, array.astype(np.float32)[::-1])
+        image = Image.from_array(array.astype(np.float32)[::-1])
 
         for pos, width, height, image_x, image_y, tile_x, tile_y in desc.sub_tiling.generate_populated_positions():
             iy_idx = slice(image_y, image_y + height)

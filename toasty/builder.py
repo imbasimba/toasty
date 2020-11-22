@@ -147,7 +147,7 @@ class Builder(object):
         from .image import Image, ImageMode
 
         arr = np.zeros((45, 96, 3), dtype=np.uint8)
-        img = Image.from_array(ImageMode.RGB, arr)
+        img = Image.from_array(arr)
 
         with self.pio.open_metadata_for_write('thumb.jpg') as f:
             img.aspil().save(f, format='JPEG')

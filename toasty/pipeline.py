@@ -680,7 +680,7 @@ class BitmapInputImage(InputImage):
             tiling.apply_to_imageset(imgset)
 
             # Cascade to create the coarser tiles
-            cascade_images(pio, ImageMode.RGBA, imgset.tile_levels, averaging_merger)
+            cascade_images(pio, imgset.tile_levels, averaging_merger)
 
             imgset.url = pio.get_path_scheme() + '.png'
             imgset.file_type = '.png'

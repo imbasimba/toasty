@@ -32,11 +32,11 @@ def cascade_getparser(parser):
         help = 'The parallelization level (default: use all CPUs; specify `1` to force serial processing)',
     )
     parser.add_argument(
-        '--type', '-t',
-        metavar = 'TYPE',
-        default = 'rgba',
-        choices = ['rgba', 'f16x3', 'f32'],
-        help = 'The kind of data file to cascade',
+        '--format', '-f',
+        metavar = 'FORMAT',
+        default = None,
+        choices = ['png', 'jpg', 'npy', 'fits'],
+        help = 'The format of data files to cascade. If not specified, this will be guessed.',
     )
     parser.add_argument(
         '--start',
@@ -56,24 +56,14 @@ def cascade_impl(settings):
     from .merge import averaging_merger, cascade_images
     from .pyramid import PyramidIO
 
-    pio = PyramidIO(settings.pyramid_dir)
+    pio = PyramidIO(settings.pyramid_dir, default_format=settings.format)
 
     start = settings.start
     if start is None:
         die('currently, you must specify the start layer with the --start option')
 
-    if settings.type == 'rgba':
-        mode = ImageMode.RGBA
-    elif settings.type == 'f16x3':
-        mode = ImageMode.F16x3
-    elif settings.type == 'f32':
-        mode = ImageMode.F32
-    else:
-        die(f'unexpected "type" argument {settings.type}')
-
     cascade_images(
         pio,
-        mode,
         start,
         averaging_merger,
         parallel=settings.parallelism,

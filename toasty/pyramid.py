@@ -286,7 +286,7 @@ class PyramidIO(object):
         """
         return self._scheme
 
-    def read_image(self, pos, default='none', format=None):
+    def read_image(self, pos, default='none', masked_mode=None, format=None):
         """
         Read an Image for the specified tile position.
 
@@ -300,7 +300,8 @@ class PyramidIO(object):
             "masked", an all-masked image will be returned, using
             :meth:`~toasty.image.ImageMode.make_maskable_buffer`.
             Otherwise, :exc:`ValueError` will be raised.
-
+        masked_mode : :class:`toasty.image.ImageMode`
+            The image data mode to use if ``default`` is set to ``'masked'``.
         """
         p = self.tile_path(pos, format=format)
 
@@ -315,7 +316,9 @@ class PyramidIO(object):
             if default == 'none':
                 return None
             elif default == 'masked':
-                buf = mode.make_maskable_buffer(256, 256)
+                if masked_mode is None:
+                    raise ValueError('masked_mode should be set if default="masked"')
+                buf = masked_mode.make_maskable_buffer(256, 256)
                 buf.clear()
                 return buf
             else:
@@ -338,10 +341,12 @@ class PyramidIO(object):
         image.save(p, format=format or self._default_format, mode=mode)
 
     @contextmanager
-    def update_image(self, pos, mode, default='none', format=None):
+    def update_image(self, pos, default='none', masked_mode=None, format=None):
         from filelock import FileLock
+        p = self.tile_path(pos)
         with FileLock(p + '.lock'):
-            img = self.read_image(pos, mode, default=default, format=format or self._default_format)
+            img = self.read_image(pos, default=default, masked_mode=masked_mode,
+                                  format=format or self._default_format)
             yield img
             self.write_image(pos, img, format=format or self._default_format)
 

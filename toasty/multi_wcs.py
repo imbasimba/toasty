@@ -222,7 +222,7 @@ class MultiWcsProcessor(object):
                     by_idx = slice(tile_y, tile_y + height)
                     bx_idx = slice(tile_x, tile_x + width)
 
-                    with pio.update_image(pos, image.mode, default='masked') as basis:
+                    with pio.update_image(pos, masked_mode=image.mode, default='masked') as basis:
                         image.update_into_maskable_buffer(basis, iy_idx, ix_idx, by_idx, bx_idx)
 
                     progress.update(1)
@@ -299,5 +299,5 @@ def _mp_tile_worker(queue, pio, reproject_function, kwargs):
             by_idx = slice(tile_y, tile_y + height)
             bx_idx = slice(tile_x, tile_x + width)
 
-            with pio.update_image(pos, image.mode, default='masked') as basis:
+            with pio.update_image(pos, masked_mode=image.mode, default='masked') as basis:
                 image.update_into_maskable_buffer(basis, iy_idx, ix_idx, by_idx, bx_idx)

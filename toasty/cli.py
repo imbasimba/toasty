@@ -344,7 +344,6 @@ def tile_allsky_impl(settings):
         builder.make_thumbnail_from_other(img)
 
     builder.toast_base(
-        img.mode,
         sampler,
         settings.depth,
         is_planet=is_planet,
@@ -391,7 +390,7 @@ def tile_healpix_impl(settings):
     pio = PyramidIO(settings.outdir, default_format='npy')
     sampler = healpix_fits_file_sampler(settings.fitspath)
     builder = Builder(pio)
-    builder.toast_base(ImageMode.F32, sampler, settings.depth)
+    builder.toast_base(sampler, settings.depth)
     builder.write_index_rel_wtml()
 
     print(f'Successfully tiled input "{settings.fitspath}" at level {builder.imgset.tile_levels}.')

@@ -27,7 +27,7 @@ except ImportError:
 
 from . import test_path
 from .. import cli, toast
-from ..image import ImageLoader, ImageMode
+from ..image import ImageLoader
 from ..pyramid import Pos, PyramidIO
 from ..toast import sample_layer
 from ..transform import f16x3_to_rgb
@@ -173,7 +173,7 @@ class TestSampleLayer(object):
         from ..samplers import plate_carree_sampler
         img = ImageLoader().load_path(test_path('Equirectangular_projection_SW-tweaked.jpg'))
         sampler = plate_carree_sampler(img.asarray())
-        sample_layer(self.pio, ImageMode.RGB, sampler, 1, format='png')
+        sample_layer(self.pio, sampler, 1, format='png')
         self.verify_level1()
 
     def test_plate_carree_ecliptic(self):
@@ -181,7 +181,7 @@ class TestSampleLayer(object):
 
         img = ImageLoader().load_path(test_path('tess_platecarree_ecliptic_512.jpg'))
         sampler = plate_carree_ecliptic_sampler(img.asarray())
-        sample_layer(self.pio, ImageMode.RGB, sampler, 1, format='png')
+        sample_layer(self.pio, sampler, 1, format='png')
         self.verify_level1(ref='tess')
 
     @pytest.mark.skipif('not HAS_OPENEXR')
@@ -190,7 +190,7 @@ class TestSampleLayer(object):
 
         img = ImageLoader().load_path(test_path('Equirectangular_projection_SW-tweaked.exr'))
         sampler = plate_carree_sampler(img.asarray())
-        sample_layer(self.pio, ImageMode.F16x3, sampler, 1, format='npy')
+        sample_layer(self.pio, sampler, 1, format='npy')
         f16x3_to_rgb(self.pio, 1, parallel=1)
         self.verify_level1()
 
@@ -199,7 +199,7 @@ class TestSampleLayer(object):
         from ..samplers import healpix_fits_file_sampler
 
         sampler = healpix_fits_file_sampler(test_path('earth_healpix_equ.fits'))
-        sample_layer(self.pio, ImageMode.F32, sampler, 1, format='npy')
+        sample_layer(self.pio, sampler, 1, format='npy')
         self.verify_level1(format='npy', expected_2d=True)
 
     @pytest.mark.skipif('not HAS_ASTRO')
@@ -207,7 +207,7 @@ class TestSampleLayer(object):
         from ..samplers import healpix_fits_file_sampler
 
         sampler = healpix_fits_file_sampler(test_path('earth_healpix_gal.fits'))
-        sample_layer(self.pio, ImageMode.F32, sampler, 1, format='fits')
+        sample_layer(self.pio, sampler, 1, format='fits')
         self.verify_level1(format='fits', expected_2d=True)
 
 

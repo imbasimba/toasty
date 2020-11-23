@@ -25,6 +25,7 @@ PyramidIO
 tiles_at_depth
 '''.split()
 
+import glob
 from collections import namedtuple
 from contextlib import contextmanager
 import numpy as np
@@ -194,33 +195,29 @@ class PyramidIO(object):
 
     def __init__(self, base_dir, scheme='L/Y/YX', default_format=None):
 
-        # TODO: could auto-detect default_format based on tiles inside
-        # pyramid directory instead of defaulting to PNG?
-
         self._base_dir = base_dir
 
+        if scheme == 'L/Y/YX':
+            self._tile_path = self._tile_path_LsYsYX
+            self._scheme = '{1}/{3}/{3}_{2}'
+            tile_pattern = "*/*/*_*.*"
+        elif scheme == 'LXY':
+            self._tile_path = self._tile_path_LXY
+            self._scheme = 'L{1}X{2}Y{3}'
+            tile_pattern = "*/*/L*X*Y*.*"
+        else:
+            raise ValueError(f'unsupported "scheme" option for PyramidIO: {scheme}')
+
         if default_format is None and os.path.exists(base_dir) and os.path.isdir(base_dir):
-            for _, _, filenames in os.walk(base_dir):
-                for filename in filenames:
-                    extension = os.path.splitext(filename)[1][1:]
-                    if extension in SUPPORTED_FORMATS:
-                        default_format = extension
-                        break
-                if default_format is not None:
+            for filename in glob.iglob(os.path.join(base_dir, tile_pattern)):
+                extension = os.path.splitext(filename)[1][1:]
+                if extension in SUPPORTED_FORMATS:
+                    default_format = extension
                     break
             else:
                 default_format = 'png'
 
         self._default_format = default_format
-
-        if scheme == 'L/Y/YX':
-            self._tile_path = self._tile_path_LsYsYX
-            self._scheme = '{1}/{3}/{3}_{2}'
-        elif scheme == 'LXY':
-            self._tile_path = self._tile_path_LXY
-            self._scheme = 'L{1}X{2}Y{3}'
-        else:
-            raise ValueError(f'unsupported "scheme" option for PyramidIO: {scheme}')
 
     def tile_path(self, pos, format=None):
         """Get the path for a tile, creating its containing directories.

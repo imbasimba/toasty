@@ -320,7 +320,11 @@ class StudyTiling(object):
         if image.width != self._width:
             raise ValueError('width of image to be sampled does not match tiling')
 
+        # TODO: ideally make_maskable_buffer should be a method
+        # on the Image class which could then avoid having to
+        # manually transfer _format.
         buffer = image.mode.make_maskable_buffer(256, 256)
+        buffer._default_format = image._default_format
 
         with tqdm(total=self.count_populated_positions(), disable=not cli_progress) as progress:
             for pos, width, height, image_x, image_y, tile_x, tile_y in self.generate_populated_positions():

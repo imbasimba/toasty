@@ -412,7 +412,8 @@ def generate_tiles(depth, bottom_only=True):
             yield item
 
 
-def sample_layer(pio, mode, sampler, depth, parallel=None, cli_progress=False):
+def sample_layer(pio, sampler, depth, parallel=None, cli_progress=False,
+                 format=None):
     """Generate a layer of the TOAST tile pyramid through direct sampling.
 
     Parameters
@@ -420,8 +421,6 @@ def sample_layer(pio, mode, sampler, depth, parallel=None, cli_progress=False):
     pio : :class:`toasty.pyramid.PyramidIO`
         A :class:`~toasty.pyramid.PyramidIO` instance to manage the I/O with
         the tiles in the tile pyramid.
-    mode : :class:`toasty.image.ImageMode`
-        The image mode of this data source.
     sampler : callable
         The sampler callable that will produce data for tiling.
     depth : int
@@ -442,12 +441,12 @@ def sample_layer(pio, mode, sampler, depth, parallel=None, cli_progress=False):
     parallel = resolve_parallelism(parallel)
 
     if parallel > 1:
-        _sample_layer_parallel(pio, mode, sampler, depth, cli_progress, parallel)
+        _sample_layer_parallel(pio, format, sampler, depth, cli_progress, parallel)
     else:
-        _sample_layer_serial(pio, mode, sampler, depth, cli_progress)
+        _sample_layer_serial(pio, format, sampler, depth, cli_progress)
 
 
-def _sample_layer_serial(pio, mode, sampler, depth, cli_progress):
+def _sample_layer_serial(pio, format, sampler, depth, cli_progress):
     with tqdm(total=tiles_at_depth(depth), disable=not cli_progress) as progress:
         for tile in generate_tiles(depth, bottom_only=True):
             lon, lat = subsample(
@@ -459,14 +458,14 @@ def _sample_layer_serial(pio, mode, sampler, depth, cli_progress):
                 tile.increasing,
             )
             sampled_data = sampler(lon, lat)
-            pio.write_image(tile.pos, Image.from_array(mode, sampled_data))
+            pio.write_image(tile.pos, Image.from_array(sampled_data), format=format)
             progress.update(1)
 
     if cli_progress:
         print()
 
 
-def _sample_layer_parallel(pio, mode, sampler, depth, cli_progress, parallel):
+def _sample_layer_parallel(pio, format, sampler, depth, cli_progress, parallel):
     import multiprocessing as mp
 
     queue = mp.Queue(maxsize = 2 * parallel)
@@ -476,7 +475,7 @@ def _sample_layer_parallel(pio, mode, sampler, depth, cli_progress, parallel):
     workers = []
 
     for _ in range(parallel):
-        w = mp.Process(target=_mp_sample_worker, args=(queue, pio, sampler, mode))
+        w = mp.Process(target=_mp_sample_worker, args=(queue, pio, sampler, format))
         w.daemon = True
         w.start()
         workers.append(w)
@@ -502,7 +501,7 @@ def _mp_sample_dispatcher(queue, depth, cli_progress):
     queue.close()
 
 
-def _mp_sample_worker(queue, pio, sampler, mode):
+def _mp_sample_worker(queue, pio, sampler, format):
     """
     Process tiles on the queue.
     """
@@ -525,4 +524,4 @@ def _mp_sample_worker(queue, pio, sampler, mode):
             tile.increasing,
         )
         sampled_data = sampler(lon, lat)
-        pio.write_image(tile.pos, Image.from_array(mode, sampled_data))
+        pio.write_image(tile.pos, Image.from_array(sampled_data), format=format)

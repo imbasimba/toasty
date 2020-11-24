@@ -32,11 +32,11 @@ def cascade_getparser(parser):
         help = 'The parallelization level (default: use all CPUs; specify `1` to force serial processing)',
     )
     parser.add_argument(
-        '--type', '-t',
-        metavar = 'TYPE',
-        default = 'rgba',
-        choices = ['rgba', 'f16x3', 'f32'],
-        help = 'The kind of data file to cascade',
+        '--format', '-f',
+        metavar = 'FORMAT',
+        default = None,
+        choices = ['png', 'jpg', 'npy', 'fits'],
+        help = 'The format of data files to cascade. If not specified, this will be guessed.',
     )
     parser.add_argument(
         '--start',
@@ -56,24 +56,14 @@ def cascade_impl(settings):
     from .merge import averaging_merger, cascade_images
     from .pyramid import PyramidIO
 
-    pio = PyramidIO(settings.pyramid_dir)
+    pio = PyramidIO(settings.pyramid_dir, default_format=settings.format)
 
     start = settings.start
     if start is None:
         die('currently, you must specify the start layer with the --start option')
 
-    if settings.type == 'rgba':
-        mode = ImageMode.RGBA
-    elif settings.type == 'f16x3':
-        mode = ImageMode.F16x3
-    elif settings.type == 'f32':
-        mode = ImageMode.F32
-    else:
-        die(f'unexpected "type" argument {settings.type}')
-
     cascade_images(
         pio,
-        mode,
         start,
         averaging_merger,
         parallel=settings.parallelism,
@@ -140,7 +130,7 @@ def multi_tan_make_data_tiles_impl(settings):
     from .multi_tan import MultiTanDataSource
     from .pyramid import PyramidIO
 
-    pio = PyramidIO(settings.outdir)
+    pio = PyramidIO(settings.outdir, default_format='npy')
     ds = MultiTanDataSource(settings.paths, hdu_index=settings.hdu_index)
     ds.compute_global_pixelization()
 
@@ -354,7 +344,6 @@ def tile_allsky_impl(settings):
         builder.make_thumbnail_from_other(img)
 
     builder.toast_base(
-        img.mode,
         sampler,
         settings.depth,
         is_planet=is_planet,
@@ -398,10 +387,10 @@ def tile_healpix_impl(settings):
     from .pyramid import PyramidIO
     from .samplers import healpix_fits_file_sampler
 
-    pio = PyramidIO(settings.outdir)
+    pio = PyramidIO(settings.outdir, default_format='npy')
     sampler = healpix_fits_file_sampler(settings.fitspath)
     builder = Builder(pio)
-    builder.toast_base(ImageMode.F32, sampler, settings.depth)
+    builder.toast_base(sampler, settings.depth)
     builder.write_index_rel_wtml()
 
     print(f'Successfully tiled input "{settings.fitspath}" at level {builder.imgset.tile_levels}.')
@@ -446,9 +435,13 @@ def tile_study_impl(settings):
     from .pyramid import PyramidIO
 
     img = ImageLoader.create_from_args(settings).load_path(settings.imgpath)
-    pio = PyramidIO(settings.outdir)
+    pio = PyramidIO(settings.outdir, default_format=img.default_format)
     builder = Builder(pio)
-    builder.default_tiled_study_astrometry()
+
+    if img.wcs is None:
+        builder.default_tiled_study_astrometry()
+    else:
+        builder.apply_wcs_info(img.wcs, img.width, img.height)
 
     # Do the thumbnail first since for large inputs it can be the memory high-water mark!
     if settings.placeholder_thumbnail:

@@ -25,12 +25,13 @@ PyramidIO
 tiles_at_depth
 '''.split()
 
+import glob
 from collections import namedtuple
 from contextlib import contextmanager
 import numpy as np
 import os.path
 
-from .image import ImageLoader
+from .image import ImageLoader, SUPPORTED_FORMATS
 
 Pos = namedtuple('Pos', 'n x y')
 
@@ -176,29 +177,55 @@ def generate_pos(depth):
 
 
 class PyramidIO(object):
-    """Manage I/O on a tile pyramid."""
+    """
+    Manage I/O on a tile pyramid.
 
-    def __init__(self, base_dir, scheme='L/Y/YX'):
+    Parameters
+    ----------
+    base_dir : str
+        The base directory containing the tiles
+    scheme : str
+        The tile organization scheme, should be either 'L/Y/YX' or 'LXY'
+    default_format : str
+        The file format to assume for the tiles if none is specified when
+        reading/writing tiles. If not specified, and base_dir exists and
+        contains files, these are used to guess default_format. Otherwise
+        defaults to 'png'.
+    """
+
+    def __init__(self, base_dir, scheme='L/Y/YX', default_format=None):
+
         self._base_dir = base_dir
 
         if scheme == 'L/Y/YX':
             self._tile_path = self._tile_path_LsYsYX
             self._scheme = '{1}/{3}/{3}_{2}'
+            tile_pattern = "*/*/*_*.*"
         elif scheme == 'LXY':
             self._tile_path = self._tile_path_LXY
             self._scheme = 'L{1}X{2}Y{3}'
+            tile_pattern = "*/*/L*X*Y*.*"
         else:
             raise ValueError(f'unsupported "scheme" option for PyramidIO: {scheme}')
 
-    def tile_path(self, pos, extension='png'):
+        if default_format is None and os.path.exists(base_dir) and os.path.isdir(base_dir):
+            for filename in glob.iglob(os.path.join(base_dir, tile_pattern)):
+                extension = os.path.splitext(filename)[1][1:]
+                if extension in SUPPORTED_FORMATS:
+                    default_format = extension
+                    break
+            else:
+                default_format = 'png'
+
+        self._default_format = default_format
+
+    def tile_path(self, pos, format=None):
         """Get the path for a tile, creating its containing directories.
 
         Parameters
         ----------
         pos : Pos
-            The tile to get a path for.
-        extension : str, default: "png"
-            The file extension to use in the path.
+            The tile to get a path for.test_plate_carree_ecliptic
 
         Returns
         -------
@@ -214,9 +241,9 @@ class PyramidIO(object):
         level = str(pos.n)
         ix = str(pos.x)
         iy = str(pos.y)
-        return self._tile_path(level, ix, iy, extension)
+        return self._tile_path(level, ix, iy, format=format)
 
-    def _tile_path_LsYsYX(self, level, ix, iy, extension):
+    def _tile_path_LsYsYX(self, level, ix, iy, format=None):
         d = os.path.join(self._base_dir, level, iy)
 
         # We can't use the `exist_ok` kwarg because it's not available in Python 2.
@@ -226,9 +253,9 @@ class PyramidIO(object):
             if e.errno != 17:
                 raise  # not EEXIST
 
-        return os.path.join(d, '{}_{}.{}'.format(iy, ix, extension))
+        return os.path.join(d, '{}_{}.{}'.format(iy, ix, format or self._default_format))
 
-    def _tile_path_LXY(self, level, ix, iy, extension):
+    def _tile_path_LXY(self, level, ix, iy, format=None):
         # We can't use the `exist_ok` kwarg because it's not available in Python 2.
         try:
             os.makedirs(self._base_dir)
@@ -238,7 +265,7 @@ class PyramidIO(object):
 
         return os.path.join(
             self._base_dir,
-            'L{}X{}Y{}.{}'.format(level, ix, iy, extension)
+            'L{}X{}Y{}.{}'.format(level, ix, iy, format or self._default_format)
         )
 
     def get_path_scheme(self):
@@ -256,7 +283,7 @@ class PyramidIO(object):
         """
         return self._scheme
 
-    def read_image(self, pos, mode, default='none'):
+    def read_image(self, pos, default='none', masked_mode=None, format=None):
         """
         Read an Image for the specified tile position.
 
@@ -264,21 +291,18 @@ class PyramidIO(object):
         ----------
         pos : :class:`Pos`
             The tile position to read.
-        mode : :class:`toasty.image.ImageMode`
-            The image data mode to read. This will affect the file extension probed
-            and the mode of the returned image.
         default : str, defaults to "none"
             What to do if the specified tile file does not exist. If this is
             "none", ``None`` will be returned instead of an image. If this is
             "masked", an all-masked image will be returned, using
             :meth:`~toasty.image.ImageMode.make_maskable_buffer`.
             Otherwise, :exc:`ValueError` will be raised.
-
+        masked_mode : :class:`toasty.image.ImageMode`
+            The image data mode to use if ``default`` is set to ``'masked'``.
         """
-        p = self.tile_path(pos, mode.get_default_save_extension())
+        p = self.tile_path(pos, format=format)
 
         loader = ImageLoader()
-        loader.desired_mode = mode
 
         try:
             img = loader.load_path(p)
@@ -289,16 +313,17 @@ class PyramidIO(object):
             if default == 'none':
                 return None
             elif default == 'masked':
-                buf = mode.make_maskable_buffer(256, 256)
+                if masked_mode is None:
+                    raise ValueError('masked_mode should be set if default="masked"')
+                buf = masked_mode.make_maskable_buffer(256, 256)
                 buf.clear()
                 return buf
             else:
                 raise ValueError('unexpected value for "default": {!r}'.format(default))
 
-        assert img.mode == mode
         return img
 
-    def write_image(self, pos, image):
+    def write_image(self, pos, image, format=None, mode=None):
         """Write an Image for the specified tile position.
 
         Parameters
@@ -309,19 +334,18 @@ class PyramidIO(object):
             The image to write.
 
         """
-        p = self.tile_path(pos, image.mode.get_default_save_extension())
-        image.save_default(p)
+        p = self.tile_path(pos, format=format or self._default_format)
+        image.save(p, format=format or self._default_format, mode=mode)
 
     @contextmanager
-    def update_image(self, pos, mode, default='none'):
+    def update_image(self, pos, default='none', masked_mode=None, format=None):
         from filelock import FileLock
-
-        p = self.tile_path(pos, mode.get_default_save_extension())
-
+        p = self.tile_path(pos)
         with FileLock(p + '.lock'):
-            img = self.read_image(pos, mode, default=default)
+            img = self.read_image(pos, default=default, masked_mode=masked_mode,
+                                  format=format or self._default_format)
             yield img
-            self.write_image(pos, img)
+            self.write_image(pos, img, format=format or self._default_format)
 
     def open_metadata_for_read(self, basename):
         """

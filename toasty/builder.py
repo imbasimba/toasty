@@ -107,9 +107,9 @@ class Builder(object):
         return img
 
 
-    def toast_base(self, mode, sampler, depth, is_planet=False, **kwargs):
+    def toast_base(self, sampler, depth, is_planet=False, **kwargs):
         from .toast import sample_layer
-        sample_layer(self.pio, mode, sampler, depth, **kwargs)
+        sample_layer(self.pio, sampler, depth, **kwargs)
 
         if is_planet:
             self.imgset.data_set_type = DataSetType.PLANET
@@ -127,9 +127,8 @@ class Builder(object):
 
 
     def cascade(self, **kwargs):
-        from .image import ImageMode
         from .merge import averaging_merger, cascade_images
-        cascade_images(self.pio, ImageMode.RGBA, self.imgset.tile_levels, averaging_merger, **kwargs)
+        cascade_images(self.pio, self.imgset.tile_levels, averaging_merger, **kwargs)
         return self
 
 
@@ -144,10 +143,10 @@ class Builder(object):
 
     def make_placeholder_thumbnail(self):
         import numpy as np
-        from .image import Image, ImageMode
+        from .image import Image
 
         arr = np.zeros((45, 96, 3), dtype=np.uint8)
-        img = Image.from_array(ImageMode.RGB, arr)
+        img = Image.from_array(arr)
 
         with self.pio.open_metadata_for_write('thumb.jpg') as f:
             img.aspil().save(f, format='JPEG')

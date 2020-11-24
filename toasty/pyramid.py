@@ -185,7 +185,7 @@ class PyramidIO(object):
     base_dir : str
         The base directory containing the tiles
     scheme : str
-        The tile organizatio scheme, should be either 'L/Y/YX' or 'LXY'
+        The tile organization scheme, should be either 'L/Y/YX' or 'LXY'
     default_format : str
         The file format to assume for the tiles if none is specified when
         reading/writing tiles. If not specified, and base_dir exists and

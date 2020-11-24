@@ -453,9 +453,9 @@ class Image(object):
         ----------
         pil_img : :class:`PIL.Image.Image`
             The source image.
-        wcs : :class:`~astropy.wcs.WCS`
+        wcs : :class:`~astropy.wcs.WCS`, optional
             The WCS coordinate system for the image.
-        default_format : str
+        default_format : str, optional
             The default format to use when writing the image if none is
             specified explicitly.
 
@@ -494,9 +494,9 @@ class Image(object):
             The source data. This should either be a 2-d floating point array a
             3-d floating-point or uint8 array with shape (3, ny, nx), or a 3-d
             uint8 array with shape (4, ny, nx).
-        wcs : :class:`~astropy.wcs.WCS`
+        wcs : :class:`~astropy.wcs.WCS`, optional
             The WCS coordinate system for the image.
-        default_format : str
+        default_format : str, optional
             The default format to use when writing the image if none is
             specified explicitly. If not specified, this is automatically
             chosen at write time based on the array type.

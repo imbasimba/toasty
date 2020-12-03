@@ -12,6 +12,8 @@ DjangoplicityCandidateInput
 '''.split()
 
 import codecs
+from datetime import datetime, timezone
+import html
 import json
 import numpy as np
 import os.path
@@ -30,6 +32,7 @@ class DjangoplicityImageSource(ImageSource):
     """
 
     _base_url = None
+    _channel_name = None
 
     @classmethod
     def get_config_key(cls):
@@ -40,6 +43,7 @@ class DjangoplicityImageSource(ImageSource):
     def deserialize(cls, data):
         inst = cls()
         inst._base_url = data['base_url']
+        inst._channel_name = data['channel_name']
         return inst
 
 
@@ -149,7 +153,23 @@ class DjangoplicityImageSource(ImageSource):
 
         builder.set_name(info['Title'])
         builder.imgset.credits_url = info['ReferenceURL']
-        builder.imgset.description = info['Description']
+        builder.imgset.credits = html.escape(info['Credit'])
+        builder.place.description = html.escape(info['Description'])
+
+        # Annotation metadata
+
+        pub_dt = datetime.fromisoformat(info['Date'])
+        if pub_dt.tzinfo is None:
+            pub_dt = pub_dt.replace(tzinfo=timezone.utc)
+
+        amd = {
+            'channel': self._channel_name,
+            'itemid': unique_id,
+            'publishedUTCISO8601': pub_dt.isoformat(),
+        }
+        builder.place.annotation = json.dumps(amd)
+
+        # Finally, crunch the rest of the pyramid.
 
         builder.cascade()
 

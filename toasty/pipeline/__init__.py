@@ -11,8 +11,10 @@ from __future__ import absolute_import, division, print_function
 __all__ = '''
 CandidateInput
 ImageSource
+IMAGE_SOURCE_CLASS_LOADERS
 NotActionableError
 PipelineIo
+PIPELINE_IO_LOADERS
 '''.split()
 
 from abc import ABC, abstractclassmethod, abstractmethod
@@ -57,6 +59,19 @@ class NotActionableError(Exception):
     not going to be able to get it into a WWT-compatible form.
 
     """
+
+
+PIPELINE_IO_LOADERS = {}
+
+def _load_local_pio(config):
+    from .local_io import LocalPipelineIo
+    return LocalPipelineIo._new_from_config(config)
+PIPELINE_IO_LOADERS['local'] = _load_local_pio
+
+def _load_azure_blob_pio(config):
+    from .azure_io import AzureBlobPipelineIo
+    return AzureBlobPipelineIo._new_from_config(config)
+PIPELINE_IO_LOADERS['azure-blob'] = _load_azure_blob_pio
 
 
 class PipelineIo(ABC):
@@ -124,17 +139,11 @@ class PipelineIo(ABC):
             config = yaml.safe_load(f)
 
         ty = config.get('_type')
-
-        if ty == 'local':
-            from .local_io import LocalPipelineIo
-            cls = LocalPipelineIo
-        elif ty == 'azure-blob':
-            from .azure_io import AzureBlobPipelineIo
-            cls = AzureBlobPipelineIo
-        else:
+        loader = PIPELINE_IO_LOADERS.get(ty)
+        if loader is None:
             raise Exception(f'unrecognized pipeline I/O storage type {ty!r}')
 
-        return cls._new_from_config(config)
+        return loader(config)
 
     @abstractmethod
     def check_exists(self, *path):
@@ -336,6 +345,19 @@ class CandidateInput(ABC):
 
 # The PipelineManager class that orchestrates it all
 
+IMAGE_SOURCE_CLASS_LOADERS = {}
+
+def _load_astropix_image_source_class():
+    from .astropix import AstroPixImageSource
+    return AstroPixImageSource
+IMAGE_SOURCE_CLASS_LOADERS['astropix'] = _load_astropix_image_source_class
+
+def _load_djangoplicity_image_source_class():
+    from .djangoplicity import DjangoplicityImageSource
+    return DjangoplicityImageSource
+IMAGE_SOURCE_CLASS_LOADERS['djangoplicity'] = _load_djangoplicity_image_source_class
+
+
 class PipelineManager(object):
     _config = None
     _pipeio = None
@@ -384,15 +406,11 @@ class PipelineManager(object):
         if not source_type:
             raise Exception('toasty pipeline configuration must have a source_type key')
 
-        if source_type == 'astropix':
-            from .astropix import AstroPixImageSource
-            cls = AstroPixImageSource
-        elif source_type == 'djangoplicity':
-            from .djangoplicity import DjangoplicityImageSource
-            cls = DjangoplicityImageSource
-        else:
+        cls_loader = IMAGE_SOURCE_CLASS_LOADERS.get(source_type)
+        if cls_loader is None:
             raise Exception('unrecognized image source type %s' % source_type)
 
+        cls = cls_loader()
         cfg_key = cls.get_config_key()
         source_config = self._config.get(cfg_key)
         if source_config is None:

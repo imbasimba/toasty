@@ -19,6 +19,64 @@ from ..cli import die, warn
 from . import NotActionableError
 
 
+# The "approve" subcommand
+
+def approve_setup_parser(parser):
+    parser.add_argument(
+        '--workdir',
+        metavar = 'PATH',
+        default = '.',
+        help = 'The working directory for this processing session'
+    )
+    parser.add_argument(
+        'cand_ids',
+        nargs = '+',
+        metavar = 'CAND-ID',
+        help = 'Name(s) of candidate(s) to approve and prepare for processing'
+    )
+
+
+def approve_impl(settings):
+    from wwt_data_formats.folder import Folder, make_absolutizing_url_mutator
+    from . import PipelineManager
+
+    mgr = PipelineManager(settings.workdir)
+    mgr.ensure_config()
+
+    pub_url_prefix = mgr._config.get('publish_url_prefix')
+    if pub_url_prefix:
+        if pub_url_prefix[-1] != '/':
+            pub_url_prefix += '/'
+
+    proc_dir = mgr._ensure_dir('processed')
+    app_dir = mgr._ensure_dir('approved')
+
+    for cid in settings.cand_ids:
+        if not os.path.isdir(os.path.join(proc_dir, cid)):
+            die(f'no such processed candidate ID {cid!r}')
+
+        index_path = os.path.join(proc_dir, cid, 'index.wtml')
+        prefix = pub_url_prefix + cid + '/'
+
+        try:
+            f = Folder.from_file(os.path.join(proc_dir, cid, 'index_rel.wtml'))
+            f.mutate_urls(make_absolutizing_url_mutator(prefix))
+
+            with open(index_path, 'wt', encoding='utf8') as f_out:
+                f.write_xml(f_out)
+        except Exception as e:
+            print('error: failed to create index.wtml from index_rel.wtml', file=sys.stderr)
+
+            try:
+                os.remove(index_path)
+            except Exception:
+                pass
+
+            raise
+
+        os.rename(os.path.join(proc_dir, cid), os.path.join(app_dir, cid))
+
+
 # The "fetch" subcommand
 
 def fetch_setup_parser(parser):
@@ -201,6 +259,7 @@ def refresh_impl(settings):
 
 def pipeline_getparser(parser):
     subparsers = parser.add_subparsers(dest='pipeline_command')
+    approve_setup_parser(subparsers.add_parser('approve'))
     fetch_setup_parser(subparsers.add_parser('fetch'))
     init_setup_parser(subparsers.add_parser('init'))
 
@@ -241,7 +300,9 @@ def pipeline_impl(settings):
         print('Run the "pipeline" command with `--help` for help on its subcommands')
         return
 
-    if settings.pipeline_command == 'fetch':
+    if settings.pipeline_command == 'approve':
+        approve_impl(settings)
+    elif settings.pipeline_command == 'fetch':
         fetch_impl(settings)
     elif settings.pipeline_command == 'init':
         init_impl(settings)

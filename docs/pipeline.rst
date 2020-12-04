@@ -72,8 +72,8 @@ Djangoplicity Data Source
 Currently, the only functional ``source_type`` is ``djangoplicity``, which
 downloads and parses an imagery feed from a website powered by the the
 `Djangoplicity <https://github.com/djangoplicity/djangoplicity>`_ gallery
-system. An example is the `NOIRLab gallery
-<https://noirlab.edu/public/images/>`_.
+system. An example is the `ESO Hubble gallery
+<https://spacetelescope.org/images/>`_.
 
 When using the ``djangoplicity`` data source, the ``toasty-pipeline-config.yaml``
 file should contain a dictionary named ``djangoplicity`` as in the example above.

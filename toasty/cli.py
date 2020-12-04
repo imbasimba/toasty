@@ -5,7 +5,14 @@
 """Entrypoint for the "toasty" command-line interface.
 
 """
+
 from __future__ import absolute_import, division, print_function
+
+__all__ = '''
+die
+entrypoint
+warn
+'''.split()
 
 import argparse
 import os.path
@@ -32,11 +39,11 @@ def cascade_getparser(parser):
         help = 'The parallelization level (default: use all CPUs; specify `1` to force serial processing)',
     )
     parser.add_argument(
-        '--type', '-t',
-        metavar = 'TYPE',
-        default = 'rgba',
-        choices = ['rgba', 'f16x3', 'f32'],
-        help = 'The kind of data file to cascade',
+        '--format', '-f',
+        metavar = 'FORMAT',
+        default = None,
+        choices = ['png', 'jpg', 'npy', 'fits'],
+        help = 'The format of data files to cascade. If not specified, this will be guessed.',
     )
     parser.add_argument(
         '--start',
@@ -56,24 +63,14 @@ def cascade_impl(settings):
     from .merge import averaging_merger, cascade_images
     from .pyramid import PyramidIO
 
-    pio = PyramidIO(settings.pyramid_dir)
+    pio = PyramidIO(settings.pyramid_dir, default_format=settings.format)
 
     start = settings.start
     if start is None:
         die('currently, you must specify the start layer with the --start option')
 
-    if settings.type == 'rgba':
-        mode = ImageMode.RGBA
-    elif settings.type == 'f16x3':
-        mode = ImageMode.F16x3
-    elif settings.type == 'f32':
-        mode = ImageMode.F32
-    else:
-        die(f'unexpected "type" argument {settings.type}')
-
     cascade_images(
         pio,
-        mode,
         start,
         averaging_merger,
         parallel=settings.parallelism,
@@ -140,7 +137,7 @@ def multi_tan_make_data_tiles_impl(settings):
     from .multi_tan import MultiTanDataSource
     from .pyramid import PyramidIO
 
-    pio = PyramidIO(settings.outdir)
+    pio = PyramidIO(settings.outdir, default_format='npy')
     ds = MultiTanDataSource(settings.paths, hdu_index=settings.hdu_index)
     ds.compute_global_pixelization()
 
@@ -158,117 +155,7 @@ def multi_tan_make_data_tiles_impl(settings):
 
 # "pipeline" subcommands
 
-def _pipeline_add_io_args(parser):
-    parser.add_argument(
-        '--azure-conn-env',
-        metavar = 'ENV-VAR-NAME',
-        help = 'The name of an environment variable contain an Azure Storage '
-                'connection string'
-    )
-    parser.add_argument(
-        '--azure-container',
-        metavar = 'CONTAINER-NAME',
-        help = 'The name of a blob container in the Azure storage account'
-    )
-    parser.add_argument(
-        '--azure-path-prefix',
-        metavar = 'PATH-PREFIX',
-        help = 'A slash-separated path prefix for blob I/O within the container'
-    )
-    parser.add_argument(
-        '--local',
-        metavar = 'PATH',
-        help = 'Use the local-disk I/O backend'
-    )
-
-def _pipeline_io_from_settings(settings):
-    from .pipeline import AzureBlobPipelineIo, LocalPipelineIo
-
-    if settings.local:
-        return LocalPipelineIo(settings.local)
-
-    if settings.azure_conn_env:
-        conn_str = os.environ.get(settings.azure_conn_env)
-        if not conn_str:
-            die('--azure-conn-env=%s provided, but that environment variable is unset'
-                % settings.azure_conn_env)
-
-        if not settings.azure_container:
-            die('--azure-container-name must be provided if --azure-conn-env is')
-
-        path_prefix = settings.azure_path_prefix
-        if not path_prefix:
-            path_prefix = ''
-
-        return AzureBlobPipelineIo(
-            conn_str,
-            settings.azure_container,
-            path_prefix
-        )
-
-    die('An I/O backend must be specified with the arguments --local or --azure-*')
-
-
-def pipeline_getparser(parser):
-    subparsers = parser.add_subparsers(dest='pipeline_command')
-
-    parser = subparsers.add_parser('fetch-inputs')
-    _pipeline_add_io_args(parser)
-    parser.add_argument(
-        'workdir',
-        metavar = 'WORKDIR',
-        default = '.',
-        help = 'The local working directory',
-    )
-
-    parser = subparsers.add_parser('process-todos')
-    _pipeline_add_io_args(parser)
-    parser.add_argument(
-        'workdir',
-        metavar = 'WORKDIR',
-        default = '.',
-        help = 'The local working directory',
-    )
-
-    parser = subparsers.add_parser('publish-todos')
-    _pipeline_add_io_args(parser)
-    parser.add_argument(
-        'workdir',
-        metavar = 'WORKDIR',
-        default = '.',
-        help = 'The local working directory',
-    )
-
-    parser = subparsers.add_parser('reindex')
-    _pipeline_add_io_args(parser)
-    parser.add_argument(
-        'workdir',
-        metavar = 'WORKDIR',
-        default = '.',
-        help = 'The local working directory',
-    )
-
-
-def pipeline_impl(settings):
-    from .pipeline import PipelineManager
-
-    if settings.pipeline_command is None:
-        print('Run the "pipeline" command with `--help` for help on its subcommands')
-        return
-
-    pipeio = _pipeline_io_from_settings(settings)
-    mgr = PipelineManager(pipeio, settings.workdir)
-
-    if settings.pipeline_command == 'fetch-inputs':
-        mgr.fetch_inputs()
-    elif settings.pipeline_command == 'process-todos':
-        mgr.process_todos()
-    elif settings.pipeline_command == 'publish-todos':
-        mgr.publish_todos()
-    elif settings.pipeline_command == 'reindex':
-        mgr.reindex()
-    else:
-        die('unrecognized "pipeline" subcommand ' + settings.pipeline_command)
+from .pipeline.cli import pipeline_getparser, pipeline_impl
 
 
 # "tile_allsky" subcommand
@@ -354,7 +241,6 @@ def tile_allsky_impl(settings):
         builder.make_thumbnail_from_other(img)
 
     builder.toast_base(
-        img.mode,
         sampler,
         settings.depth,
         is_planet=is_planet,
@@ -398,10 +284,10 @@ def tile_healpix_impl(settings):
     from .pyramid import PyramidIO
     from .samplers import healpix_fits_file_sampler
 
-    pio = PyramidIO(settings.outdir)
+    pio = PyramidIO(settings.outdir, default_format='npy')
     sampler = healpix_fits_file_sampler(settings.fitspath)
     builder = Builder(pio)
-    builder.toast_base(ImageMode.F32, sampler, settings.depth)
+    builder.toast_base(sampler, settings.depth)
     builder.write_index_rel_wtml()
 
     print(f'Successfully tiled input "{settings.fitspath}" at level {builder.imgset.tile_levels}.')
@@ -446,9 +332,13 @@ def tile_study_impl(settings):
     from .pyramid import PyramidIO
 
     img = ImageLoader.create_from_args(settings).load_path(settings.imgpath)
-    pio = PyramidIO(settings.outdir)
+    pio = PyramidIO(settings.outdir, default_format=img.default_format)
     builder = Builder(pio)
-    builder.default_tiled_study_astrometry()
+
+    if img.wcs is None:
+        builder.default_tiled_study_astrometry()
+    else:
+        builder.apply_wcs_info(img.wcs, img.width, img.height)
 
     # Do the thumbnail first since for large inputs it can be the memory high-water mark!
     if settings.placeholder_thumbnail:

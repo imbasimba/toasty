@@ -1,6 +1,6 @@
 pipeline_impl
 =============
 
-.. currentmodule:: toasty.cli
+.. currentmodule:: toasty.pipeline.cli
 
 .. autofunction:: pipeline_impl

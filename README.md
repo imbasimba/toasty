@@ -69,6 +69,7 @@ and [PyPI](https://pypi.org/project/toasty/#history).
 [toasty] is a Python package so, yes, Python is required.
 
 - [astropy] if using FITS files or WCS coordinates
+- [azure-storage-blob] >= 12.0 if using the Azure storage backend for pipeline processing
 - [cython]
 - [filelock]
 - [healpy] if using [HEALPix] maps
@@ -80,6 +81,7 @@ and [PyPI](https://pypi.org/project/toasty/#history).
 - [wwt_data_formats]
 
 [astropy]: https://www.astropy.org/
+[azure-storage-blob]: https://github.com/Azure/azure-sdk-for-python/tree/master/sdk/storage/azure-storage-blob
 [cython]: https://cython.org/
 [filelock]: https://github.com/benediktschmitt/py-filelock
 [healpy]: https://healpy.readthedocs.io/

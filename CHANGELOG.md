@@ -1,5 +1,21 @@
 # rc: minor bump
 
+- Start supporting the pipeline processing framework! See the documentation for
+  a workflow outline and explanations of the `toasty pipeline` commands (#40,
+  @pkgw)
+- Start supporting FITS tiling! FITS files can now be procesed with the
+  `tile-study` subcommand (@astrofrog, #30)
+- In service of the above, improve how image modes and their corresponding file
+  formats are handled. The internal systems are now more sensible and can
+  properly handle FITS images (@astrofrog, #30)
+- Also start supporting the attachment of WCS information to images. This should
+  help us make it so less special-casing of different image types is needed.
+- Fix some dumb bugs in the merging machinery so that our high-level tiles
+  don't come out busted.
+
+
+# toasty 0.5.0 (2020-10-26)
+
 - Add a `plate-carree-ecliptic` projection mode, for images that are in a plate
   carrée projection but in a barycentric true ecliptic coordinate system
 - Add a `--crop` option to generic image-loading commands that allows you to crop

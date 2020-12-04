@@ -1,7 +1,7 @@
 AstroPixImageSource
 ===================
 
-.. currentmodule:: toasty.pipeline
+.. currentmodule:: toasty.pipeline.astropix
 
 .. autoclass:: AstroPixImageSource
    :show-inheritance:
@@ -11,13 +11,15 @@ AstroPixImageSource
    .. autosummary::
 
       ~AstroPixImageSource.deserialize
+      ~AstroPixImageSource.fetch_candidate
       ~AstroPixImageSource.get_config_key
-      ~AstroPixImageSource.open_input
+      ~AstroPixImageSource.process
       ~AstroPixImageSource.query_candidates
 
    .. rubric:: Methods Documentation
 
    .. automethod:: deserialize
+   .. automethod:: fetch_candidate
    .. automethod:: get_config_key
-   .. automethod:: open_input
+   .. automethod:: process
    .. automethod:: query_candidates

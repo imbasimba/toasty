@@ -409,7 +409,7 @@ class PipelineManager(object):
             cachedir = self._path('cache_todo', uniq_id)
             outdir = self._path('processed', uniq_id)
 
-            pio = PyramidIO(outdir, scheme='LXY')
+            pio = PyramidIO(outdir, scheme='LXY', default_format='png')
             builder = Builder(pio)
             cdata = open(os.path.join(cand_dir, uniq_id), 'rb')
 

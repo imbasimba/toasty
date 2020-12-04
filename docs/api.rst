@@ -34,6 +34,26 @@ Python API Reference
    :no-inheritance-diagram:
    :no-inherited-members:
 
+.. automodapi:: toasty.pipeline.astropix
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
+.. automodapi:: toasty.pipeline.azure_io
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
+.. automodapi:: toasty.pipeline.cli
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
+.. automodapi:: toasty.pipeline.djangoplicity
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
+.. automodapi:: toasty.pipeline.local_io
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
 .. automodapi:: toasty.pyramid
    :no-inheritance-diagram:
    :no-inherited-members:

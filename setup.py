@@ -61,6 +61,7 @@ setup_args = dict(
 
     packages = [
         'toasty',
+        'toasty.pipeline',
         'toasty.tests',
     ],
     include_package_data = True,

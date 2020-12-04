@@ -204,7 +204,7 @@ class PyramidIO(object):
         elif scheme == 'LXY':
             self._tile_path = self._tile_path_LXY
             self._scheme = 'L{1}X{2}Y{3}'
-            tile_pattern = "*/*/L*X*Y*.*"
+            tile_pattern = "L*X*Y*.*"
         else:
             raise ValueError(f'unsupported "scheme" option for PyramidIO: {scheme}')
 

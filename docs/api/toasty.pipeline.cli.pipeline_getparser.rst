@@ -1,6 +1,6 @@
 pipeline_getparser
 ==================
 
-.. currentmodule:: toasty.cli
+.. currentmodule:: toasty.pipeline.cli
 
 .. autofunction:: pipeline_getparser

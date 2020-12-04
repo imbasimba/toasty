@@ -683,12 +683,14 @@ class Image(object):
             sub_b[...,3] = 255
         elif self.mode == ImageMode.RGBA:
             valid = (sub_i[...,3] != 0)
+            valid = np.broadcast_to(valid[...,None], sub_i.shape)
             np.putmask(sub_b, valid, sub_i)
         elif self.mode == ImageMode.F32:
             valid = ~np.isnan(sub_i)
             np.putmask(sub_b, valid, sub_i)
         elif self.mode == ImageMode.F16x3:
             valid = ~np.any(np.isnan(sub_i), axis=2)
+            valid = np.broadcast_to(valid[...,None], sub_i.shape)
             np.putmask(sub_b, valid, sub_i)
         else:
             raise Exception('unhandled mode in update_into_maskable_buffer')

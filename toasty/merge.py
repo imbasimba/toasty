@@ -130,9 +130,11 @@ def _cascade_images_serial(pio, start, merger, cli_progress):
                         buf = subimg.mode.make_maskable_buffer(512, 512)
                         buf.clear()
 
-                    subimg.fill_into_maskable_buffer(buf,
-                                                     slice(None), slice(None),
-                                                     *slidx)
+                    subimg.update_into_maskable_buffer(
+                        buf,
+                        slice(None), slice(None),  # subimage indexer: nothing
+                        *slidx,  # buffer indexer: appropriate sub-quadrant
+                    )
 
             merged = Image.from_array(merger(buf.asarray()))
             pio.write_image(pos, merged)
@@ -290,9 +292,11 @@ def _mp_cascade_worker(done_queue, ready_queue, pio, merger):
                         buf = subimg.mode.make_maskable_buffer(512, 512)
                         buf.clear()
 
-                    subimg.fill_into_maskable_buffer(buf,
-                                                     slice(None), slice(None),
-                                                     *slidx)
+                    subimg.update_into_maskable_buffer(
+                        buf,
+                        slice(None), slice(None),  # subimage indexer: nothing
+                        *slidx,  # buffer indexer: appropriate sub-quadrant
+                    )
 
             merged = Image.from_array(merger(buf.asarray()))
             pio.write_image(pos, merged)

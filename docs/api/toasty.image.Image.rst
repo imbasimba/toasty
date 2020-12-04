@@ -27,7 +27,7 @@ Image
       ~Image.from_array
       ~Image.from_pil
       ~Image.make_thumbnail_bitmap
-      ~Image.save_default
+      ~Image.save
       ~Image.update_into_maskable_buffer
 
    .. rubric:: Attributes Documentation
@@ -47,5 +47,5 @@ Image
    .. automethod:: from_array
    .. automethod:: from_pil
    .. automethod:: make_thumbnail_bitmap
-   .. automethod:: save_default
+   .. automethod:: save
    .. automethod:: update_into_maskable_buffer

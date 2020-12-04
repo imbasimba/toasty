@@ -100,7 +100,7 @@ def _float_to_rgb_do_one(buf, pos, pio, read_mode, transform):
     Do one float-to-RGB job. This problem is embarassingly parallel so we can
     share code between the serial and parallel implementations.
     """
-    img = pio.read_image(pos, read_mode)
+    img = pio.read_image(pos, format='npy')
     if img is None:
         return
 
@@ -120,5 +120,5 @@ def _float_to_rgb_do_one(buf, pos, pio, read_mode, transform):
         buf[...,:3] = mapped
         buf[...,3] = 255 * valid
 
-    rgb = Image.from_array(ImageMode.RGBA, buf)
-    pio.write_image(pos, rgb)
+    rgb = Image.from_array(buf)
+    pio.write_image(pos, rgb, format='png', mode=ImageMode.RGB)

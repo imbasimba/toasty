@@ -1,7 +1,7 @@
 LocalPipelineIo
 ===============
 
-.. currentmodule:: toasty.pipeline
+.. currentmodule:: toasty.pipeline.local_io
 
 .. autoclass:: LocalPipelineIo
    :show-inheritance:

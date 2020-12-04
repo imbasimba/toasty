@@ -1,3 +1,5 @@
+.. _pipeline:
+
 ==============================================
 The toasty Image-Processing Pipeline Framework
 ==============================================
@@ -14,203 +16,85 @@ Overview
 ========
 
 The toasty_ image-processing pipeline is designed to run automatically and
-incrementally. The basic framework is that there should be some central data
-repository that contains the pipeline configuration and previously processed
-data; in production circumstances, this repository is web-accessible such that
-the data can be accessed by WWT clients. As much configuration as possible is
-stored in the data repository, to promote reproducibility. Pipeline operations
-then follow this general scheme:
+incrementally. The pipeline connects two nodes:
 
-1. Fetch a set of new images to process from a data source.
-2. Process each image into WWT-friendly formats as needed, emitting appropriate metadata files.
-3. Publish the processed image data to the data repository.
-4. Rebuild the repository's indexes of available data sets.
+- A “source” of new images to process
+- A “destination” where processed images get published
 
-The *fetch* stage can use stored configuration and data to ensure that only
-new images are processed. The *processing* and *publishing* stages are
-separated so that a human can review the processing outputs if so desired. The
-*re-indexing* stage is logically separate and can be run independently of the
-data ingest.
+Pipeline operations follow this general scheme:
+
+1. :ref:`Initialize a workspace <cli-pipeline-init>`, which gets associated with a
+   source and a destination.
+2. :ref:`Query the source <cli-pipeline-refresh>` for new images.
+3. Choose which images to process and :ref:`fetch <cli-pipeline-fetch>` them.
+4. :ref:`Process the source images <cli-pipeline-process-todos>` into WWT’s formats.
+5. Check the results and :ref:`approve <cli-pipeline-approve>` images that are
+   ready for publication.
+6. :ref:`Publish <cli-pipeline-publish>` the approved images.
 
 Each pipeline stage is implemented as a subcommand of the ``toasty``
 command-line program.
 
 
-Data Access
-===========
-
-Access to the central data repository is essential to pipeline operations.
-When running the ``toasty`` pipeline commands, the access mechanism is
-specified with command-line arguments. There are currently two categories of
-data repository that can be accessed, each of which has its own arguments.
-When running the ``toasty`` pipeline commands, give these arguments to every
-command.
-
-Local
------
-
-The "repository" can be a directory on the local machine. This mode is mostly
-intended for testing but could also be useful if the pipeline is being run on
-a web server. To use this data acces mode, pass the command-line argument:
-
-.. code-block::
-
-  --local=path/to/data
-
-where the value of the argument is some directory name. Data and configuration
-will be stored inside the directory.
-
-Azure Blob Storage
-------------------
-
-The data can also be stored on an Azure Blob Storage server. To use this data access
-mode, pass the following command-line arguments.
-
-- ``--azure-conn-env=CONNSTR`` — this argument gives the *name of an
-  environment variable* that contains an Azure Blob Storage connection string.
-  Not that it is **not** the connection string itself, since it is easy to
-  leak secrets from command-line arguments. In the above example, there should
-  be an environment variable named ``CONNSTR`` whose value is the actual
-  connection string.
-- ``--azure-container=mydata`` — this is the name of the blob container that stores
-  the data.
-- ``--azure-path-prefix=myfeed`` — this is a Unix-style folder path under
-  which data will be stored inside the container. This argument is optional;
-  if it is not given, the data will be stored in the root of the container.
-
-
 Configuration
 =============
 
-Wherever your data are stored, the root of the repository should contain a
-configuration file named ``toasty-pipeline-config.yaml``. As implied, this file
-contains structured data in the `YAML <https://yaml.org/>`_ format. An example is:
+The root of the *destionation* data repository should contain a configuration
+file named ``toasty-pipeline-config.yaml``. Once a pipeline workflow is set up,
+you shouldn’t need to worry about this file. But to get a new pipeline going,
+you need to create it and then place it in your data destination.
+
+As implied, this file contains structured data in the `YAML
+<https://yaml.org/>`_ format. An example is:
 
 .. code-block:: YAML
 
-   source_type: astropix
-   publish_url_prefix: //wwtfiles.blob.core.windows.net/feeds/nrao/
-   folder_name: NRAO Studies
-   folder_thumbnail_url: //www.worldwidetelescope.org/wwtweb/thumbnail.aspx?name=radiostudies
+    source_type: djangoplicity
+    publish_url_prefix: http://data1.wwtassets.org/feeds/noirlab/
 
-   astropix:
-     json_query_url: https://astropix.ipac.caltech.edu/link/c60?format=json
+    djangoplicity:
+      base_url: https://noirlab.edu/public/images/
+      channel_name: noirlab
 
 The toplevel settings are:
 
-- ``source_type`` specifies the source of imagery to be obtained in the fetch
-  stage. Values are documented below.
+- ``source_type`` specifies the kind of system from which images are drawn.
+  Values are documented below.
 - ``publish_url_prefix`` specifies the URL prefix below which the data
   produced by the pipeline will ultimately become publicly accessible. This
   setting needs to be provided in order to write the correct data access URLs
-  into the WTML files generated by the pipeline.
-- ``folder_name`` specifies the user-facing name that will be given to the folder
-  of image data emitted by the pipeline.
-- ``folder_thumbnail_url`` gives a URL for the thumbnail image to be associated
-  with the folder.
+  into the WTML files generated by the pipeline. For maximum cross-compatibility
+  the URLs should begin with an ``http://`` prefix.
 
-AstroPix Data Source
+Djangoplicity Data Source
+-------------------------
+
+Currently, the only functional ``source_type`` is ``djangoplicity``, which
+downloads and parses an imagery feed from a website powered by the the
+`Djangoplicity <https://github.com/djangoplicity/djangoplicity>`_ gallery
+system. An example is the `NOIRLab gallery
+<https://noirlab.edu/public/images/>`_.
+
+When using the ``djangoplicity`` data source, the ``toasty-pipeline-config.yaml``
+file should contain a dictionary named ``djangoplicity`` as in the example above.
+This dictionary should contain the following keys:
+
+- ``base_url``, giving the root URL of the gallery. The URL
+  ``{base_url}/archive/search`` should get you to a search page.
+- ``channel_name``, giving the name of the “channel” that the output metadata will
+  be annotated with, analogous to a YouTube channel. This should be a brief, lowercase,
+  URL-friendly name.
+
+Astropix Data Source
 --------------------
 
-Currently, the only allowed ``source_type`` is ``astropix``, which downloads
-and parses an imagery feed from the `AstroPix
-<https://astropix.ipac.caltech.edu/>`_ service.
+The ``astropix`` data source downloads and parses an imagery feed from the
+`AstroPix <https://astropix.ipac.caltech.edu/>`_ service. **It needs updating
+and won’t work right now**.
 
 When using the ``astropix`` data source, the ``toasty-pipeline-config.yaml``
-file should contain a dictionary named ``astropix`` as in the example above.
-This dictionary should contain one key, ``json_query_url``. This key should
-give the URL of a saved AstroPix search in the JSON output format. When
-fetching new data, the pipeline will download JSON from this URL and parse it
-to index the available imagery.
+file should contain a dictionary named ``astropix``. This dictionary should
+contain one key, ``json_query_url``. This key should give the URL of a saved
+AstroPix search in the JSON output format. When fetching new data, the pipeline
+will download JSON from this URL and parse it to index the available imagery.
 
-
-Stage 1: Data Fetching
-======================
-
-The first step of the pipeline is to download new imagery for local processing.
-The command-line invocation is:
-
-.. code-block::
-
-   toasty pipeline-fetch-inputs {data-args} {work-dir}
-
-where ``{data-args}`` should be replaced with the correct data-access arguments
-and ``{work-dir}`` is a path to a local directory that will store pipeline data.
-The current directory (``.``) is a fine choice.
-
-The data will be downloaded into a subdirectory ``cache_todo`` of the work
-directory. Within this directory, there will be one subdirectory for each
-image to process. Images that have already been processed, as determined by
-checking for an ``index.wtml`` in the data repository inside a folder with
-each image’s unique ID, will be skipped. Images can be forced to be skipped by
-creating a file named ``skip.flag`` in the subfolder where the ``index.wtml``
-would go.
-
-
-Stage 2: Data Processing
-========================
-
-Once the data have been cached locally, the next step is to convert them into
-WWT formats. This is done with:
-
-.. code-block::
-
-   toasty pipeline-process-todos {data-args} {work-dir}
-
-where the braced parameters should be replaced with task-specific values as
-described above.
-
-This stage will process the images, potentially creating tile pyramids, into a
-directory ``out_todo`` of the work directory. As before there will be one
-subdirectory inside this directory for each successfully processed image. The
-image cache directories will be moved from ``cache_todo`` to ``cache_done`` as
-they are successfully processed, allowing the pipeline to work its way through
-the data incrementally if any problems are encountered.
-
-Each "out" subdirectory will contain at least two WTML files, both of which
-contain a folder with a single item corresponding to the processed image in
-question. The file ``index.wtml`` contains absolute URLs pointing to the
-eventual destination of the published data, while ``index_rel.wtml`` contains
-relative URLs. These files can be used or modified to verify the success of
-the processing of each image.
-
-
-Stage 3: Data Publishing
-========================
-
-After all the new images have been successfully processed and verified, the
-next step is to upload the processed data to the repository. This is done
-with:
-
-.. code-block::
-
-   toasty pipeline-publish-todos {data-args} {work-dir}
-
-where the braced parameters should be replaced with task-specific values as
-described above.
-
-As before, this will run through each image subdirectory in ``out_todo``
-inside the work directory, and move it to ``out_done`` when the image is fully
-uploaded. Once again this allows incremental operation in the case of any
-problems.
-
-
-Stage 4: Reindexing
-===================
-
-After all of the new images are uploaded, the collection should be re-indexed.
-The command interface follows the same pattern as before:
-
-.. code-block::
-
-   toasty pipeline-reindex {data-args} {work-dir}
-
-where the braced parameters should be replaced with task-specific values as
-described above.
-
-Unlike the previous stage, this stage doesn't particularly care about which
-images may have been processed or cached locally. It scans the data repository
-and builds a list of *all* available images, then writes an ``index.wtml``
-file in the repository root the contains a reverse-chronological list of
-everything available. The contents of this file are obtained by reading the
-set of per-image ``index.wtml`` files and synthesizing them all.

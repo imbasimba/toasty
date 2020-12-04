@@ -6,7 +6,7 @@
 Support for loading images from an AstroPix feed.
 
 TODO: update metadata tomfoolery to match the new things that I've learned. Cf.
-the `wwtdatatool wtml report` utility and the djangoplicity implementation.
+the ``wwtdatatool wtml report`` utility and the djangoplicity implementation.
 
 """
 

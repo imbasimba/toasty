@@ -199,7 +199,7 @@ def init_impl(settings):
 
 def refresh_setup_parser(parser):
     parser.add_argument(
-        'workdir',
+        '--workdir',
         nargs = '?',
         metavar = 'PATH',
         default = '.',
@@ -265,7 +265,7 @@ def pipeline_getparser(parser):
 
     parser = subparsers.add_parser('process-todos')
     parser.add_argument(
-        'workdir',
+        '--workdir',
         nargs = '?',
         metavar = 'WORKDIR',
         default = '.',
@@ -274,7 +274,7 @@ def pipeline_getparser(parser):
 
     parser = subparsers.add_parser('publish')
     parser.add_argument(
-        'workdir',
+        '--workdir',
         nargs = '?',
         metavar = 'WORKDIR',
         default = '.',

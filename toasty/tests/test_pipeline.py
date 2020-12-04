@@ -17,19 +17,6 @@ from .. import pipeline
 from ..pipeline import astropix
 
 
-class LocalTestAstroPixCandidateInput(astropix.AstroPixCandidateInput):
-    def cache_data(self, cachedir):
-        import json
-
-        ext = 'jpg'
-        shutil.copy(test_path('NGC253ALMA.jpg'), os.path.join(cachedir, 'image.' + ext))
-
-        self._json['toasty_cached_image_name'] = 'image.' + ext
-
-        with open(os.path.join(cachedir, 'astropix.json'), 'wt', encoding='utf8') as f:
-            json.dump(self._json, f)
-
-
 class LocalTestAstroPixImageSource(astropix.AstroPixImageSource):
     def query_candidates(self):
         # NB all these values are wrong for the input image!!!
@@ -38,6 +25,7 @@ class LocalTestAstroPixImageSource(astropix.AstroPixImageSource):
             "title": "Test",
             "description": "An amazing image.",
             "object_name": ["NGC 253"],
+            "resource_url": "http://example.com/amazingimage.jpg",
             "reference_url": "https://public.nrao.edu/gallery/astronomers-capture-first-image-of-a-black-hole/",
             "image_id": "test1",
             "image_credit": "Courtesy an amazing telescope.",
@@ -61,21 +49,18 @@ class LocalTestAstroPixImageSource(astropix.AstroPixImageSource):
             "image_max_boundry": "7416",
             "astropix_id": 21642
         }
-        yield LocalTestAstroPixCandidateInput(item)
+        yield astropix.AstroPixCandidateInput(item)
 
-    def open_input(self, unique_id, cachedir):
-        import json
-
-        with open(os.path.join(cachedir, 'astropix.json'), 'rt', encoding='utf8') as f:
-            json_data = json.load(f)
-
-        return astropix.AstroPixInputImage(unique_id, cachedir, json_data)
+    def fetch_candidate(self, unique_id, cand_data_stream, cachedir):
+        shutil.copy(test_path('NGC253ALMA.jpg'), os.path.join(cachedir, 'image.jpg'))
 
 
 class TestPipeline(object):
     def setup_method(self, method):
         from tempfile import mkdtemp
         self.work_dir = mkdtemp()
+
+        pipeline.IMAGE_SOURCE_CLASS_LOADERS['_local_test_astropix'] = lambda: LocalTestAstroPixImageSource
 
         os.makedirs(self.work_path('repo'))
         shutil.copy(test_path('toasty-pipeline-config.yaml'), self.work_path('repo'))
@@ -89,44 +74,55 @@ class TestPipeline(object):
 
     def test_workflow(self):
         args = [
-            'pipeline', 'fetch-inputs',
+            'pipeline', 'init',
             '--local', self.work_path('repo'),
             self.work_path('work'),
+        ]
+        cli.entrypoint(args)
+
+        args = [
+            'pipeline', 'refresh',
+            '--workdir', self.work_path('work'),
+        ]
+        cli.entrypoint(args)
+
+        args = [
+            'pipeline', 'fetch',
+            '--workdir', self.work_path('work'),
+            'fake_test1',
         ]
         cli.entrypoint(args)
 
         args = [
             'pipeline', 'process-todos',
-            '--local', self.work_path('repo'),
-            self.work_path('work'),
+            '--workdir', self.work_path('work'),
         ]
         cli.entrypoint(args)
 
         args = [
-            'pipeline', 'publish-todos',
-            '--local', self.work_path('repo'),
-            self.work_path('work'),
+            'pipeline', 'approve',
+            '--workdir', self.work_path('work'),
+            'fake_test1',
         ]
         cli.entrypoint(args)
 
         args = [
-            'pipeline', 'reindex',
-            '--local', self.work_path('repo'),
-            self.work_path('work'),
+            'pipeline', 'publish',
+            '--workdir', self.work_path('work'),
         ]
         cli.entrypoint(args)
 
     def test_args(self):
         with pytest.raises(SystemExit):
             args = [
-                'pipeline', 'fetch-inputs',
+                'pipeline', 'init',
                 self.work_path('work'),
             ]
             cli.entrypoint(args)
 
         with pytest.raises(SystemExit):
             args = [
-                'pipeline', 'fetch-inputs',
+                'pipeline', 'init',
                 '--azure-conn-env', 'NOTAVARIABLE',
                 self.work_path('work'),
             ]
@@ -136,7 +132,7 @@ class TestPipeline(object):
 
         with pytest.raises(SystemExit):
             args = [
-                'pipeline', 'fetch-inputs',
+                'pipeline', 'init',
                 '--azure-conn-env', 'FAKECONNSTRING',
                 self.work_path('work'),
             ]

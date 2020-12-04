@@ -283,15 +283,6 @@ def pipeline_getparser(parser):
 
     refresh_setup_parser(subparsers.add_parser('refresh'))
 
-    parser = subparsers.add_parser('reindex')
-    parser.add_argument(
-        'workdir',
-        nargs = '?',
-        metavar = 'WORKDIR',
-        default = '.',
-        help = 'The local working directory',
-    )
-
 
 def pipeline_impl(settings):
     from . import PipelineManager
@@ -314,8 +305,5 @@ def pipeline_impl(settings):
         mgr.publish()
     elif settings.pipeline_command == 'refresh':
         refresh_impl(settings)
-    elif settings.pipeline_command == 'reindex':
-        mgr = PipelineManager(settings.workdir)
-        mgr.reindex()
     else:
         die('unrecognized "pipeline" subcommand ' + settings.pipeline_command)

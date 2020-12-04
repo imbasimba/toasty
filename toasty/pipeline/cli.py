@@ -272,7 +272,7 @@ def pipeline_getparser(parser):
         help = 'The local working directory',
     )
 
-    parser = subparsers.add_parser('publish-todos')
+    parser = subparsers.add_parser('publish')
     parser.add_argument(
         'workdir',
         nargs = '?',
@@ -309,9 +309,9 @@ def pipeline_impl(settings):
     elif settings.pipeline_command == 'process-todos':
         mgr = PipelineManager(settings.workdir)
         mgr.process_todos()
-    elif settings.pipeline_command == 'publish-todos':
+    elif settings.pipeline_command == 'publish':
         mgr = PipelineManager(settings.workdir)
-        mgr.publish_todos()
+        mgr.publish()
     elif settings.pipeline_command == 'refresh':
         refresh_impl(settings)
     elif settings.pipeline_command == 'reindex':

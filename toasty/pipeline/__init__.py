@@ -31,29 +31,6 @@ from wwt_data_formats.place import Place
 import yaml
 
 
-def splitall(path):
-    """Split a path into individual components.
-
-    E.g.: "/a/b" => ["/", "a", "b"]; "b/c" => ["b", "c"]
-
-    From https://www.oreilly.com/library/view/python-cookbook/0596001673/ch04s16.html.
-    """
-    allparts = []
-
-    while True:
-        parts = os.path.split(path)
-        if parts[0] == path:  # sentinel for absolute paths
-            allparts.insert(0, parts[0])
-            break
-        elif parts[1] == path: # sentinel for relative paths
-            allparts.insert(0, parts[1])
-            break
-        else:
-            path = parts[0]
-            allparts.insert(0, parts[1])
-    return allparts
-
-
 class NotActionableError(Exception):
     """Raised when an image is provided to the pipeline but for some reason we're
     not going to be able to get it into a WWT-compatible form.
@@ -447,14 +424,16 @@ class PipelineManager(object):
             # Woohoo, done!
             os.rename(cachedir, self._path('cache_done', uniq_id))
 
-    def publish_todos(self):
-        done_dir = self._ensure_dir('out_done')
-        todo_dir = self._path('out_todo')
+    def publish(self):
+        done_dir = self._ensure_dir('published')
+        todo_dir = self._path('approved')
         pfx = todo_dir + os.path.sep
 
-        for dirpath, dirnames, filenames in os.walk(todo_dir, topdown=False):
+        for uniq_id in os.listdir(todo_dir):
             # If there's a index.wtml file, save it for last -- that will
             # indicate that this directory has uploaded fully successfully.
+
+            filenames = os.listdir(os.path.join(todo_dir, uniq_id))
 
             try:
                 index_index = filenames.index('index.wtml')
@@ -465,23 +444,18 @@ class PipelineManager(object):
                 filenames[-1] = 'index.wtml'
                 filenames[index_index] = temp
 
-            print(f'publishing {dirpath} ...')
+            print(f'publishing {uniq_id} ...')
 
             for filename in filenames:
                 # Get the components of the item path relative to todo_dir.
-                p = os.path.join(dirpath, filename)
+                sub_components = [todo_dir, uniq_id, filename]
+                p = os.path.join(*sub_components)
                 assert p.startswith(pfx)
-                sub_components = splitall(p[len(pfx):])
 
                 with open(p, 'rb') as f:
-                    self._pipeio.put_item(*sub_components, source=f)
+                    self._pipeio.put_item(*sub_components[1:], source=f)
 
-                done_path = os.path.join(done_dir, *sub_components)
-                self._ensure_dir('out_done', *sub_components[:-1])
-                os.rename(p, done_path)
-
-            # All the files are gone. We can remove this directory.
-            os.rmdir(dirpath)
+            os.rename(os.path.join(todo_dir, uniq_id), os.path.join(done_dir, uniq_id))
 
     def reindex(self):
         from io import BytesIO

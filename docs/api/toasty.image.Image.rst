@@ -10,10 +10,12 @@ Image
 
    .. autosummary::
 
+      ~Image.default_format
       ~Image.dtype
       ~Image.height
       ~Image.mode
       ~Image.shape
+      ~Image.wcs
       ~Image.width
 
    .. rubric:: Methods Summary
@@ -32,10 +34,12 @@ Image
 
    .. rubric:: Attributes Documentation
 
+   .. autoattribute:: default_format
    .. autoattribute:: dtype
    .. autoattribute:: height
    .. autoattribute:: mode
    .. autoattribute:: shape
+   .. autoattribute:: wcs
    .. autoattribute:: width
 
    .. rubric:: Methods Documentation

@@ -78,7 +78,7 @@ and [PyPI](https://pypi.org/project/toasty/#history).
 - [pytest] to run the test suite
 - [PyYAML]
 - [tqdm]
-- [wwt_data_formats]
+- [wwt_data_formats] >= 0.7
 
 [astropy]: https://www.astropy.org/
 [azure-storage-blob]: https://github.com/Azure/azure-sdk-for-python/tree/master/sdk/storage/azure-storage-blob

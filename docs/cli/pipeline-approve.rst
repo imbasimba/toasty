@@ -16,7 +16,10 @@ Usage
    toasty pipeline approve [--workdir=WORKDIR] {IMAGE-IDs...}
 
 The ``IMAGE-IDs`` argument specifies one or more images by their unique
-identifiers.
+identifiers. You can specify exact ID’s, or `glob patterns`_ as processed by the
+Python ``fnmatch`` module. See examples below.
+
+.. _glob patterns: https://docs.python.org/3/library/fnmatch.html#module-fnmatch
 
 The ``WORKDIR`` argument optionally specifies the location of the pipeline
 workspace directory. The default is the current directory.
@@ -50,6 +53,18 @@ If everything is OK, you can mark the image as approved:
 .. code-block:: shell
 
    toasty pipeline approve noao0201b
+
+You can use `glob patterns`_ to match image names. For instance,
+
+.. code-block:: shell
+
+   toasty pipeline approve "vla*20" "?vlba"
+
+will match every processed image whose identifier begins with ``vla`` and ends
+with ``20``, as well as those whose names are exactly four letters long and end
+with ``vlba``. You generally must make sure to encase glob arguments in
+quotation marks, as shown above, to prevent your shell from attempting to
+process them before Toasty gets a chance to.
 
 After approval of a batch of images, the next step is to :ref:`cli-pipeline-publish`.
 

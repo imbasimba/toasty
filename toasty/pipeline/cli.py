@@ -12,11 +12,41 @@ pipeline_impl
 '''.split()
 
 import argparse
+from fnmatch import fnmatch
+import glob
 import os.path
 import sys
 
 from ..cli import die, warn
 from . import NotActionableError
+
+
+def evaluate_imageid_args(searchdir, args):
+    """
+    Figure out which image-ID's to process.
+    """
+
+    matched_ids = set()
+    globs_todo = set()
+
+    for arg in args:
+        if glob.has_magic(arg):
+            globs_todo.add(arg)
+        else:
+            # If an ID is explicitly (non-gobbily) added, always add it to the
+            # list, without checking if it exists in `searchdir`. We could check
+            # for it in searchdir now, but we'll have to check later anyway, so
+            # we don't bother.
+            matched_ids.add(arg)
+
+    if len(globs_todo):
+        for filename in os.listdir(searchdir):
+            for g in globs_todo:
+                if fnmatch(filename, g):
+                    matched_ids.add(filename)
+                    break
+
+    return sorted(matched_ids)
 
 
 # The "approve" subcommand
@@ -31,8 +61,8 @@ def approve_setup_parser(parser):
     parser.add_argument(
         'cand_ids',
         nargs = '+',
-        metavar = 'CAND-ID',
-        help = 'Name(s) of candidate(s) to approve and prepare for processing'
+        metavar = 'IMAGE-ID',
+        help = 'Name(s) of image(s) to approve for publication (globs accepted)'
     )
 
 
@@ -51,7 +81,7 @@ def approve_impl(settings):
     proc_dir = mgr._ensure_dir('processed')
     app_dir = mgr._ensure_dir('approved')
 
-    for cid in settings.cand_ids:
+    for cid in evaluate_imageid_args(proc_dir, settings.cand_ids):
         if not os.path.isdir(os.path.join(proc_dir, cid)):
             die(f'no such processed candidate ID {cid!r}')
 
@@ -90,7 +120,7 @@ def fetch_setup_parser(parser):
         'cand_ids',
         nargs = '+',
         metavar = 'CAND-ID',
-        help = 'Name(s) of candidate(s) to fetch and prepare for processing'
+        help = 'Name(s) of candidate(s) to fetch and prepare for processing (globs accepted)'
     )
 
 
@@ -102,7 +132,7 @@ def fetch_impl(settings):
     rej_dir = mgr._ensure_dir('rejects')
     src = mgr.get_image_source()
 
-    for cid in settings.cand_ids:
+    for cid in evaluate_imageid_args(cand_dir, settings.cand_ids):
         # Funky structure here is to try to ensure that cdata is closed in case
         # a NotActionable happens, so that we can move the directory on Windows.
         try:

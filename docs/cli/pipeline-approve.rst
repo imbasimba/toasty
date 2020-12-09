@@ -26,12 +26,18 @@ Example
 =======
 
 Before approving an image, it should be validated. First, check the astrometry
-with the help of ``wwtdatatool`` command:
+with the help of ``wwtdatatool`` command. To check a group of images all at once,
+it can be convenient to merge the individual image files into a temporary index:
 
 .. code-block:: shell
 
-   wwtdatatool serve processed/noao0201b/
-   [open up http://localhost:8080/index.wtml in the webclient, review]
+   wwtdatatool wtml merge processed/*/index_rel.wtml processed/index_rel.wtml
+   wwtdatatool preview processed/index_rel.wtml
+
+(Change the forward slashes to backslashes if you’re using Windows.) The first
+command merges the individual image WTMLs into a new file,
+``processed/index_rel.wtml``. The second command opens up this combined file in
+the WWT webclient, running an internal webserver to make the data available.
 
 Next, get a metadata report and check for any issues:
 
@@ -39,13 +45,14 @@ Next, get a metadata report and check for any issues:
 
    wwtdatatool wtml report processed/noao0201b/index_rel.wtml
 
-If everything is OK, the image may be approved:
+If everything is OK, you can mark the image as approved:
 
 .. code-block:: shell
 
    toasty pipeline approve noao0201b
 
 After approval of a batch of images, the next step is to :ref:`cli-pipeline-publish`.
+
 
 Notes
 =====

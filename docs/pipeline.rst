@@ -39,13 +39,13 @@ command-line program.
 Configuration
 =============
 
-The root of the *destionation* data repository should contain a configuration
+The root of the *destination* data repository should contain a configuration
 file named ``toasty-pipeline-config.yaml``. Once a pipeline workflow is set up,
 you shouldn’t need to worry about this file. But to get a new pipeline going,
 you need to create it and then place it in your data destination.
 
-As implied, this file contains structured data in the `YAML
-<https://yaml.org/>`_ format. An example is:
+This file contains structured data in the `YAML <https://yaml.org/>`_ format. An
+example is:
 
 .. code-block:: YAML
 
@@ -72,7 +72,7 @@ Djangoplicity Data Source
 Currently, the only functional ``source_type`` is ``djangoplicity``, which
 downloads and parses an imagery feed from a website powered by the the
 `Djangoplicity <https://github.com/djangoplicity/djangoplicity>`_ gallery
-system. An example is the `ESO Hubble gallery
+system. An example is the `ESA Hubble gallery
 <https://spacetelescope.org/images/>`_.
 
 When using the ``djangoplicity`` data source, the ``toasty-pipeline-config.yaml``

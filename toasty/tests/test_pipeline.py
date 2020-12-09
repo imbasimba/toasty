@@ -89,7 +89,7 @@ class TestPipeline(object):
         args = [
             'pipeline', 'fetch',
             '--workdir', self.work_path('work'),
-            'fake_test1',
+            'fake_test1', '*nomatchisok*',
         ]
         cli.entrypoint(args)
 
@@ -102,7 +102,7 @@ class TestPipeline(object):
         args = [
             'pipeline', 'approve',
             '--workdir', self.work_path('work'),
-            'fake_test1',
+            'fake_test1', 'fake_test?',
         ]
         cli.entrypoint(args)
 

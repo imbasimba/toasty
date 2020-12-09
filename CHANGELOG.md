@@ -1,3 +1,13 @@
+# toasty 0.6.1 (2020-12-09)
+
+Some fixes to the pipeline functionality:
+
+- Add globbing support for the operations that take image-id arguments
+- Attempt to fix crashing on non-actionable candidates on Windows
+- Improvements to the relevant docs
+- Bump the required version of `wwt_data_formats` to the correct value
+
+
 # toasty 0.6.0 (2020-12-04)
 
 - Start supporting the pipeline processing framework! See the documentation for

@@ -12,6 +12,7 @@ ImageMode
 
       ~ImageMode.F16x3
       ~ImageMode.F32
+      ~ImageMode.F64
       ~ImageMode.RGB
       ~ImageMode.RGBA
 
@@ -26,6 +27,7 @@ ImageMode
 
    .. autoattribute:: F16x3
    .. autoattribute:: F32
+   .. autoattribute:: F64
    .. autoattribute:: RGB
    .. autoattribute:: RGBA
 

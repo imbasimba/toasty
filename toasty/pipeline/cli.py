@@ -103,24 +103,26 @@ def fetch_impl(settings):
     src = mgr.get_image_source()
 
     for cid in settings.cand_ids:
+        # Funky structure here is to try to ensure that cdata is closed in case
+        # a NotActionable happens, so that we can move the directory on Windows.
         try:
-            cdata = open(os.path.join(cand_dir, cid), 'rb')
-        except FileNotFoundError:
-            die(f'no such candidate ID {cid!r}')
+            try:
+                cdata = open(os.path.join(cand_dir, cid), 'rb')
+            except FileNotFoundError:
+                die(f'no such candidate ID {cid!r}')
 
-        print(f'fetching {cid} ... ', end='')
-        sys.stdout.flush()
-
-        try:
-            cachedir = mgr._ensure_dir('cache_todo', cid)
-            src.fetch_candidate(cid, cdata, cachedir)
-            print('done')
+            try:
+                print(f'fetching {cid} ... ', end='')
+                sys.stdout.flush()
+                cachedir = mgr._ensure_dir('cache_todo', cid)
+                src.fetch_candidate(cid, cdata, cachedir)
+                print('done')
+            finally:
+                cdata.close()
         except NotActionableError:
             print('not usable')
             os.rename(os.path.join(cand_dir, cid), os.path.join(rej_dir, cid))
             os.rmdir(cachedir)
-        finally:
-            cdata.close()
 
 
 # The "init" subcommand

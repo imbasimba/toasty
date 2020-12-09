@@ -59,9 +59,15 @@ Notes
 Candidate names may be found by looking at the filenames contained in the
 ``candidates`` subdirectory of your workspace.
 
-For each candidate that is successfully fetched, a sub-subdirectory is created
-in the ``cache_todo`` subdirectory with a name corresponding to the unique
-candidate ID.
+During the fetch process, the candidates are analyzed. Some of them may be
+deemed “not actionable” — a common reason being that an image may not have
+sufficient astrometric information attached for it to be placed on the sky as
+WWT requires. Such candidates will be discarded, with their information files
+moved into the ``rejects`` subdirectory.
+
+For each candidate that is successfully fetched and validated, a
+sub-subdirectory is created in the ``cache_todo`` subdirectory with a name
+corresponding to the unique candidate ID.
 
 
 See Also

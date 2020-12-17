@@ -36,6 +36,8 @@ class NotActionableError(Exception):
     not going to be able to get it into a WWT-compatible form.
 
     """
+    def __init__(self, reason):
+        super(NotActionableError, self).__init__(reason)
 
 
 PIPELINE_IO_LOADERS = {}

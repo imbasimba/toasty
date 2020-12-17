@@ -36,6 +36,8 @@ class NotActionableError(Exception):
     not going to be able to get it into a WWT-compatible form.
 
     """
+    def __init__(self, reason):
+        super(NotActionableError, self).__init__(reason)
 
 
 PIPELINE_IO_LOADERS = {}
@@ -398,12 +400,16 @@ class PipelineManager(object):
 
     def process_todos(self):
         from ..builder import Builder
+        from .. import par_util
         from ..pyramid import PyramidIO
 
         src = self.get_image_source()
         cand_dir = self._path('candidates')
         self._ensure_dir('cache_done')
         baseoutdir = self._ensure_dir('processed')
+
+        # Lame hack to tidy up output slightly
+        par_util.SHOW_INFORMATIONAL_MESSAGES = False
 
         for uniq_id in os.listdir(self._path('cache_todo')):
             cachedir = self._path('cache_todo', uniq_id)

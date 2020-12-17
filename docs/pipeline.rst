@@ -85,6 +85,17 @@ This dictionary should contain the following keys:
   be annotated with, analogous to a YouTube channel. This should be a brief, lowercase,
   URL-friendly name.
 
+The following keys are optional:
+
+- ``search_page_name`` specifies the text used to construct search pagination URLs
+  at the data source. The default is ``page``, which means that search page
+  result URLs look like ``{base_url}/archive/search/page/1/``. As of late 2020,
+  for ``eso.org``, and potentially other sites, the correct setting is ``list``,
+  because the search page URLs look like ``{base_url}/archive/search/list/1/``.
+- ``force_insecure_tls`` should take on a boolean value. If true, it specifies
+  that the TLS-encrypted connections shouldn't be verified. As of late 2020 this
+  is necessary for ``noirlab.edu``.
+
 Astropix Data Source
 --------------------
 

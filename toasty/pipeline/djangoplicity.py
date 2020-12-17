@@ -12,7 +12,9 @@ DjangoplicityCandidateInput
 '''.split()
 
 import codecs
+from contextlib import contextmanager
 from datetime import datetime, timezone
+import functools
 import html
 import json
 import numpy as np
@@ -33,6 +35,8 @@ class DjangoplicityImageSource(ImageSource):
 
     _base_url = None
     _channel_name = None
+    _search_page_name = None
+    _force_insecure_tls = True  # TODO: migrate to False
 
     @classmethod
     def get_config_key(cls):
@@ -44,24 +48,55 @@ class DjangoplicityImageSource(ImageSource):
         inst = cls()
         inst._base_url = data['base_url']
         inst._channel_name = data['channel_name']
+        inst._search_page_name = data.get('search_page_name', 'page')
+        inst._force_insecure_tls = data.get('force_insecure_tls', True)  # TODO: migrate to false
         return inst
 
+    @contextmanager
+    def make_request(self, url, stream=False, none404=False):
+        """force_insecure_tls is for noirlab.edu"""
+
+        with requests.get(url, stream=stream, verify=not self._force_insecure_tls) as resp:
+            if none404 and resp.status_code == 404:
+                yield None
+                return
+
+            if not resp.ok:
+                raise Exception(f'error fetching url `{url}`: {resp.status_code}')
+
+            if stream:
+                # By default, `resp.raw` does not perform content decoding.
+                # eso.org gives us gzipped content. The following bit is
+                # apparently the preferred workaround. Cf:
+                # https://github.com/psf/requests/issues/2155
+                #
+                # A side effect of the content decoding, however, is that the
+                # first read of the stream can return a zero-length string,
+                # which causes `readlines` iteration to exit. Callers must be
+                # prepared to handle this.
+                resp.raw.decode_content = True
+
+            yield resp
 
     def query_candidates(self):
         page_num = 1
 
         while True:
-            url = self._base_url + f'archive/search/page/{page_num}/?type=Observation'
+            url = self._base_url + f'archive/search/{self._search_page_name}/{page_num}/?type=Observation'
+            print(f'requesting {url} ...')
 
-            # XXX SSL verification fails for noirlab.edu for some reason XXX
-            with requests.get(url, stream=True, verify=False) as resp:
-                if resp.status_code == 404:
-                    break  # all done
-                if not resp.ok:
-                    raise Exception(f'error fetching url {url}: {resp.status_code}')
+            with self.make_request(url, stream=True, none404=True) as resp:
+                if resp is None:
+                    break  # got a 404 -- all done
 
                 text_stream = codecs.getreader('utf8')(resp.raw)
                 json_lines = []
+
+                # Cf. stream=True in make_request -- skip the zero-length result
+                # to prevent readlines iteration from exiting early. This is
+                # definitely OK since our `var images` line won't be the first
+                # line.
+                text_stream.readline()
 
                 for line in text_stream:
                     if not len(json_lines):
@@ -72,6 +107,9 @@ class DjangoplicityImageSource(ImageSource):
                         break
                     else:
                         json_lines.append(line)
+
+            if not len(json_lines):
+                raise Exception(f'error processing url {url}: no "var images" data found')
 
             # This is really a JS literal, but YAML is compatible enough.
             # JSON does *not* work because the dict keys here aren't quoted.
@@ -86,10 +124,7 @@ class DjangoplicityImageSource(ImageSource):
     def fetch_candidate(self, unique_id, cand_data_stream, cachedir):
         url = self._base_url + urlquote(unique_id) + '/api/json/'
 
-        # XXX SSL verification fails for noirlab.edu for some reason XXX
-        with requests.get(url, verify=False) as resp:
-            if not resp.ok:
-                raise Exception(f'error fetching url {url}: {resp.status_code}')
+        with self.make_request(url) as resp:
             info = json.loads(resp.content)
 
         # Find the "fullsize original" image URL
@@ -114,11 +149,7 @@ class DjangoplicityImageSource(ImageSource):
 
         # Download it
 
-        # XXX SSL verification fails for noirlab.edu for some reason XXX
-        with requests.get(fullsize_url, stream=True, verify=False) as resp:
-            if not resp.ok:
-                raise Exception(f'error downloading {fullsize_url}: {resp.status_code}')
-
+        with self.make_request(fullsize_url, stream=True) as resp:
             with open(os.path.join(cachedir, 'image.' + ext), 'wb') as f:
                 shutil.copyfileobj(resp.raw, f)
 

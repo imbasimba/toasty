@@ -1,3 +1,10 @@
+# toasty 0.6.2 (2020-12-17)
+
+- Add a few knobs so that we can get the Djangoplicity pipeline working for
+  `eso.org`
+- Tidy up the pipeline output a little bit.
+
+
 # toasty 0.6.1 (2020-12-09)
 
 Some fixes to the pipeline functionality:

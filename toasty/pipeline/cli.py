@@ -149,8 +149,8 @@ def fetch_impl(settings):
                 print('done')
             finally:
                 cdata.close()
-        except NotActionableError:
-            print('not usable')
+        except NotActionableError as e:
+            print('not usable:', e)
             os.rename(os.path.join(cand_dir, cid), os.path.join(rej_dir, cid))
             os.rmdir(cachedir)
 

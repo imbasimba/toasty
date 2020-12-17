@@ -13,6 +13,7 @@ DjangoplicityImageSource
       ~DjangoplicityImageSource.deserialize
       ~DjangoplicityImageSource.fetch_candidate
       ~DjangoplicityImageSource.get_config_key
+      ~DjangoplicityImageSource.make_request
       ~DjangoplicityImageSource.process
       ~DjangoplicityImageSource.query_candidates
 
@@ -21,5 +22,6 @@ DjangoplicityImageSource
    .. automethod:: deserialize
    .. automethod:: fetch_candidate
    .. automethod:: get_config_key
+   .. automethod:: make_request
    .. automethod:: process
    .. automethod:: query_candidates

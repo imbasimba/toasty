@@ -1,5 +1,12 @@
 # rc: micro bump
 
+- Add a few knobs so that we can get the Djangoplicity pipeline working for
+  `eso.org`
+- Tidy up the pipeline output a little bit.
+
+
+# toasty 0.6.1 (2020-12-09)
+
 Some fixes to the pipeline functionality:
 
 - Add globbing support for the operations that take image-id arguments

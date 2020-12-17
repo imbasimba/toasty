@@ -8,12 +8,15 @@
 from __future__ import absolute_import, division, print_function
 
 __all__ = '''
+SHOW_INFORMATIONAL_MESSAGES
 resolve_parallelism
 '''.split()
 
 import multiprocessing as mp
 import os
 import sys
+
+SHOW_INFORMATIONAL_MESSAGES = True
 
 def resolve_parallelism(parallel):
     """Decide what level of parallelism to use.
@@ -31,7 +34,7 @@ def resolve_parallelism(parallel):
     if parallel is None:
         if mp.get_start_method() == 'fork':
             parallel = os.cpu_count()
-            if parallel > 1:
+            if SHOW_INFORMATIONAL_MESSAGES and parallel > 1:
                 print(f'info: parallelizing processing over {parallel} CPUs')
         else:
             parallel = 1

@@ -208,14 +208,15 @@ class PyramidIO(object):
         else:
             raise ValueError(f'unsupported "scheme" option for PyramidIO: {scheme}')
 
-        if default_format is None and os.path.exists(base_dir) and os.path.isdir(base_dir):
-            for filename in glob.iglob(os.path.join(base_dir, tile_pattern)):
-                extension = os.path.splitext(filename)[1][1:]
-                if extension in SUPPORTED_FORMATS:
-                    default_format = extension
-                    break
-            else:
-                default_format = 'png'
+        if default_format is None:
+            default_format = 'png'
+
+            if os.path.exists(base_dir) and os.path.isdir(base_dir):
+                for filename in glob.iglob(os.path.join(base_dir, tile_pattern)):
+                    extension = os.path.splitext(filename)[1][1:]
+                    if extension in SUPPORTED_FORMATS:
+                        default_format = extension
+                        break
 
         self._default_format = default_format
 

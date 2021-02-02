@@ -240,7 +240,13 @@ class DjangoplicityMetadata(object):
         crot = np.cos(float(self.metadata['Spatial.Rotation']) * np.pi / 180)
         srot = np.sin(float(self.metadata['Spatial.Rotation']) * np.pi / 180)
         scale0 = float(self.metadata['Spatial.Scale'][0])
-        scale1 = float(self.metadata['Spatial.Scale'][1])
+
+        # Seen in noao-02274; guessing how to handle this
+        if not self.metadata['Spatial.Scale'][1]:
+            scale1 = np.abs(scale0)
+        else:
+            scale1 = float(self.metadata['Spatial.Scale'][1])
+
         lam = scale1 / scale0
 
         headers['PC1_1'] = crot

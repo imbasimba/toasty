@@ -260,14 +260,19 @@ class ImageLoader(object):
             finally:
                 pil_image.MAX_IMAGE_PIXELS = old_max
 
-        # If 8-bit grayscale, convert to RGB. Added for
-        # https://www.flickr.com/photos/10795027@N08/43023455582 . That file
-        # also comes with an ICC profile so we do the conversion before
-        # colorspace processing. TODO: if/when we do FITS to RGB conversion, we
-        # should probably use that codepath rather than this manual hack.
+        # If an unrecognized mode, try to standardize it. The weird PIL modes
+        # don't generally support an alpha channel, so we convert to RGB.
 
-        if pil_img.mode == 'L':
-            pil_img = pil_img.convert('RGBA')
+        try:
+            ImageMode(pil_img.mode)
+        except ValueError:
+            print('warning: trying to convert image file to RGB from unexpected bitmode "%s"' % pil_img.mode)
+
+            if self.black_to_transparent:
+                # Avoid double-converting in the next filter.
+                pil_img = pil_img.convert('RGBA')
+            else:
+                pil_img = pil_img.convert('RGB')
 
         # Convert pure black to transparent -- make sure to do this before any
         # colorspace processing.

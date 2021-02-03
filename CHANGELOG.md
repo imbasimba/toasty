@@ -1,3 +1,16 @@
+# toasty 0.6.3 (2021-02-03)
+
+- If a PIL image loads up with an unexpected mode, try to convert it to regular
+  RGB or RGBA. This should fix handling of images with palette color ("P" mode)
+- In the Djangoplicity pipeline, handle a test case where the second
+  Spatial.Scale tag is empty (observed in NOIRLab noao-02274).
+- In the Djangoplicity pipeline, make sure to use UTF8 encoding when writing out
+  JSON. Should fix processing of images whose descriptions contain non-ASCII,
+  when running on Windows.
+- Fix the pyramid I/O code, which was incorrectly choosing a "none" output format
+  in certain codepaths. Closes #43.
+
+
 # toasty 0.6.2 (2020-12-17)
 
 - Add a few knobs so that we can get the Djangoplicity pipeline working for

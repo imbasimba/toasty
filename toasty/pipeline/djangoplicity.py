@@ -153,14 +153,14 @@ class DjangoplicityImageSource(ImageSource):
             with open(os.path.join(cachedir, 'image.' + ext), 'wb') as f:
                 shutil.copyfileobj(resp.raw, f)
 
-        with open(os.path.join(cachedir, 'metadata.json'), 'wt') as f:
+        with open(os.path.join(cachedir, 'metadata.json'), 'wt', encoding='utf8') as f:
             json.dump(info, f, ensure_ascii=False, indent=2)
 
 
     def process(self, unique_id, cand_data_stream, cachedir, builder):
         # Set up the metadata.
 
-        with open(os.path.join(cachedir, 'metadata.json'), 'rt') as f:
+        with open(os.path.join(cachedir, 'metadata.json'), 'rt', encoding='utf8') as f:
             info = json.load(f)
 
         img_path = os.path.join(cachedir, 'image.' + info['toasty_image_extension'])
@@ -240,7 +240,13 @@ class DjangoplicityMetadata(object):
         crot = np.cos(float(self.metadata['Spatial.Rotation']) * np.pi / 180)
         srot = np.sin(float(self.metadata['Spatial.Rotation']) * np.pi / 180)
         scale0 = float(self.metadata['Spatial.Scale'][0])
-        scale1 = float(self.metadata['Spatial.Scale'][1])
+
+        # Seen in noao-02274; guessing how to handle this
+        if not self.metadata['Spatial.Scale'][1]:
+            scale1 = np.abs(scale0)
+        else:
+            scale1 = float(self.metadata['Spatial.Scale'][1])
+
         lam = scale1 / scale0
 
         headers['PC1_1'] = crot

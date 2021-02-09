@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2019-2020 the AAS WorldWide Telescope project.
+# Copyright 2019-2021 the AAS WorldWide Telescope project.
 # Licensed under the MIT License.
 
 """Entrypoint for the "toasty" command-line interface.
@@ -17,6 +17,7 @@ warn
 import argparse
 import os.path
 import sys
+from wwt_data_formats.cli import EnsureGlobsExpandedAction
 
 
 # General CLI utilities
@@ -129,6 +130,7 @@ def multi_tan_make_data_tiles_getparser(parser):
     parser.add_argument(
         'paths',
         metavar = 'PATHS',
+        action = EnsureGlobsExpandedAction,
         nargs = '+',
         help = 'The FITS files with image data',
     )

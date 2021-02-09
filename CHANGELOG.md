@@ -1,5 +1,13 @@
 # rc: micro bump
 
+- Properly handle CLI glob arguments on Windows. It turns out that we need to
+  handle them manually, sigh. This relies on new functionality added in
+  `wwt_data_formats` 0.9.1 (which I should have versioned as 0.10.0 because it
+  adds a new API, but oh well).
+
+
+# toasty 0.6.3 (2021-02-03)
+
 - If a PIL image loads up with an unexpected mode, try to convert it to regular
   RGB or RGBA. This should fix handling of images with palette color ("P" mode)
 - In the Djangoplicity pipeline, handle a test case where the second

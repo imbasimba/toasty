@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2020 the AAS WorldWide Telescope project
+# Copyright 2021 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 """Common routines for tiling images anchored to the sky in a gnomonic
@@ -193,8 +193,8 @@ class StudyTiling(object):
         """
         gx = im_ix + self._img_gx0
         gy = im_iy + self._img_gy0
-        tile_ix = np.floor(gx // 256).astype(np.int)
-        tile_iy = np.floor(gy // 256).astype(np.int)
+        tile_ix = np.floor(gx // 256).astype(int)
+        tile_iy = np.floor(gy // 256).astype(int)
         return (tile_ix, tile_iy, gx % 256, gy % 256)
 
 

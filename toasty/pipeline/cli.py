@@ -16,6 +16,7 @@ from fnmatch import fnmatch
 import glob
 import os.path
 import sys
+from wwt_data_formats.cli import EnsureGlobsExpandedAction
 
 from ..cli import die, warn
 from . import NotActionableError
@@ -61,6 +62,7 @@ def approve_setup_parser(parser):
     parser.add_argument(
         'cand_ids',
         nargs = '+',
+        action = EnsureGlobsExpandedAction,
         metavar = 'IMAGE-ID',
         help = 'Name(s) of image(s) to approve for publication (globs accepted)'
     )
@@ -119,6 +121,7 @@ def fetch_setup_parser(parser):
     parser.add_argument(
         'cand_ids',
         nargs = '+',
+        action = EnsureGlobsExpandedAction,
         metavar = 'CAND-ID',
         help = 'Name(s) of candidate(s) to fetch and prepare for processing (globs accepted)'
     )

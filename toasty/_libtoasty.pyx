@@ -5,8 +5,8 @@ cimport cython
 
 cimport numpy as np
 
-DTYPE = np.float
-ctypedef np.float_t DTYPE_t
+DTYPE = np.float64
+ctypedef np.float64_t DTYPE_t
 
 cdef struct Point:
     DTYPE_t x

@@ -103,8 +103,8 @@ jobs:
         pillow \
         pytest-cov \
         pyyaml \
-        tqdm \
-        wwt_data_formats
+        tqdm
+      pip install wwt_data_formats
       pip install -e .
       pytest --cov-report=xml --cov=toasty toasty
     displayName: Test with coverage

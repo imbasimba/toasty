@@ -105,7 +105,7 @@ Telescope Team. It is licensed under the [MIT License](./LICENSE).
 [toasty] is part of the AAS WorldWide Telescope system, a [.NET Foundation]
 project managed by the non-profit [American Astronomical Society] (AAS). Work
 on WWT has been supported by the AAS, the US [National Science Foundation]
-(grants [1550701] and [1642446]), the [Gordon and Betty Moore Foundation], and
+(grants [1550701], [1642446], and [2004840]), the [Gordon and Betty Moore Foundation], and
 [Microsoft].
 
 [.NET Foundation]: https://dotnetfoundation.org/
@@ -113,5 +113,6 @@ on WWT has been supported by the AAS, the US [National Science Foundation]
 [National Science Foundation]: https://www.nsf.gov/
 [1550701]: https://www.nsf.gov/awardsearch/showAward?AWD_ID=1550701
 [1642446]: https://www.nsf.gov/awardsearch/showAward?AWD_ID=1642446
+[2004840]: https://www.nsf.gov/awardsearch/showAward?AWD_ID=2004840
 [Gordon and Betty Moore Foundation]: https://www.moore.org/
 [Microsoft]: https://www.microsoft.com/

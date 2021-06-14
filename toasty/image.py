@@ -726,8 +726,7 @@ class Image(object):
         elif format == 'npy':
             np.save(path_or_stream, self.asarray())
         elif format == 'fits':
-            if self._wcs is None:
-                header = None if self._wcs is None else self._wcs.toheader()
+            header = None if self._wcs is None else self._wcs.to_header()
             fits.writeto(path_or_stream, self.asarray(),
                          header=header, overwrite=True)
 

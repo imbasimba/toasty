@@ -389,7 +389,7 @@ def tile_wwtl_impl(settings):
 
     pio = PyramidIO(settings.outdir)
     builder = Builder(pio)
-    img = builder.load_from_wwtl(settings, settings.wwtl_path)
+    img = builder.load_from_wwtl(settings, settings.wwtl_path, cli_progress=True)
 
     # Do the thumbnail first since for large inputs it can be the memory high-water mark!
     if settings.placeholder_thumbnail:
@@ -397,7 +397,6 @@ def tile_wwtl_impl(settings):
     else:
         builder.make_thumbnail_from_other(img)
 
-    builder.tile_base_as_study(img, cli_progress=True)
     builder.write_index_rel_wtml()
 
     print(f'Successfully tiled input "{settings.wwtl_path}" at level {builder.imgset.tile_levels}.')

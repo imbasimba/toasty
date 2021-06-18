@@ -209,8 +209,11 @@ class Builder(object):
         return self
 
 
-    def write_index_rel_wtml(self):
-        from wwt_data_formats import write_xml_doc
+    def create_wtml_folder(self):
+        """
+        Create a one-item :class:`wwt_data_formats.folder.Folder` object
+        capturing this image.
+        """
         from wwt_data_formats.folder import Folder
 
         self.place.name = self.imgset.name
@@ -229,6 +232,14 @@ class Builder(object):
             folder.children = [self.imgset]
         else:
             folder.children = [self.place]
+
+        return folder
+
+
+    def write_index_rel_wtml(self):
+        from wwt_data_formats import write_xml_doc
+
+        folder = self.create_wtml_folder()
 
         with self.pio.open_metadata_for_write('index_rel.wtml') as f:
             write_xml_doc(folder.to_xml(), dest_stream=f, dest_wants_bytes=True)

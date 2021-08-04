@@ -13,9 +13,11 @@ large study for tiling.
 from __future__ import absolute_import, division, print_function
 
 __all__ = '''
+get_format_vertical_parity_sign
 Image
 ImageLoader
 ImageMode
+SUPPORTED_FORMATS
 '''.split()
 
 from enum import Enum
@@ -43,6 +45,38 @@ def _validate_format(name, fmt):
     if fmt is not None and fmt not in SUPPORTED_FORMATS:
         raise ValueError('{0} should be one of {1}'.format(name, '/'.join(sorted(SUPPORTED_FORMATS))))
 
+
+def get_format_vertical_parity_sign(format):
+    """
+    Get the vertical data layout associated with an image format, expressed as a
+    coordinate system parity sign.
+
+    Parameters
+    ----------
+    format : :class:`str`
+        The format name; one of ``SUPPORTED_FORMATS``
+
+    Returns
+    -------
+    Either +1 or -1, depending on the format's preferred parity. FITS has +1 and
+    everything else has -1 (for now).
+
+    Notes
+    -----
+    See :meth:`Image.get_parity_sign` for a discussion of general parity
+    concepts. While parity should be associated with coordinate systems, rather
+    than image file formats, there is a connection in the vertical data layout
+    that different file formats are assumed to use. In particular, WWT assumes
+    that most image file formats use a "top-down" data layout: if the data
+    buffer is a 2D array expressed in standard C/Python conventions, the zeroth
+    row (``data[0,:]``) is located at the top of the image. FITS formats, on the
+    other hand, are assumed to be bottoms-up: the zeroth row is at the bottom.
+    While proper WCS coordinates can convey *either* parity in a FITS file,
+    WWT's renderer assumes bottoms-up.
+    """
+    if format == 'fits':
+        return +1
+    return -1
 
 def _array_to_mode(array):
     if array.ndim == 2 and array.dtype.kind == 'f':

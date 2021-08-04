@@ -31,7 +31,7 @@ from contextlib import contextmanager
 import numpy as np
 import os.path
 
-from .image import ImageLoader, SUPPORTED_FORMATS
+from .image import ImageLoader, SUPPORTED_FORMATS, get_format_vertical_parity_sign
 
 Pos = namedtuple('Pos', 'n x y')
 
@@ -283,6 +283,20 @@ class PyramidIO(object):
 
         """
         return self._scheme
+
+    def get_default_vertical_parity_sign(self):
+        """
+        Get the parity sign (vertical data layout) of the tiles in this pyramid's
+        default format.
+
+        Returns
+        -------
+        Either +1 or -1, depending on the format.
+        """
+
+        if self._default_format is None:
+            raise Exception('cannot get default parity sign without a default format')
+        return get_format_vertical_parity_sign(self._default_format)
 
     def read_image(self, pos, default='none', masked_mode=None, format=None):
         """

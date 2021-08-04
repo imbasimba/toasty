@@ -9,6 +9,7 @@ CLI Reference
    cli/make-thumbnail
    cli/pipeline-approve
    cli/pipeline-fetch
+   cli/pipeline-ignore-rejects
    cli/pipeline-init
    cli/pipeline-process-todos
    cli/pipeline-publish

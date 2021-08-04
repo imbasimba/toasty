@@ -31,9 +31,14 @@ image, a file will be created in the ``candidates`` subdirectory. The next step
 is to select candidates for processing and download them using
 :ref:`cli-pipeline-fetch`.
 
+If there are candidates that should *never* be processed, they can be marked to
+be ignored by subsequent refreshes. Currently you can only do this with images
+that are rejected during processing, using :ref:`cli-pipeline-ignore-rejects`.
+
 
 See Also
 ========
 
 - :ref:`The toasty pipeline processing overview <pipeline>`
 - :ref:`cli-pipeline-fetch`
+- :ref:`cli-pipeline-ignore-rejects`

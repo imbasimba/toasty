@@ -462,3 +462,21 @@ class PipelineManager(object):
                     self._pipeio.put_item(*sub_components[1:], source=f)
 
             os.rename(os.path.join(todo_dir, uniq_id), os.path.join(done_dir, uniq_id))
+
+    def ignore_rejects(self):
+        from io import BytesIO
+
+        rejects_dir = self._path('rejects')
+        n = 0
+
+        # maybe one day this will be JSON with data?
+        flag_content = BytesIO(b'{}')
+
+        for uniq_id in os.listdir(rejects_dir):
+            print(f'ignoring {uniq_id} ...')
+            self._pipeio.put_item(uniq_id, 'skip.flag', source=flag_content)
+            n += 1
+
+        if n > 1:
+            print()
+            print(f'marked a total of {n} images to be permanently ignored')

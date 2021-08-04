@@ -294,28 +294,24 @@ def refresh_impl(settings):
 
 def pipeline_getparser(parser):
     subparsers = parser.add_subparsers(dest='pipeline_command')
+
+    def add_manager_command(name):
+        subp = subparsers.add_parser(name)
+        subp.add_argument(
+            '--workdir',
+            nargs = '?',
+            metavar = 'WORKDIR',
+            default = '.',
+            help = 'The local working directory',
+        )
+        return subp
+
     approve_setup_parser(subparsers.add_parser('approve'))
     fetch_setup_parser(subparsers.add_parser('fetch'))
+    add_manager_command('ignore-rejects')
     init_setup_parser(subparsers.add_parser('init'))
-
-    parser = subparsers.add_parser('process-todos')
-    parser.add_argument(
-        '--workdir',
-        nargs = '?',
-        metavar = 'WORKDIR',
-        default = '.',
-        help = 'The local working directory',
-    )
-
-    parser = subparsers.add_parser('publish')
-    parser.add_argument(
-        '--workdir',
-        nargs = '?',
-        metavar = 'WORKDIR',
-        default = '.',
-        help = 'The local working directory',
-    )
-
+    add_manager_command('process-todos')
+    add_manager_command('publish')
     refresh_setup_parser(subparsers.add_parser('refresh'))
 
 
@@ -330,6 +326,9 @@ def pipeline_impl(settings):
         approve_impl(settings)
     elif settings.pipeline_command == 'fetch':
         fetch_impl(settings)
+    elif settings.pipeline_command == 'ignore-rejects':
+        mgr = PipelineManager(settings.workdir)
+        mgr.ignore_rejects()
     elif settings.pipeline_command == 'init':
         init_impl(settings)
     elif settings.pipeline_command == 'process-todos':

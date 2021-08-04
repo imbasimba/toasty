@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2020 the AAS WorldWide Telescope project
+# Copyright 2020-2021 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 """
@@ -72,10 +72,45 @@ class ImageMode(Enum):
 
     """
     RGB = 'RGB'
+    "24-bit color with three uint8 channels for red, green, and blue."
+
     RGBA = 'RGBA'
+    "32-bit color with four uint8 channels for red, green, blue, and alpha (transparency)."
+
     F32 = 'F'
+    "32-bit floating-point scalar data."
+
     F64 = 'D'
+    "64-bit floating-point scalar data."
+
     F16x3 = 'F16x3'
+    """
+    48-bit color with three 16-bit floating-point channels for red, green, and
+    blue.
+
+    This mode is useful for high-dynamic-range image processing and can be
+    stored in the OpenEXR file format.
+    """
+
+    @classmethod
+    def from_array_info(cls, shape, dtype):
+        if len(shape) == 2 and dtype.kind == 'f':
+            if dtype.itemsize == 4:
+                return cls.F32
+            elif dtype.itemsize == 8:
+                return cls.F64
+        elif len(shape) == 3:
+            if shape[2] == 3:
+                if dtype.kind == 'f' and dtype.itemsize == 2:
+                    return cls.F16x3
+                elif dtype.kind == 'u' and dtype.itemsize == 1:
+                    return cls.RGB
+            elif shape[2] == 4:
+                if dtype.kind == 'u' and dtype.itemsize == 1:
+                    return cls.RGBA
+
+        raise ValueError('Could not determine mode for array with dtype {0} and shape {1}'.format(dtype, shape))
+
 
     def make_maskable_buffer(self, buf_height, buf_width):
         """
@@ -437,12 +472,13 @@ class ImageLoader(object):
 
 
 class Image(object):
-    """A 2D data array stored in memory.
+    """
+    A 2D data array stored in memory, potential with spatial positioning information.
 
     This class primarily exists to help us abstract between the cases where we
     have "bitmap" RGB(A) images and "science" floating-point images.
-
     """
+
     _pil = None
     _array = None
     _mode = None

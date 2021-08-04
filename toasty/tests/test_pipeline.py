@@ -112,6 +112,12 @@ class TestPipeline(object):
         ]
         cli.entrypoint(args)
 
+        args = [
+            'pipeline', 'ignore-rejects',
+            '--workdir', self.work_path('work'),
+        ]
+        cli.entrypoint(args)
+
     def test_args(self):
         with pytest.raises(SystemExit):
             args = [

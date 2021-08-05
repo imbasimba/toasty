@@ -365,12 +365,45 @@ class PyramidIO(object):
     @contextmanager
     def update_image(self, pos, default='none', masked_mode=None, format=None):
         from filelock import FileLock
+
         p = self.tile_path(pos)
+
         with FileLock(p + '.lock'):
-            img = self.read_image(pos, default=default, masked_mode=masked_mode,
-                                  format=format or self._default_format)
+            img = self.read_image(
+                pos,
+                default=default,
+                masked_mode=masked_mode,
+                format=format or self._default_format
+            )
+
             yield img
             self.write_image(pos, img, format=format or self._default_format)
+
+    def clean_lockfiles(self, level):
+        """
+        Clean up any lockfiles created during parallelized pyramid creation.
+
+        Parameters
+        ----------
+        level : :class:`int` A tile pyramid depth.
+
+        Notes
+        -----
+        If you use the :meth:`update_image` method, you should call this
+        function after your processing is complete to remove lockfiles that are
+        created to ensure that multiple processes don't stomp on each other's
+        work. The "cascade" stage doesn't need locking, so in general only the
+        deepest level of the pyramid will need to be cleaned.
+        """
+        for x in range(0, 2**level):
+            for y in range(0, 2**level):
+                pos = Pos(level, x, y)
+                p = self.tile_path(pos) + '.lock'
+
+                try:
+                    os.unlink(p)
+                except FileNotFoundError:
+                    pass
 
     def open_metadata_for_read(self, basename):
         """

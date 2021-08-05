@@ -10,6 +10,7 @@ PyramidIO
 
    .. autosummary::
 
+      ~PyramidIO.clean_lockfiles
       ~PyramidIO.get_default_format
       ~PyramidIO.get_default_vertical_parity_sign
       ~PyramidIO.get_path_scheme
@@ -22,6 +23,7 @@ PyramidIO
 
    .. rubric:: Methods Documentation
 
+   .. automethod:: clean_lockfiles
    .. automethod:: get_default_format
    .. automethod:: get_default_vertical_parity_sign
    .. automethod:: get_path_scheme

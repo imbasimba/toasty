@@ -111,50 +111,6 @@ def make_thumbnail_impl(settings):
         thumb.save(f, format='JPEG')
 
 
-# "multi_tan_make_data_tiles" subcommand
-
-def multi_tan_make_data_tiles_getparser(parser):
-    parser.add_argument(
-        '--hdu-index',
-        metavar = 'INDEX',
-        type = int,
-        default = 0,
-        help = 'Which HDU to load in each input FITS file',
-    )
-    parser.add_argument(
-        '--outdir',
-        metavar = 'PATH',
-        default = '.',
-        help = 'The root directory of the output tile pyramid',
-    )
-    parser.add_argument(
-        'paths',
-        metavar = 'PATHS',
-        action = EnsureGlobsExpandedAction,
-        nargs = '+',
-        help = 'The FITS files with image data',
-    )
-
-def multi_tan_make_data_tiles_impl(settings):
-    from .multi_tan import MultiTanDataSource
-    from .pyramid import PyramidIO
-
-    pio = PyramidIO(settings.outdir, default_format='npy')
-    ds = MultiTanDataSource(settings.paths, hdu_index=settings.hdu_index)
-    ds.compute_global_pixelization()
-
-    print('Generating Numpy-formatted data tiles in directory {!r} ...'.format(settings.outdir))
-    percentiles = ds.generate_deepest_layer_numpy(pio)
-
-    if len(percentiles):
-        print()
-        print('Median percentiles in the data:')
-        for p in sorted(percentiles.keys()):
-            print('   {} = {}'.format(p, percentiles[p]))
-
-    # TODO: this should populate and emit a stub index_rel.wtml file.
-
-
 # "pipeline" subcommands
 
 from .pipeline.cli import pipeline_getparser, pipeline_impl
@@ -293,6 +249,53 @@ def tile_healpix_impl(settings):
     builder.write_index_rel_wtml()
 
     print(f'Successfully tiled input "{settings.fitspath}" at level {builder.imgset.tile_levels}.')
+    print('To create parent tiles, consider running:')
+    print()
+    print(f'   toasty cascade --start {builder.imgset.tile_levels} {settings.outdir}')
+
+
+# "tile_multi_tan" subcommand
+
+def tile_multi_tan_getparser(parser):
+    parser.add_argument(
+        '--hdu-index',
+        metavar = 'INDEX',
+        type = int,
+        default = 0,
+        help = 'Which HDU to load in each input FITS file',
+    )
+    parser.add_argument(
+        '--outdir',
+        metavar = 'PATH',
+        default = '.',
+        help = 'The root directory of the output tile pyramid',
+    )
+    parser.add_argument(
+        'paths',
+        metavar = 'PATHS',
+        action = EnsureGlobsExpandedAction,
+        nargs = '+',
+        help = 'The FITS files with image data',
+    )
+
+def tile_multi_tan_impl(settings):
+    from .builder import Builder
+    from .collection import SimpleFitsCollection
+    from .image import ImageMode
+    from .multi_tan import MultiTanProcessor
+    from .pyramid import PyramidIO
+
+    pio = PyramidIO(settings.outdir, default_format='fits')
+    builder = Builder(pio)
+
+    collection = SimpleFitsCollection(settings.paths, hdu_index=settings.hdu_index)
+
+    mtp = MultiTanProcessor(collection)
+    mtp.compute_global_pixelization(builder)
+    mtp.tile(pio, cli_progress=True)
+    builder.write_index_rel_wtml()
+
+    print(f'Successfully tiled inputs at level {builder.imgset.tile_levels}.')
     print('To create parent tiles, consider running:')
     print()
     print(f'   toasty cascade --start {builder.imgset.tile_levels} {settings.outdir}')

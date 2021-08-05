@@ -13,6 +13,7 @@ MultiTanProcessor
 from astropy.wcs import WCS
 import numpy as np
 from tqdm import tqdm
+import warnings
 
 from .study import StudyTiling
 
@@ -197,7 +198,10 @@ class MultiTanProcessor(object):
         from .par_util import resolve_parallelism
         parallel = resolve_parallelism(parallel)
 
-        self._tile_serial(pio, cli_progress, **kwargs)
+        if parallel > 1:
+            self._tile_parallel(pio, cli_progress, parallel, **kwargs)
+        else:
+            self._tile_serial(pio, cli_progress, **kwargs)
 
         # Since we used `pio.update_image()`, we should clean up the lockfiles
         # that were generated.
@@ -238,3 +242,69 @@ class MultiTanProcessor(object):
 
         if cli_progress:
             print()
+
+
+    def _tile_parallel(self, pio, cli_progress, parallel, **kwargs):
+        import multiprocessing as mp
+
+        # Start up the workers
+
+        queue = mp.Queue(maxsize = 2 * parallel)
+        workers = []
+
+        for _ in range(parallel):
+            w = mp.Process(target=_mp_tile_worker, args=(queue, pio, kwargs))
+            w.daemon = True
+            w.start()
+            workers.append(w)
+
+        # Send out them segments
+
+        with tqdm(total=len(self._descs), disable=not cli_progress) as progress:
+            for image, desc in zip(self._collection.images(), self._descs):
+                queue.put((image, desc))
+                progress.update(1)
+
+            queue.close()
+
+            for w in workers:
+                w.join()
+
+        if cli_progress:
+            print()
+
+
+def _mp_tile_worker(queue, pio, kwargs):
+    """
+    Generate and enqueue the tiles that need to be processed.
+    """
+    from queue import Empty
+
+    tile_parity_sign = pio.get_default_vertical_parity_sign()
+
+    while True:
+        try:
+            # un-pickling WCS objects always triggers warnings right now
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                image, desc = queue.get(True, timeout=1)
+        except (OSError, ValueError, Empty):
+            # OSError or ValueError => queue closed. This signal seems not to
+            # cross multiprocess lines, though.
+            break
+
+        if image.get_parity_sign() != tile_parity_sign:
+            image.flip_parity()
+
+        for pos, width, height, image_x, image_y, tile_x, tile_y in desc.sub_tiling.generate_populated_positions():
+            if tile_parity_sign == 1:
+                image_y = image.height - (image_y + height)
+                tile_y = 256 - (tile_y + height)
+
+            ix_idx = slice(image_x, image_x + width)
+            bx_idx = slice(tile_x, tile_x + width)
+            iy_idx = slice(image_y, image_y + height)
+            by_idx = slice(tile_y, tile_y + height)
+
+            with pio.update_image(pos, masked_mode=image.mode, default='masked') as basis:
+                image.update_into_maskable_buffer(basis, iy_idx, ix_idx, by_idx, bx_idx)

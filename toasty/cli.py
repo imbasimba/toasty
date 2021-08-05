@@ -258,6 +258,12 @@ def tile_healpix_impl(settings):
 
 def tile_multi_tan_getparser(parser):
     parser.add_argument(
+        '--parallelism', '-j',
+        metavar = 'COUNT',
+        type = int,
+        help = 'The parallelization level (default: use all CPUs; specify `1` to force serial processing)',
+    )
+    parser.add_argument(
         '--hdu-index',
         metavar = 'INDEX',
         type = int,
@@ -292,7 +298,11 @@ def tile_multi_tan_impl(settings):
 
     mtp = MultiTanProcessor(collection)
     mtp.compute_global_pixelization(builder)
-    mtp.tile(pio, cli_progress=True)
+    mtp.tile(
+        pio,
+        parallel=settings.parallelism,
+        cli_progress=True,
+    )
     builder.write_index_rel_wtml()
 
     print(f'Successfully tiled inputs at level {builder.imgset.tile_levels}.')

@@ -201,10 +201,10 @@ class ImageMode(Enum):
 def _wcs_to_parity_sign(wcs):
     h = wcs.to_header()
 
-    cd1_1 = h['CDELT1'] * h['PC1_1']
+    cd1_1 = h['CDELT1'] * h.get('PC1_1', 1.0)
     cd1_2 = h['CDELT1'] * h.get('PC1_2', 0.0)
     cd2_1 = h['CDELT2'] * h.get('PC2_1', 0.0)
-    cd2_2 = h['CDELT2'] * h['PC2_2']
+    cd2_2 = h['CDELT2'] * h.get('PC2_2', 1.0)
 
     det = cd1_1 * cd2_2 - cd1_2 * cd2_1
 
@@ -217,10 +217,10 @@ def _flip_wcs_parity(wcs, image_height):
     from astropy.wcs import WCS
 
     h = wcs.to_header()
-    h['CD1_1'] = h['CDELT1'] * h['PC1_1']
+    h['CD1_1'] = h['CDELT1'] * h.setdefault('PC1_1', 1.0)
     h['CD1_2'] = h['CDELT1'] * h.setdefault('PC1_2', 0.0)
     h['CD2_1'] = h['CDELT2'] * h.setdefault('PC2_1', 0.0)
-    h['CD2_2'] = h['CDELT2'] * h['PC2_2']
+    h['CD2_2'] = h['CDELT2'] * h.setdefault('PC2_2', 1.0)
 
     for hn in 'CDELT1 CDELT2 PC1_1 PC1_2 PC2_1 PC2_2'.split():
         del h[hn]

@@ -47,8 +47,12 @@ class Builder(object):
 
     def __init__(self, pio):
         self.pio = pio
+
         self.imgset = ImageSet()
         self.imgset.name = 'Toasty'
+        self.imgset.file_type = '.' + pio.get_default_format()
+        self.imgset.url = pio.get_path_scheme() + self.imgset.file_type
+
         self.place = Place()
         self.place.foreground_image_set = self.imgset
         self.place.name = 'Toasty'
@@ -73,8 +77,6 @@ class Builder(object):
         self._check_no_wcs_yet()
         tiling = tile_study_image(image, self.pio, **kwargs)
         tiling.apply_to_imageset(self.imgset)
-        self.imgset.url = self.pio.get_path_scheme() + '.png'
-        self.imgset.file_type = '.png'
 
         return self
 
@@ -137,10 +139,8 @@ class Builder(object):
             self.imgset.data_set_type = DataSetType.SKY
 
         self.imgset.base_degrees_per_tile = 180
-        self.imgset.file_type = '.png'
         self.imgset.projection = ProjectionType.TOAST
         self.imgset.tile_levels = depth
-        self.imgset.url = self.pio.get_path_scheme() + '.png'
         self.place.zoom_level = 360
 
         return self

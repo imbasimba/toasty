@@ -284,6 +284,16 @@ class PyramidIO(object):
         """
         return self._scheme
 
+    def get_default_format(self):
+        """
+        Get the default image storage format for this pyramid.
+
+        Returns
+        -------
+        The format, a string resembling ``"png"`` or ``"fits"``.
+        """
+        return self._default_format
+
     def get_default_vertical_parity_sign(self):
         """
         Get the parity sign (vertical data layout) of the tiles in this pyramid's

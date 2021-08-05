@@ -10,6 +10,7 @@ PyramidIO
 
    .. autosummary::
 
+      ~PyramidIO.get_default_format
       ~PyramidIO.get_default_vertical_parity_sign
       ~PyramidIO.get_path_scheme
       ~PyramidIO.open_metadata_for_read
@@ -21,6 +22,7 @@ PyramidIO
 
    .. rubric:: Methods Documentation
 
+   .. automethod:: get_default_format
    .. automethod:: get_default_vertical_parity_sign
    .. automethod:: get_path_scheme
    .. automethod:: open_metadata_for_read

@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2020 the AAS WorldWide Telescope project
+# Copyright 2020-2021 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 """
@@ -9,14 +9,11 @@ systems.
 This module has the following Python package dependencies:
 
 - astropy
-- ccdproc (to trim FITS CCD datasets)
 - reproject
 - shapely (to optimize the projection in reproject)
-
 """
 
 __all__ = '''
-make_lsst_directory_loader_generator
 MultiWcsProcessor
 '''.split()
 
@@ -24,56 +21,8 @@ import numpy as np
 from tqdm import tqdm
 import warnings
 
-from .image import Image, ImageMode
+from .image import Image, ImageDescription, ImageMode
 from .study import StudyTiling
-
-
-def make_lsst_directory_loader_generator(dirname, unit=None):
-    from astropy.io import fits
-    from astropy.nddata import ccddata
-    import ccdproc
-    from glob import glob
-    from os.path import join
-
-    def loader_generator(actually_load_data):
-        # Ideally we would just return a shape instead of an empty data array in
-        # the case where actually_load_data is false, but we can't use
-        # `ccdproc.trim_image()` without having a CCDData in hand, so to get the
-        # right shape we're going to need to create a full CCDData anyway.
-
-        for fits_path in glob(join(dirname, '*.fits')):
-            # `astropy.nddata.ccddata.fits_ccddata_reader` only opens FITS from
-            # filenames, not from an open HDUList, which means that creating
-            # multiple CCDDatas from the same FITS file rapidly becomes
-            # inefficient. So, we emulate its logic.
-
-            with fits.open(fits_path) as hdu_list:
-                for idx, hdu in enumerate(hdu_list):
-                    if idx == 0:
-                        header0 = hdu.header
-                    else:
-                        hdr = hdu.header
-                        hdr.extend(header0, unique=True)
-
-                        # This ccddata function often generates annoying warnings
-                        with warnings.catch_warnings():
-                            warnings.simplefilter('ignore')
-                            hdr, wcs = ccddata._generate_wcs_and_update_header(hdr)
-
-                        # Note: we skip all the unit-handling logic here since the LSST
-                        # sim data I'm using don't have anything useful.
-
-                        if actually_load_data:
-                            data = hdu.data
-                        else:
-                            data = np.empty(hdu.shape, dtype=np.void)
-
-                        ccd = ccddata.CCDData(data, meta=hdr, unit=unit, wcs=wcs)
-
-                        ccd = ccdproc.trim_image(ccd, fits_section=ccd.header['DATASEC'])
-                        yield (f'{fits_path}:{idx}', ccd)
-
-    return loader_generator
 
 
 class MultiWcsDescriptor(object):
@@ -90,33 +39,43 @@ class MultiWcsDescriptor(object):
 
 
 class MultiWcsProcessor(object):
-    def __init__(self, loader_generator):
-        self._loader_generator = loader_generator
+    def __init__(self, collection):
+        self._collection = collection
 
 
-    def compute_global_pixelization(self):
+    def compute_global_pixelization(self, builder):
         from reproject.mosaicking.wcs_helpers import find_optimal_celestial_wcs
 
         # Load up current WCS information for all of the inputs
 
-        def create_descriptor(loader_data):
+        def create_mwcs_descriptor(coll_desc):
             desc = MultiWcsDescriptor()
-            desc.ident = loader_data[0]
-            desc.in_shape = loader_data[1].shape
-            desc.in_wcs = loader_data[1].wcs
+            desc.ident = coll_desc.collection_id
+            desc.in_shape = coll_desc.shape
+            desc.in_wcs = coll_desc.wcs
             return desc
 
-        self._descs = [create_descriptor(tup) for tup in self._loader_generator(False)]
+        self._descs = [create_mwcs_descriptor(d) for d in self._collection.descriptions()]
 
-        # Compute the optimal tangential tiling that fits all of them.
+        # Compute the optimal tangential tiling that fits all of them. Since WWT
+        # tilings must be done in a negative-parity coordinate system, we use an
+        # ImageDescription helper to ensure we get that.
 
-        self._combined_wcs, self._combined_shape = find_optimal_celestial_wcs(
+        wcs, shape = find_optimal_celestial_wcs(
             ((desc.in_shape, desc.in_wcs) for desc in self._descs),
             auto_rotate = True,
             projection = 'TAN',
         )
 
-        self._tiling = StudyTiling(self._combined_shape[1], self._combined_shape[0])
+        desc = ImageDescription(wcs=wcs, shape=shape)
+        desc.ensure_negative_parity()
+        self._combined_wcs = desc.wcs
+        self._combined_shape = desc.shape
+        height, width = self._combined_shape
+
+        self._tiling = StudyTiling(width, height)
+        self._tiling.apply_to_imageset(builder.imgset)
+        builder.apply_wcs_info(self._combined_wcs, width, height)
 
         # While we're here, figure out how each input will map onto the global
         # tiling. This makes sure that nothing funky happened during the
@@ -146,17 +105,14 @@ class MultiWcsProcessor(object):
             desc.jmax = min(self._combined_shape[0], int(np.ceil(yc_out.max() + 0.5)))
 
             # Compute the sub-tiling now so that we can count how many total
-            # tiles we'll need to process. Note that the combined WCS coordinate
-            # system has y=0 on the bottom, whereas the tiling coordinate system
-            # has y=0 at the top. So we need to invert the coordinates
-            # vertically when determining the sub-tiling.
+            # tiles we'll need to process.
 
             if desc.imax < desc.imin or desc.jmax < desc.jmin:
                 raise Exception(f'segment {desc.ident} maps to zero size in the global mosaic')
 
             desc.sub_tiling = self._tiling.compute_for_subimage(
                 desc.imin,
-                self._combined_shape[0] - desc.jmax,
+                desc.jmin,
                 desc.imax - desc.imin,
                 desc.jmax - desc.jmin,
             )
@@ -194,10 +150,16 @@ class MultiWcsProcessor(object):
         else:
             self._tile_serial(pio, reproject_function, cli_progress, **kwargs)
 
+        # Since we used `pio.update_image()`, we should clean up the lockfiles
+        # that were generated.
+        pio.clean_lockfiles(self._tiling._tile_levels)
+
 
     def _tile_serial(self, pio, reproject_function, cli_progress, **kwargs):
+        invert_into_tiles = pio.get_default_vertical_parity_sign() == 1
+
         with tqdm(total=self._n_todo, disable=not cli_progress) as progress:
-            for (ident, ccd), desc in zip(self._loader_generator(True), self._descs):
+            for image, desc in zip(self._collection.images(), self._descs):
                 # XXX: more copying from
                 # `reproject.mosaicking.coadd.reproject_and_coadd`.
 
@@ -205,21 +167,38 @@ class MultiWcsProcessor(object):
                 shape_out_indiv = (desc.jmax - desc.jmin, desc.imax - desc.imin)
 
                 array = reproject_function(
-                    (ccd.data, ccd.wcs),
+                    (image.asarray(), image.wcs),
                     output_projection=wcs_out_indiv,
                     shape_out=shape_out_indiv,
                     return_footprint=False,
                     **kwargs
                 )
 
-                # Once again, FITS coordinates have y=0 at the bottom and our
-                # coordinates have y=0 at the top, so we need a vertical flip.
-                image = Image.from_array(array.astype(np.float32)[::-1])
+                image = Image.from_array(array.astype(np.float32))
 
                 for pos, width, height, image_x, image_y, tile_x, tile_y in desc.sub_tiling.generate_populated_positions():
+                    # Because we are doing an arbitrary WCS reprojection anyway,
+                    # we can ensure that our source image is stored with a
+                    # top-down vertical data layout, AKA negative image parity,
+                    # which is what the overall "study" coordinate system needs.
+                    # But if we're writing to FITS format tiles, those need to
+                    # end up with a bottoms-up format. So we need to flip the
+                    # vertical orientation of how we put the data into the tile
+                    # buffer.
+
+                    if invert_into_tiles:
+                        flip_tile_y1 = 255 - tile_y
+                        flip_tile_y0 = flip_tile_y1 - height
+
+                        if flip_tile_y0 == -1:
+                            flip_tile_y0 = None  # with a slice, -1 does the wrong thing
+
+                        by_idx = slice(flip_tile_y1, flip_tile_y0, -1)
+                    else:
+                        by_idx = slice(tile_y, tile_y + height)
+
                     iy_idx = slice(image_y, image_y + height)
                     ix_idx = slice(image_x, image_x + width)
-                    by_idx = slice(tile_y, tile_y + height)
                     bx_idx = slice(tile_x, tile_x + width)
 
                     with pio.update_image(pos, masked_mode=image.mode, default='masked') as basis:
@@ -248,9 +227,9 @@ class MultiWcsProcessor(object):
         # Send out them segments
 
         with tqdm(total=len(self._descs), disable=not cli_progress) as progress:
-            for (ident, ccd), desc in zip(self._loader_generator(True), self._descs):
+            for image, desc in zip(self._collection.images(), self._descs):
                 wcs_out_indiv = self._combined_wcs[desc.jmin:desc.jmax, desc.imin:desc.imax]
-                queue.put((ident, ccd, desc, wcs_out_indiv))
+                queue.put((image, desc, wcs_out_indiv))
                 progress.update(1)
 
             queue.close()
@@ -268,12 +247,14 @@ def _mp_tile_worker(queue, pio, reproject_function, kwargs):
     """
     from queue import Empty
 
+    invert_into_tiles = pio.get_default_vertical_parity_sign() == 1
+
     while True:
         try:
             # un-pickling WCS objects always triggers warnings right now
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
-                ident, ccd, desc, wcs_out_indiv = queue.get(True, timeout=1)
+                image, desc, wcs_out_indiv = queue.get(True, timeout=1)
         except (OSError, ValueError, Empty):
             # OSError or ValueError => queue closed. This signal seems not to
             # cross multiprocess lines, though.
@@ -282,21 +263,29 @@ def _mp_tile_worker(queue, pio, reproject_function, kwargs):
         shape_out_indiv = (desc.jmax - desc.jmin, desc.imax - desc.imin)
 
         array = reproject_function(
-            (ccd.data, ccd.wcs),
+            (image.asarray(), image.wcs),
             output_projection=wcs_out_indiv,
             shape_out=shape_out_indiv,
             return_footprint=False,
             **kwargs
         )
 
-        # Once again, FITS coordinates have y=0 at the bottom and our
-        # coordinates have y=0 at the top, so we need a vertical flip.
-        image = Image.from_array(array.astype(np.float32)[::-1])
+        image = Image.from_array(array.astype(np.float32))
 
         for pos, width, height, image_x, image_y, tile_x, tile_y in desc.sub_tiling.generate_populated_positions():
+            if invert_into_tiles:
+                flip_tile_y1 = 255 - tile_y
+                flip_tile_y0 = flip_tile_y1 - height
+
+                if flip_tile_y0 == -1:
+                    flip_tile_y0 = None  # with a slice, -1 does the wrong thing
+
+                by_idx = slice(flip_tile_y1, flip_tile_y0, -1)
+            else:
+                by_idx = slice(tile_y, tile_y + height)
+
             iy_idx = slice(image_y, image_y + height)
             ix_idx = slice(image_x, image_x + width)
-            by_idx = slice(tile_y, tile_y + height)
             bx_idx = slice(tile_x, tile_x + width)
 
             with pio.update_image(pos, masked_mode=image.mode, default='masked') as basis:

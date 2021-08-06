@@ -11,7 +11,9 @@ import pytest
 import sys
 
 from . import assert_xml_elements_equal, test_path
+from ..builder import Builder
 from .. import cli
+from .. import collection
 from .. import multi_tan
 
 
@@ -66,66 +68,27 @@ class TestMultiTan(object):
         return os.path.join(self.work_dir, *pieces)
 
     def test_basic(self):
-        ds = multi_tan.MultiTanDataSource([test_path('wcs512.fits.gz')])
-        ds.compute_global_pixelization()
+        coll = collection.SimpleFitsCollection([test_path('wcs512.fits.gz')])
 
-        from xml.etree import ElementTree as etree
-        expected = etree.fromstring(self.WTML)
-
-        folder = ds.create_wtml(
-            name = 'TestName',
-            url_prefix = 'UP',
-            fov_factor = 1.0,
-            bandpass = 'Gamma',
-            description_text = 'DT',
-            credits_text = 'CT',
-            credits_url = 'CU',
-            thumbnail_url = 'TU',
-        )
-        assert_xml_elements_equal(folder, expected)
+        proc = multi_tan.MultiTanProcessor(coll)
 
         from ..pyramid import PyramidIO
-        pio = PyramidIO(self.work_path('basic'), default_format='npy')
-        percentiles = ds.generate_deepest_layer_numpy(pio)
+        pio = PyramidIO(self.work_path('basic'), default_format='fits')
 
-        # These are all hardcoded parameters of this test dataset, derived
-        # from a manual processing with checking that the results are correct.
-        # Note that to make the file more compressible, I quantized its data,
-        # which explains why some of the samples below are identical.
+        builder = Builder(pio)
 
-        PERCENTILES = {
-            1: 0.098039217,
-            99: 0.76862746,
-        }
-
-        for pct, expected in PERCENTILES.items():
-            nt.assert_almost_equal(percentiles[pct], expected)
-
-        MEAN, TLC, TRC, BLC, BRC = range(5)
-        SAMPLES = {
-            (0, 0): [0.20828014, 0.20392157, 0.22745098, 0.18431373, 0.20000000],
-            (0, 1): [0.22180051, 0.18431373, 0.18823530, 0.16470589, 0.18431373],
-            (1, 0): [0.22178716, 0.16470589, 0.18431373, 0.11372549, 0.19607843],
-            (1, 1): [0.21140813, 0.18431373, 0.20784314, 0.12549020, 0.14117648],
-        }
-
-        for (y, x), expected in SAMPLES.items():
-            data = np.load(self.work_path('basic', '1', str(y), '{}_{}.npy'.format(y, x)))
-            nt.assert_almost_equal(data.mean(), expected[MEAN])
-            nt.assert_almost_equal(data[10,10], expected[TLC])
-            nt.assert_almost_equal(data[10,-10], expected[TRC])
-            nt.assert_almost_equal(data[-10,10], expected[BLC])
-            nt.assert_almost_equal(data[-10,-10], expected[BRC])
-
+        proc.compute_global_pixelization(builder)
+        proc.tile(pio)
 
     def test_basic_cli(self):
-        """Test the CLI interface. We don't go out of our way to validate the
+        """
+        Test the CLI interface. We don't go out of our way to validate the
         computations in detail -- that's for the unit tests that probe the
         module directly.
-
         """
+
         args = [
-            'multi-tan-make-data-tiles',
+            'tile-multi-tan',
             '--hdu-index', '0',
             '--outdir', self.work_path('basic_cli'),
             test_path('wcs512.fits.gz')

@@ -271,6 +271,9 @@ class DjangoplicityMetadata(object):
         headers['CRPIX1'] = (float(self.metadata['Spatial.ReferencePixel'][0]) - 0.5) * factor0 + 0.5
         headers['CRPIX2'] = (float(self.metadata['Spatial.ReferencePixel'][1]) - 0.5) * factor1 + 0.5
         headers['CDELT1'] = scale0 / factor0
-        headers['CDELT2'] = scale1 / factor1
+
+        # We need the negation here to properly express the parity of this
+        # JPEG-type image in WCS:
+        headers['CDELT2'] = -scale1 / factor1
 
         return headers

@@ -78,7 +78,7 @@ setup_args = dict(
         'pillow>=7.0',
         'PyYAML>=5.0',
         'tqdm>=4.0',
-        'wwt_data_formats>=0.9.1',
+        'wwt_data_formats>=0.10.0',
     ],
 
     extras_require = {

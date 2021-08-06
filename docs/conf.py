@@ -43,12 +43,12 @@ intersphinx_mapping = {
     ),
 
     'astropy': (
-        'http://docs.astropy.org/en/stable/',
+        'https://docs.astropy.org/en/stable/',
         None
     ),
 
     'numpy': (
-        'https://docs.scipy.org/doc/numpy/',
+        'https://numpy.org/doc/stable/',
         (None, 'http://data.astropy.org/intersphinx/numpy.inv')
     ),
 

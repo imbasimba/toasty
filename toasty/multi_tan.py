@@ -1,415 +1,310 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2019-2020 the AAS WorldWide Telescope project
+# Copyright 2019-2021 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
-"""Generate tiles from a collection of images on a common TAN projection.
-
-TODO: shuld be migrated to wwt_data_formats.
-
 """
-from __future__ import absolute_import, division, print_function
+Generate tiles from a collection of images on a common TAN projection.
+"""
 
 __all__ = '''
-MultiTanDataSource
+MultiTanProcessor
 '''.split()
 
+from astropy.wcs import WCS
 import numpy as np
+from tqdm import tqdm
+import warnings
 
-from .pyramid import Pos, next_highest_power_of_2
+from .study import StudyTiling
 
 MATCH_HEADERS = [
     'CTYPE1', 'CTYPE2',
     'CRVAL1', 'CRVAL2',
+    'CDELT1', 'CDELT2',
 ]
 
 # In my sample set, some of these files vary minutely from one header to the
 # next, so we save them but don't demand exact matching. We should use
 # np.isclose() or whatever it is.
 SAVE_HEADERS = [
-    'CD1_1', 'CD2_2',
+    'PC1_1', 'PC2_2',
 ]
 
 
-class MultiTanDataSource(object):
-    """Generate tiles from a collection of images on a common TAN projection.
+class MultiTanDescriptor(object):
+    ident = None
+    in_shape = None
 
-    Some large astronomical images are stored as a collection of sub-images
-    that share a common tangential projection, a format is that is nice and
-    easy to convert into a WWT "study" tile pyramid. This class can process a
-    collection of such images and break them into the highest-resolution layer
-    of such a tile pyramid.
+    crxmin = None
+    crxmax = None
+    crymin = None
+    crymax = None
 
+    imin = None
+    imax = None
+    jmin = None
+    jmax = None
+
+    sub_tiling = None
+
+
+class MultiTanProcessor(object):
     """
-    _ra_deg = None
-    "The RA of the center of the TAN projection on the sky, in degrees."
-    _dec_deg = None
-    "The declination of the center of the TAN projection on the sky, in degrees."
-    _rot_rad = None
-    "The rotation of the TAN projection on the sky, in radians."
-    _width = None
-    "The width of the region in which image data are available, in pixels."
-    _height = None
-    "The height of the region in which image data are available, in pixels."
-    _scale_x = None
-    "The horizontal pixel scale, in degrees per pixel. May be negative."
-    _scale_y = None
-    "The vertical pixel scale, in degrees per pixel. Always positive."
-    _tile_levels = None
-    "How many levels there are in the tile pyramid for this study."
-    _p2w = None
-    """The width of the highest-resolution tiling, in pixels. This is the
-    first power of 2 greater than or equal to _width."""
-    _p2h = None
-    """The height of the highest-resolution tiling, in pixels. This is the
-    first power of 2 greater than or equal to _height."""
-    _center_crx = None
-    """The X position of the image center, in pixels relative to the center of
-    the tangential projection."""
-    _center_cry = None
-    """The Y position of the image center, in pixels relative to the center of
-    the tangential projection."""
-    _crxmin = None
-    "The minimum observed pixel X index, relative to the CRPIX of the projection."
-    _crymin = None
-    "The minimum observed pixel Y index, relative to the CRPIX of the projection."
+    Generate tiles from a collection of images on a common TAN projection.
 
-    def __init__(self, paths, hdu_index=0):
-        self._paths = paths
-        self._hdu_index = hdu_index
+    Some large astronomical images are stored as a collection of sub-images that
+    share a common tangential projection, a format is that is nice and easy to
+    convert into a WWT "study" tile pyramid. This class can process a collection
+    of such images and break them into the highest-resolution layer of such a
+    tile pyramid.
+    """
+
+    def __init__(self, collection):
+        self._collection = collection
 
 
-    def _input_hdus(self):
-        from astropy.io import fits
-
-        for path in self._paths:
-            with fits.open(path) as hdu_list:
-                yield path, hdu_list[self._hdu_index]
-
-
-    def compute_global_pixelization(self):
-        """Read the input images to determine the global pixelation of this data set.
+    def compute_global_pixelization(self, builder):
+        """
+        Read the input images to determine the global pixelation of this data
+        set.
 
         This function reads the FITS headers of all of the input data files to
         determine the overall image size and the parameters of its tiling as a
-        WWT study.
-
+        WWT study. This should be pretty easy, because we've been assured that
+        everything is on a nice common TAN, which is exactly what we need to end
+        up with anyway.
         """
-        ref_headers = None
-        crxmin = None
 
-        for path, hdu in self._input_hdus():
+        self._descs = []
+        ref_headers = None
+        global_crxmin = None
+
+        for desc in self._collection.descriptions():
+            # For figuring out the tiling properties, we need to ensure that
+            # we're working in top-down mode everywhere.
+            desc.ensure_negative_parity()
+
+            # Build up information for the common TAN projection.
+            header = desc.wcs.to_header()
+
             if ref_headers is None:
                 ref_headers = {}
 
-                for header in MATCH_HEADERS:
-                    ref_headers[header] = hdu.header[header]
+                for h in MATCH_HEADERS:
+                    ref_headers[h] = header[h]
 
-                for header in SAVE_HEADERS:
-                    ref_headers[header] = hdu.header[header]
+                for h in SAVE_HEADERS:
+                    ref_headers[h] = header[h]
 
                 if ref_headers['CTYPE1'] != 'RA---TAN':
-                    raise Exception('all inputs must be in a TAN projection, but {} is not'.format(path))
+                    raise Exception('all inputs must be in a TAN projection, but {} is not'.format(input_id))
                 if ref_headers['CTYPE2'] != 'DEC--TAN':
-                    raise Exception('all inputs must be in a TAN projection, but {} is not'.format(path))
+                    raise Exception('all inputs must be in a TAN projection, but {} is not'.format(input_id))
             else:
-                for header in MATCH_HEADERS:
-                    expected = ref_headers[header]
-                    observed = hdu.header[header]
+                for h in MATCH_HEADERS:
+                    expected = ref_headers[h]
+                    observed = header[h]
 
                     if observed != expected:
                         raise Exception('inputs are not on uniform WCS grid; in file {}, expected '
-                                        'value {} for header {} but observed {}'.format(path, expected, header, observed))
+                                        'value {} for header {} but observed {}'.format(input_id, expected, h, observed))
 
-            crpix1 = hdu.header['CRPIX1'] - 1
-            crpix2 = hdu.header['CRPIX2'] - 1
+            this_crpix1 = header['CRPIX1'] - 1
+            this_crpix2 = header['CRPIX2'] - 1
 
-            this_crxmin = 0 - crpix1
-            this_crxmax = (hdu.shape[1] - 1) - crpix1
-            this_crymin = 0 - crpix2
-            this_crymax = (hdu.shape[0] - 1) - crpix2
+            mtdesc = MultiTanDescriptor()
+            mtdesc.ident = desc.collection_id
+            mtdesc.in_shape = desc.shape
 
-            if crxmin is None:
-                crxmin = this_crxmin
-                crxmax = this_crxmax
-                crymin = this_crymin
-                crymax = this_crymax
+            mtdesc.crxmin = 0 - this_crpix1
+            mtdesc.crxmax = (desc.shape[1] - 1) - this_crpix1
+            mtdesc.crymin = 0 - this_crpix2
+            mtdesc.crymax = (desc.shape[0] - 1) - this_crpix2
+
+            if global_crxmin is None:
+                global_crxmin = mtdesc.crxmin
+                global_crxmax = mtdesc.crxmax
+                global_crymin = mtdesc.crymin
+                global_crymax = mtdesc.crymax
             else:
-                crxmin = min(crxmin, this_crxmin)
-                crxmax = max(crxmax, this_crxmax)
-                crymin = min(crymin, this_crymin)
-                crymax = max(crymax, this_crymax)
+                global_crxmin = min(global_crxmin, mtdesc.crxmin)
+                global_crxmax = max(global_crxmax, mtdesc.crxmax)
+                global_crymin = min(global_crymin, mtdesc.crymin)
+                global_crymax = max(global_crymax, mtdesc.crymax)
 
-        # Figure out the global properties of the tiled TAN representation
-        self._crxmin = crxmin
-        self._crymin = crymin
+            self._descs.append(mtdesc)
 
-        self._width = int(crxmax - self._crxmin) + 1
-        self._height = int(crymax - self._crymin) + 1
-        self._p2w = next_highest_power_of_2(self._width)
-        self._p2h = next_highest_power_of_2(self._height)
+        # We can now compute the global properties of the tiled TAN representation:
 
-        if self._p2w != self._p2h:  # TODO: figure this out and make it work.
-            raise Exception('TODO: we don\'t properly handle non-square-ish images; got {},{}'.format(self._p2w, self._p2h))
-        p2max = max(self._p2w, self._p2h)
-        self._tile_levels = int(np.log2(p2max / 256))
-        nfullx = self._p2w // 256
-        nfully = self._p2h // 256
+        width = int(global_crxmax - global_crxmin) + 1
+        height = int(global_crymax - global_crymin) + 1
+        self._tiling = StudyTiling(width, height)
 
-        self._ra_deg = ref_headers['CRVAL1']
-        self._dec_deg = ref_headers['CRVAL2']
+        ref_headers['CRPIX1'] = this_crpix1 + 1 + (mtdesc.crxmin - global_crxmin)
+        ref_headers['CRPIX2'] = this_crpix2 + 1 + (mtdesc.crymin - global_crymin)
+        wcs = WCS(ref_headers)
 
-        cd1_1 = ref_headers['CD1_1']
-        cd2_2 = ref_headers['CD2_2']
-        cd1_2 = ref_headers.get('CD1_2', 0.0)
-        cd2_1 = ref_headers.get('CD2_1', 0.0)
+        self._tiling.apply_to_imageset(builder.imgset)
+        builder.apply_wcs_info(wcs, width, height)
 
-        if cd1_1 * cd2_2 - cd1_2 * cd2_1 < 0:
-            cd_sign = -1
-        else:
-            cd_sign = 1
+        # While we're here, figure out how each input will map onto the global
+        # tiling. This makes sure that nothing funky happened during the
+        # computation and allows us to know how many tiles we'll have to visit.
 
-        self._rot_rad = np.arctan2(-cd_sign * cd1_2, cd2_2)
-        self._scale_x = np.sqrt(cd1_1**2 + cd2_1**2) * cd_sign
-        self._scale_y = np.sqrt(cd1_2**2 + cd2_2**2)
+        self._n_todo = 0
 
-        self._center_crx = self._width // 2 + self._crxmin
-        self._center_cry = self._height // 2 + self._crymin
+        for desc in self._descs:
+            desc.imin = int(np.floor(desc.crxmin - global_crxmin))
+            desc.imax = int(np.ceil(desc.crxmax - global_crxmin))
+            desc.jmin = int(np.floor(desc.crymin - global_crymin))
+            desc.jmax = int(np.ceil(desc.crymax - global_crymin))
+
+            # Compute the sub-tiling now so that we can count how many total
+            # tiles we'll need to process.
+
+            if desc.imax < desc.imin or desc.jmax < desc.jmin:
+                raise Exception(f'segment {desc.ident} maps to zero size in the global mosaic')
+
+            desc.sub_tiling = self._tiling.compute_for_subimage(
+                desc.imin,
+                desc.jmin,
+                desc.imax - desc.imin,
+                desc.jmax - desc.jmin,
+            )
+
+            self._n_todo += desc.sub_tiling.count_populated_positions()
 
         return self  # chaining convenience
 
-    def create_wtml(
-            self,
-            name = 'MultiTan',
-            url_prefix = './',
-            fov_factor = 1.7,
-            bandpass = 'Visible',
-            description_text = '',
-            credits_text = 'Created by toasty, part of the AAS WorldWide Telescope.',
-            credits_url = '',
-            thumbnail_url = '',
-    ):
-        """Create a WTML document with the proper metadata for this data set.
 
-        :meth:`compute_global_pixelization` must have been called first.
-
-        Parameters
-        ----------
-        name : str, defaults to "MultiTan"
-          The dataset name to embed in the WTML file.
-        url_prefix : str, default to "./"
-          The beginning of the URL path to the tile data. The URL given in
-          the WTML will be "URL_PREFIX{1}/{3}/{3}_{2}.png"
-        fov_factor : float, defaults to 1.7
-          The WTML file specifies the height of viewport that the client should
-          zoom to when viewing this image. The value used is *fov_factor* times
-          the height of the image.
-        bandpass : str, defaults to "Visible"
-          The bandpass of the image, as chosen from a menu of options
-          supported by the WTML format: "Gamma", "HydrogenAlpha", "IR",
-          "Microwave", "Radio", "Ultraviolet", "Visible", "VisibleNight",
-          "XRay".
-        description_text : str, defaults to ""
-          Free text describing what this image is.
-        credits_text : str, defaults to a toasty credit
-          A brief textual credit of who created and processed the image data.
-        credits_url: str, defaults to ""
-          A URL with additional image credit information, or the empty string
-          if no such URL is available.
-        thumbnail_url : str, defaults to ""
-          A URL of a thumbnail image (96x45 JPEG) representing this image data
-          set, or the empty string for a default to be used.
-
-        Returns
-        -------
-        folder : xml.etree.ElementTree.Element
-          An XML element containing the WWT metadata.
-
-        Examples
-        --------
-        To convert the returned XML structure into text, use
-        :func:`xml.etree.ElementTree.tostring`:
-        >>> from xml.etree import ElementTree as etree
-        >>> folder = data_source.create_wtml()
-        >>> print(etree.tostring(folder))
-
+    def tile(self, pio, parallel=None, cli_progress=False, **kwargs):
         """
-        from xml.etree import ElementTree as etree
-
-        folder = etree.Element('Folder')
-        folder.set('Name', name)
-        folder.set('Group', 'Explorer')
-
-        place = etree.SubElement(folder, 'Place')
-        place.set('Name', name)
-        place.set('DataSetType', 'Sky')
-        place.set('Rotation', str(self._rot_rad * 180 / np.pi))
-        place.set('Angle', '0')
-        place.set('Opacity', '100')
-        place.set('RA', str(self._ra_deg / 15))  # this RA is in hours
-        place.set('Dec', str(self._dec_deg))
-        place.set('ZoomLevel', str(self._height * self._scale_y * fov_factor * 6))  # zoom = 6 * (FOV height in deg)
-        # skipped: Constellation, Classification, Magnitude, AngularSize
-
-        fgimgset = etree.SubElement(place, 'ForegroundImageSet')
-
-        imgset = etree.SubElement(fgimgset, 'ImageSet')
-        imgset.set('Name', name)
-        imgset.set('Url', url_prefix + '{1}/{3}/{3}_{2}.png')
-        imgset.set('WidthFactor', '2')
-        imgset.set('BaseTileLevel', '0')
-        imgset.set('TileLevels', str(self._tile_levels))
-        imgset.set('BaseDegreesPerTile', str(self._scale_y * self._p2h))
-        imgset.set('FileType', '.png')
-        imgset.set('BottomsUp', 'False')
-        imgset.set('Projection', 'Tan')
-        imgset.set('CenterX', str(self._ra_deg))
-        imgset.set('CenterY', str(self._dec_deg))
-        imgset.set('OffsetX', str(self._center_crx * np.abs(self._scale_x)))
-        imgset.set('OffsetY', str(self._center_cry * self._scale_y))
-        imgset.set('Rotation', str(self._rot_rad * 180 / np.pi))
-        imgset.set('DataSetType', 'Sky')
-        imgset.set('BandPass', bandpass)
-        imgset.set('Sparse', 'True')
-
-        credits = etree.SubElement(imgset, 'Credits')
-        credits.text = credits_text
-
-        credurl = etree.SubElement(imgset, 'CreditsUrl')
-        credurl.text = credits_url
-
-        thumburl = etree.SubElement(imgset, 'ThumbnailUrl')
-        thumburl.text = thumbnail_url
-
-        desc = etree.SubElement(imgset, 'Description')
-        desc.text = description_text
-
-        return folder
-
-
-    def generate_deepest_layer_numpy(
-            self,
-            pio,
-            percentiles = [1, 99],
-    ):
-        """Fill in the deepest layer of the tile pyramid with Numpy-format data.
+        Tile the input images into the deepest layer of the pyramid.
 
         Parameters
         ----------
         pio : :class:`toasty.pyramid.PyramidIO`
-          A :class:`~toasty.pyramid.PyramidIO` instance to manage the I/O with
-          the tiles in the tile pyramid.
-        percentiles : iterable of numbers
-          This is a list of percentile points to calculate while reading the
-          data. Each number should be between 0 and 100. For each
-          high-resolution tile, the percentiles are computed; then the *median*
-          across all tiles is computed and returned.
-
-        Returns
-        -------
-        percentiles : dict mapping numbers to numbers
-          This dictionary contains the result of the median-percentile
-          computation. The keys are the values provided in the *percentiles*
-          parameter. The values are the median of each percentile across
-          all of the tiles.
-
-        Notes
-        -----
-        The implementation assumes that if individual images overlap, we can
-        just use the pixels from any one of them without caring which
-        particular one we choose.
-
-        Because this operation involves reading the complete image data set,
-        it offers a convenient opportunity to do some statistics on the data.
-        This motivates the presence of the *percentiles* feature.
-
+            A :class:`~toasty.pyramid.PyramidIO` instance to manage the I/O with
+            the tiles in the tile pyramid.
+        parallel : integer or None (the default)
+            The level of parallelization to use. If unspecified, defaults to using
+            all CPUs. If the OS does not support fork-based multiprocessing,
+            parallel processing is not possible and serial processing will be
+            forced. Pass ``1`` to force serial processing.
+        cli_progress : optional boolean, defaults False
+            If true, a progress bar will be printed to the terminal using tqdm.
         """
-        crxofs = (self._p2w - self._width) // 2
-        cryofs = (self._p2h - self._height) // 2
 
-        percentile_data = {p: [] for p in percentiles}
+        from .par_util import resolve_parallelism
+        parallel = resolve_parallelism(parallel)
 
-        for path, hdu in self._input_hdus():
-            crpix1 = hdu.header['CRPIX1'] - 1
-            crpix2 = hdu.header['CRPIX2'] - 1
+        if parallel > 1:
+            self._tile_parallel(pio, cli_progress, parallel, **kwargs)
+        else:
+            self._tile_serial(pio, cli_progress, **kwargs)
 
-            # (inclusive) image bounds in global pixel coords, which range
-            # from 0 to p2{w,h} (non-inclusive), and have y=0 at the top. The FITS
-            # data have y=0 at the bottom, so we need to flip them vertically.
-            img_gx0 = int((crxofs - self._crxmin) - crpix1)
-            img_gx1 = img_gx0 + hdu.shape[1] - 1
-            img_gy1 = self._p2h - 1 - int((cryofs - self._crymin) - crpix2)
-            img_gy0 = img_gy1 - (hdu.shape[0] - 1)
+        # Since we used `pio.update_image()`, we should clean up the lockfiles
+        # that were generated.
+        pio.clean_lockfiles(self._tiling._tile_levels)
 
-            assert img_gx0 >= 0
-            assert img_gy0 >= 0
-            assert img_gx1 < self._p2w
-            assert img_gy1 < self._p2h
 
-            # Tile indices at the highest resolution.
+    def _tile_serial(self, pio, cli_progress, **kwargs):
+        tile_parity_sign = pio.get_default_vertical_parity_sign()
 
-            ix0 = img_gx0 // 256
-            iy0 = img_gy0 // 256
-            ix1 = img_gx1 // 256
-            iy1 = img_gy1 // 256
+        with tqdm(total=self._n_todo, disable=not cli_progress) as progress:
+            for image, desc in zip(self._collection.images(), self._descs):
+                # Ensure that the image and the eventual tile agree on parity
+                if image.get_parity_sign() != tile_parity_sign:
+                    image.flip_parity()
 
-            # OK, load up the data, with a vertical flip, and grid them. While
-            # we're doing that, calculate percentiles to inform the RGB-ification.
+                for pos, width, height, image_x, image_y, tile_x, tile_y in desc.sub_tiling.generate_populated_positions():
+                    # Tiling coordinate systems are always negative (top-down)
+                    # parity, with the Y=0 tile at the top. But the actual data
+                    # buffers might be positive (bottoms-up) parity -- this is
+                    # the case for FITS. In those situations, we have to flip
+                    # the vertical positioning. Because we have ensured that the
+                    # source image and tile layouts agree, the needed tweak is
+                    # actually quite minimal:
 
-            data = hdu.data[::-1]
-            n_tiles = 0
+                    if tile_parity_sign == 1:
+                        image_y = image.height - (image_y + height)
+                        tile_y = 256 - (tile_y + height)
 
-            pvals = np.nanpercentile(data, percentiles)
-            for pct, pv in zip(percentiles, pvals):
-                percentile_data[pct].append(pv)
+                    ix_idx = slice(image_x, image_x + width)
+                    bx_idx = slice(tile_x, tile_x + width)
+                    iy_idx = slice(image_y, image_y + height)
+                    by_idx = slice(tile_y, tile_y + height)
 
-            for iy in range(iy0, iy1 + 1):
-                for ix in range(ix0, ix1 + 1):
-                    # (inclusive) tile bounds in global pixel coords
-                    tile_gx0 = ix * 256
-                    tile_gy0 = iy * 256
-                    tile_gx1 = tile_gx0 + 255
-                    tile_gy1 = tile_gy0 + 255
+                    with pio.update_image(pos, masked_mode=image.mode, default='masked') as basis:
+                        image.update_into_maskable_buffer(basis, iy_idx, ix_idx, by_idx, bx_idx)
 
-                    # overlap (= intersection) of the image and the tile in global pixel coords
-                    overlap_gx0 = max(tile_gx0, img_gx0)
-                    overlap_gy0 = max(tile_gy0, img_gy0)
-                    overlap_gx1 = min(tile_gx1, img_gx1)
-                    overlap_gy1 = min(tile_gy1, img_gy1)
+                    progress.update(1)
 
-                    # coordinates of the overlap in image pixel coords
-                    img_overlap_x0 = overlap_gx0 - img_gx0
-                    img_overlap_x1 = overlap_gx1 - img_gx0
-                    img_overlap_xslice = slice(img_overlap_x0, img_overlap_x1 + 1)
-                    img_overlap_y0 = overlap_gy0 - img_gy0
-                    img_overlap_y1 = overlap_gy1 - img_gy0
-                    img_overlap_yslice = slice(img_overlap_y0, img_overlap_y1 + 1)
+        if cli_progress:
+            print()
 
-                    # coordinates of the overlap in this tile's coordinates
-                    tile_overlap_x0 = overlap_gx0 - tile_gx0
-                    tile_overlap_x1 = overlap_gx1 - tile_gx0
-                    tile_overlap_xslice = slice(tile_overlap_x0, tile_overlap_x1 + 1)
-                    tile_overlap_y0 = overlap_gy0 - tile_gy0
-                    tile_overlap_y1 = overlap_gy1 - tile_gy0
-                    tile_overlap_yslice = slice(tile_overlap_y0, tile_overlap_y1 + 1)
 
-                    ###print(f'   {ix} {iy} -- {overlap_gx0} {overlap_gy0} {overlap_gx1} {overlap_gy1} -- '
-                    ###      f'{tile_overlap_x0} {tile_overlap_y0} {tile_overlap_x1} {tile_overlap_y1} -- '
-                    ###      f'{img_overlap_x0} {img_overlap_y0} {img_overlap_x1} {img_overlap_y1}')
+    def _tile_parallel(self, pio, cli_progress, parallel, **kwargs):
+        import multiprocessing as mp
 
-                    pos = Pos(self._tile_levels, ix, iy)
-                    p = pio.tile_path(pos)
+        # Start up the workers
 
-                    try:
-                        a = np.load(p)
-                    except IOError as e:
-                        if e.errno == 2:
-                            a = np.empty((256, 256))
-                            a.fill(np.nan)
-                        else:
-                            raise
+        queue = mp.Queue(maxsize = 2 * parallel)
+        workers = []
 
-                    a[tile_overlap_yslice,tile_overlap_xslice] = data[img_overlap_yslice,img_overlap_xslice]
-                    np.save(p, a)
+        for _ in range(parallel):
+            w = mp.Process(target=_mp_tile_worker, args=(queue, pio, kwargs))
+            w.daemon = True
+            w.start()
+            workers.append(w)
 
-        percentile_data = {p: np.median(a) for p, a in percentile_data.items()}
-        return percentile_data
+        # Send out them segments
+
+        with tqdm(total=len(self._descs), disable=not cli_progress) as progress:
+            for image, desc in zip(self._collection.images(), self._descs):
+                queue.put((image, desc))
+                progress.update(1)
+
+            queue.close()
+
+            for w in workers:
+                w.join()
+
+        if cli_progress:
+            print()
+
+
+def _mp_tile_worker(queue, pio, kwargs):
+    """
+    Generate and enqueue the tiles that need to be processed.
+    """
+    from queue import Empty
+
+    tile_parity_sign = pio.get_default_vertical_parity_sign()
+
+    while True:
+        try:
+            # un-pickling WCS objects always triggers warnings right now
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                image, desc = queue.get(True, timeout=1)
+        except (OSError, ValueError, Empty):
+            # OSError or ValueError => queue closed. This signal seems not to
+            # cross multiprocess lines, though.
+            break
+
+        if image.get_parity_sign() != tile_parity_sign:
+            image.flip_parity()
+
+        for pos, width, height, image_x, image_y, tile_x, tile_y in desc.sub_tiling.generate_populated_positions():
+            if tile_parity_sign == 1:
+                image_y = image.height - (image_y + height)
+                tile_y = 256 - (tile_y + height)
+
+            ix_idx = slice(image_x, image_x + width)
+            bx_idx = slice(tile_x, tile_x + width)
+            iy_idx = slice(image_y, image_y + height)
+            by_idx = slice(tile_y, tile_y + height)
+
+            with pio.update_image(pos, masked_mode=image.mode, default='masked') as basis:
+                image.update_into_maskable_buffer(basis, iy_idx, ix_idx, by_idx, bx_idx)

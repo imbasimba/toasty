@@ -14,6 +14,10 @@ Python API Reference
    :no-inheritance-diagram:
    :no-inherited-members:
 
+.. automodapi:: toasty.collection
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
 .. automodapi:: toasty.image
    :no-inheritance-diagram:
    :no-inherited-members:

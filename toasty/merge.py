@@ -37,6 +37,21 @@ from . import pyramid
 from .image import Image
 
 
+SLICES_MATCHING_PARITY = [
+    (slice(None, 256), slice(None, 256)),
+    (slice(None, 256), slice(256, None)),
+    (slice(256, None), slice(None, 256)),
+    (slice(256, None), slice(256, None)),
+]
+
+SLICES_OPPOSITE_PARITY = [
+    (slice(256, None), slice(None, 256)),
+    (slice(256, None), slice(256, None)),
+    (slice(None, 256), slice(None, 256)),
+    (slice(None, 256), slice(256, None)),
+]
+
+
 def averaging_merger(data):
     """A merger function that averages quartets of pixels.
 
@@ -96,12 +111,18 @@ def cascade_images(pio, start, merger, parallel=None, cli_progress=False):
 
 def _cascade_images_serial(pio, start, merger, cli_progress):
     buf = None
-    SLICES = [
-        (slice(None, 256), slice(None, 256)),
-        (slice(None, 256), slice(256, None)),
-        (slice(256, None), slice(None, 256)),
-        (slice(256, None), slice(256, None)),
-    ]
+
+    # Pyramids always follow a negative-parity (JPEG-like) coordinate system:
+    # tile X=0,Y=0 is at the top left. The file formats for individual tiles may
+    # share the same parity, or they may be negative: pixel x=0,y=0 is at the
+    # bottom-left. In particular, this is the case for FITS files. When this
+    # happens, we can pretty much cascade as normal, but when putting tile
+    # quartets together we need to y-flip at the tile level.
+
+    if pio.get_default_vertical_parity_sign() == 1:
+        slices = SLICES_OPPOSITE_PARITY
+    else:
+        slices = SLICES_MATCHING_PARITY
 
     with tqdm(total=pyramid.depth2tiles(start - 1), disable=not cli_progress) as progress:
         for pos in pyramid.generate_pos(start):
@@ -124,7 +145,7 @@ def _cascade_images_serial(pio, start, merger, cli_progress):
             if buf is not None:
                 buf.clear()
 
-            for slidx, subimg in zip(SLICES, (img0, img1, img2, img3)):
+            for slidx, subimg in zip(slices, (img0, img1, img2, img3)):
                 if subimg is not None:
                     if buf is None:
                         buf = subimg.mode.make_maskable_buffer(512, 512)
@@ -256,12 +277,12 @@ def _mp_cascade_worker(done_queue, ready_queue, pio, merger):
     from queue import Empty
 
     buf = None
-    SLICES = [
-        (slice(None, 256), slice(None, 256)),
-        (slice(None, 256), slice(256, None)),
-        (slice(256, None), slice(None, 256)),
-        (slice(256, None), slice(256, None)),
-    ]
+
+    # See discussion in the serial implementation.
+    if pio.get_default_vertical_parity_sign() == 1:
+        slices = SLICES_OPPOSITE_PARITY
+    else:
+        slices = SLICES_MATCHING_PARITY
 
     while True:
         try:
@@ -286,7 +307,7 @@ def _mp_cascade_worker(done_queue, ready_queue, pio, merger):
             if buf is not None:
                 buf.clear()
 
-            for slidx, subimg in zip(SLICES, (img0, img1, img2, img3)):
+            for slidx, subimg in zip(slices, (img0, img1, img2, img3)):
                 if subimg is not None:
                     if buf is None:
                         buf = subimg.mode.make_maskable_buffer(512, 512)

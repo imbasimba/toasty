@@ -32,7 +32,7 @@ class LocalTestAstroPixImageSource(astropix.AstroPixImageSource):
             "wcs_coordinate_frame": "ICRS",
             "wcs_equinox": "J2000",
             "wcs_reference_value": ["187.70593075", "12.39112325"],
-            "wcs_reference_dimension": ["7416.0", "4320.0"],
+            "wcs_reference_dimension": ["2166.0", "2129.0"],
             "wcs_reference_pixel": ["3738.9937831", "3032.00448074"],
             "wcs_scale": ["-5.91663506907e-14", "5.91663506907e-14"],
             "wcs_rotation": "0",

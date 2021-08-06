@@ -47,25 +47,42 @@ class Builder(object):
 
     def __init__(self, pio):
         self.pio = pio
+
         self.imgset = ImageSet()
         self.imgset.name = 'Toasty'
+        self.imgset.file_type = '.' + pio.get_default_format()
+        self.imgset.url = pio.get_path_scheme() + self.imgset.file_type
+
         self.place = Place()
         self.place.foreground_image_set = self.imgset
         self.place.name = 'Toasty'
 
 
+    def _check_no_wcs_yet(self):
+        """
+        The astrometric fields of ImageSet change their meaning depending on
+        whether the image in question is tiled or not. Therefore, you'll get
+        bogus results if change the tiling status *after* setting the
+        astrometric information. This method should be called by other methods
+        that control tiling in order to catch the issue if the user does things
+        backwards.
+        """
+        if self.imgset.center_x != 0 or self.imgset.center_y != 0:
+            raise Exception('order-of-operations error: you must apply WCS after applying tiling settings')
+
+
     def tile_base_as_study(self, image, **kwargs):
         from .study import tile_study_image
 
+        self._check_no_wcs_yet()
         tiling = tile_study_image(image, self.pio, **kwargs)
         tiling.apply_to_imageset(self.imgset)
-        self.imgset.url = self.pio.get_path_scheme() + '.png'
-        self.imgset.file_type = '.png'
 
         return self
 
 
     def default_tiled_study_astrometry(self):
+        self._check_no_wcs_yet()
         self.imgset.data_set_type = DataSetType.SKY
         self.imgset.base_degrees_per_tile = 1.0
         self.imgset.projection = ProjectionType.TAN
@@ -73,7 +90,7 @@ class Builder(object):
         return self
 
 
-    def load_from_wwtl(self, cli_settings, wwtl_path):
+    def load_from_wwtl(self, cli_settings, wwtl_path, cli_progress=False):
         from contextlib import closing
         from io import BytesIO
 
@@ -95,13 +112,16 @@ class Builder(object):
             img_data = lc.read_layer_file(layer, layer.extension)
             img = loader.load_stream(BytesIO(img_data))
 
+        self.imgset = imgset
+        self.place.foreground_image_set = self.imgset
+
         # Transmogrify untiled image info to tiled image info. We reuse the
         # existing imageset as much as possible, but update the parameters that
         # change in the tiling process.
-        self.imgset = imgset
-        self.place.foreground_image_set = self.imgset
+
         wcs_keywords = self.imgset.wcs_headers_from_position()
-        self.tile_base_as_study(img)
+        self.imgset.center_x = self.imgset.center_y = 0  # hack to satisfy _check_no_wcs_yet()
+        self.tile_base_as_study(img, cli_progress=cli_progress)
         self.imgset.set_position_from_wcs(wcs_keywords, img.width, img.height, place=self.place)
 
         return img
@@ -109,6 +129,8 @@ class Builder(object):
 
     def toast_base(self, sampler, depth, is_planet=False, **kwargs):
         from .toast import sample_layer
+
+        self._check_no_wcs_yet()
         sample_layer(self.pio, sampler, depth, **kwargs)
 
         if is_planet:
@@ -117,10 +139,8 @@ class Builder(object):
             self.imgset.data_set_type = DataSetType.SKY
 
         self.imgset.base_degrees_per_tile = 180
-        self.imgset.file_type = '.png'
         self.imgset.projection = ProjectionType.TOAST
         self.imgset.tile_levels = depth
-        self.imgset.url = self.pio.get_path_scheme() + '.png'
         self.place.zoom_level = 360
 
         return self
@@ -189,8 +209,11 @@ class Builder(object):
         return self
 
 
-    def write_index_rel_wtml(self):
-        from wwt_data_formats import write_xml_doc
+    def create_wtml_folder(self):
+        """
+        Create a one-item :class:`wwt_data_formats.folder.Folder` object
+        capturing this image.
+        """
         from wwt_data_formats.folder import Folder
 
         self.place.name = self.imgset.name
@@ -209,6 +232,14 @@ class Builder(object):
             folder.children = [self.imgset]
         else:
             folder.children = [self.place]
+
+        return folder
+
+
+    def write_index_rel_wtml(self):
+        from wwt_data_formats import write_xml_doc
+
+        folder = self.create_wtml_folder()
 
         with self.pio.open_metadata_for_write('index_rel.wtml') as f:
             write_xml_doc(folder.to_xml(), dest_stream=f, dest_wants_bytes=True)

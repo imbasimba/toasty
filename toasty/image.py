@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2020 the AAS WorldWide Telescope project
+# Copyright 2020-2021 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 """
@@ -13,9 +13,12 @@ large study for tiling.
 from __future__ import absolute_import, division, print_function
 
 __all__ = '''
+get_format_vertical_parity_sign
 Image
+ImageDescription
 ImageLoader
 ImageMode
+SUPPORTED_FORMATS
 '''.split()
 
 from enum import Enum
@@ -43,6 +46,38 @@ def _validate_format(name, fmt):
     if fmt is not None and fmt not in SUPPORTED_FORMATS:
         raise ValueError('{0} should be one of {1}'.format(name, '/'.join(sorted(SUPPORTED_FORMATS))))
 
+
+def get_format_vertical_parity_sign(format):
+    """
+    Get the vertical data layout associated with an image format, expressed as a
+    coordinate system parity sign.
+
+    Parameters
+    ----------
+    format : :class:`str`
+        The format name; one of ``SUPPORTED_FORMATS``
+
+    Returns
+    -------
+    Either +1 or -1, depending on the format's preferred parity. FITS has +1 and
+    everything else has -1 (for now).
+
+    Notes
+    -----
+    See :meth:`Image.get_parity_sign` for a discussion of general parity
+    concepts. While parity should be associated with coordinate systems, rather
+    than image file formats, there is a connection in the vertical data layout
+    that different file formats are assumed to use. In particular, WWT assumes
+    that most image file formats use a "top-down" data layout: if the data
+    buffer is a 2D array expressed in standard C/Python conventions, the zeroth
+    row (``data[0,:]``) is located at the top of the image. FITS formats, on the
+    other hand, are assumed to be bottoms-up: the zeroth row is at the bottom.
+    While proper WCS coordinates can convey *either* parity in a FITS file,
+    WWT's renderer assumes bottoms-up.
+    """
+    if format == 'fits':
+        return +1
+    return -1
 
 def _array_to_mode(array):
     if array.ndim == 2 and array.dtype.kind == 'f':
@@ -72,10 +107,45 @@ class ImageMode(Enum):
 
     """
     RGB = 'RGB'
+    "24-bit color with three uint8 channels for red, green, and blue."
+
     RGBA = 'RGBA'
+    "32-bit color with four uint8 channels for red, green, blue, and alpha (transparency)."
+
     F32 = 'F'
+    "32-bit floating-point scalar data."
+
     F64 = 'D'
+    "64-bit floating-point scalar data."
+
     F16x3 = 'F16x3'
+    """
+    48-bit color with three 16-bit floating-point channels for red, green, and
+    blue.
+
+    This mode is useful for high-dynamic-range image processing and can be
+    stored in the OpenEXR file format.
+    """
+
+    @classmethod
+    def from_array_info(cls, shape, dtype):
+        if len(shape) == 2 and dtype.kind == 'f':
+            if dtype.itemsize == 4:
+                return cls.F32
+            elif dtype.itemsize == 8:
+                return cls.F64
+        elif len(shape) == 3:
+            if shape[2] == 3:
+                if dtype.kind == 'f' and dtype.itemsize == 2:
+                    return cls.F16x3
+                elif dtype.kind == 'u' and dtype.itemsize == 1:
+                    return cls.RGB
+            elif shape[2] == 4:
+                if dtype.kind == 'u' and dtype.itemsize == 1:
+                    return cls.RGBA
+
+        raise ValueError('Could not determine mode for array with dtype {0} and shape {1}'.format(dtype, shape))
+
 
     def make_maskable_buffer(self, buf_height, buf_width):
         """
@@ -126,6 +196,140 @@ class ImageMode(Enum):
         if self == ImageMode.F16x3:
             return None
         return self.value
+
+
+def _wcs_to_parity_sign(wcs):
+    h = wcs.to_header()
+
+    cd1_1 = h['CDELT1'] * h.get('PC1_1', 1.0)
+    cd1_2 = h['CDELT1'] * h.get('PC1_2', 0.0)
+    cd2_1 = h['CDELT2'] * h.get('PC2_1', 0.0)
+    cd2_2 = h['CDELT2'] * h.get('PC2_2', 1.0)
+
+    det = cd1_1 * cd2_2 - cd1_2 * cd2_1
+
+    if det < 0:
+        return 1  # yes! *negative* determinant is *positive* parity sign
+    return -1
+
+
+def _flip_wcs_parity(wcs, image_height):
+    from astropy.wcs import WCS
+
+    h = wcs.to_header()
+    h['CD1_1'] = h['CDELT1'] * h.setdefault('PC1_1', 1.0)
+    h['CD1_2'] = h['CDELT1'] * h.setdefault('PC1_2', 0.0)
+    h['CD2_1'] = h['CDELT2'] * h.setdefault('PC2_1', 0.0)
+    h['CD2_2'] = h['CDELT2'] * h.setdefault('PC2_2', 1.0)
+
+    for hn in 'CDELT1 CDELT2 PC1_1 PC1_2 PC2_1 PC2_2'.split():
+        del h[hn]
+
+    # Here's what we need to flip:
+
+    h['CD1_2'] *= -1
+    h['CD2_2'] *= -1
+    h['CRPIX2'] = image_height + 1 - h['CRPIX2']  # this is FITS, so pixel indices are 1-based
+    return WCS(h)
+
+
+class ImageDescription(object):
+    """
+    Information about an image, without its actual bitmap data.
+
+    This comes in handy when processing a large block of images -- often, one
+    wants to analyze them all to determine some global settings, then do the
+    actual processing on an image-by-image basis.
+    """
+
+    mode = None
+    "The image's pixel data format."
+
+    shape = None
+    "The shape of the image's data array."
+
+    wcs = None
+    "The WCS information associated with the image, if available."
+
+
+    def __init__(self, mode=None, shape=None, wcs=None):
+        self.mode = mode
+        self.shape = shape
+        self.wcs = wcs
+
+    # Stuff redundant with plain Image. I would like to reduce the duplication
+    # here but I'm not liking the idea of making image data-optional.
+
+    @property
+    def dtype(self):
+        return self.asarray().dtype
+
+    @property
+    def width(self):
+        return self.shape[1]
+
+    @property
+    def height(self):
+        return self.shape[0]
+
+
+    def get_parity_sign(self):
+        """
+        Get this ImageDescription's parity, based on its WCS.
+
+        Returns
+        -------
+        Either +1 or -1, depending on the image parity.
+
+        Notes
+        -----
+        See :meth:`Image.get_parity_sign` for detailed discussion.
+        """
+        if self.wcs is None:
+            raise ValueError('cannot determine parity of an ImageDescription without WCS')
+
+        return _wcs_to_parity_sign(self.wcs)
+
+
+    def flip_parity(self):
+        """
+        Invert the parity of this ImageDescription's WCS.
+
+        Returns
+        -------
+        *self*, for chaining convenience.
+
+        Notes
+        -----
+        See :meth:`Image.flip_parity` for detailed discussion. This method
+        inverts the WCS but, because image descriptions do not come with
+        associated data, doesn't do that.
+
+        """
+        if self.wcs is None:
+            raise ValueError('cannot flip the parity of an ImageDescription without WCS')
+
+        self.wcs = _flip_wcs_parity(self.wcs, self.height)
+        return self
+
+
+    def ensure_negative_parity(self):
+        """
+        Ensure that this ImageDescription has negative parity.
+
+        Returns
+        -------
+        *self*, for chaining convenience.
+
+        Notes
+        -----
+        See :meth:`Image.ensure_negative_parity` for detailed discussion. This
+        method mgiht invert the WCS but, because image descriptions do not come
+        with associated data, doesn't do that.
+        """
+        if self.get_parity_sign() == 1:
+            self.flip_parity()
+        return self
 
 
 class ImageLoader(object):
@@ -437,12 +641,13 @@ class ImageLoader(object):
 
 
 class Image(object):
-    """A 2D data array stored in memory.
+    """
+    A 2D data array stored in memory, potential with spatial positioning information.
 
     This class primarily exists to help us abstract between the cases where we
     have "bitmap" RGB(A) images and "science" floating-point images.
-
     """
+
     _pil = None
     _array = None
     _mode = None
@@ -610,6 +815,109 @@ class Image(object):
             self._default_format = value
         else:
             raise ValueError('Unrecognized format: {0}'.format(value))
+
+
+    def has_wcs(self):
+        """
+        Return whether this image has attached WCS information.
+
+        Returns
+        -------
+        True if this image has WCS, False otherwise.
+        """
+        return self._wcs is not None
+
+
+    def get_parity_sign(self):
+        """
+        Get this image's parity, based on its WCS.
+
+        Returns
+        -------
+        Either +1 or -1, depending on the image parity as defined below.
+
+        Notes
+        -----
+        Images of the sky can have one of two "parities". An image's parity
+        relates its pixel buffer coordinate system to the sky coordinate system.
+
+        If you point a digital camera at the sky, take a picture, and save it as
+        a JPEG, the resulting image will have **negative** parity: if the image
+        is not rotated, an increasing pixel X value will mean a *decreasing* RA
+        (longitudinal) coordinate (because RA increases to the left), and an
+        increasing pixel Y value will mean a decreasing declination
+        (latitudinal) coordinate as well. Negative parity is also called
+        "top-down" in WWT, or "JPEG-like", and is associated with a *positive*
+        determinant of the FITS "CD" matrix. If this image's WCS coordinates
+        indicate negative parity, this method returns -1.
+
+        FITS images of the sky are flipped in comparison: when no rotation is in
+        effect, an increasing pixel X value still means a decreasing RA, but an
+        increasing pixel Y value mean an *increasing* declination. No rotation
+        operation can convert FITS parity to JPEG parity. This is called
+        positive parity, AKA "bottoms-up", and is associated with a *negative*
+        determinant of the FITS CD matrix. If this image's WCS coordinates
+        indicate positive parity, this method returns +1.
+
+        If the image has no WCS, :exc:`ValueError` will be raised.
+
+        This is all relevant because in WWT, images must be tiled in a
+        coordinate system that has negative parity.
+
+        """
+        if self._wcs is None:
+            raise ValueError('cannot determine parity of an image without WCS')
+
+        return _wcs_to_parity_sign(self._wcs)
+
+
+    def flip_parity(self):
+        """
+        Invert the parity of this image without changing its appearance.
+
+        Returns
+        -------
+        *self*, for chaining convenience.
+
+        Notes
+        -----
+        See :meth:`get_parity_sign` for an introduction to image parity. This
+        method flips the parity of the current image by vertically flipping both
+        its pixel data *and* its WCS, so that the image's appearance on the sky
+        will remain the same. If the image has no WCS, :exc:`ValueError` will be
+        raised.
+
+        """
+        if self._wcs is None:
+            raise ValueError('cannot flip the parity of an image without WCS')
+
+        self._wcs = _flip_wcs_parity(self._wcs, self.height)
+        self._array = self.asarray()[::-1]
+        return self
+
+
+    def ensure_negative_parity(self):
+        """
+        Ensure that this image has negative parity.
+
+        Returns
+        -------
+        *self*, for chaining convenience.
+
+        Notes
+        -----
+        See :meth:`get_parity_sign` for an introduction to image parity. This
+        method ensures that the current image has negative (JPEG-like, top-down)
+        parity, flipping it from positive parity if needed. Only images with
+        negative parity may be tiled in WWT.
+
+        This operation requires the image to have WCS information. If none is
+        available, :exc:`ValueError` will be raised.
+        """
+        if self.get_parity_sign() == 1:
+            self.flip_parity()
+        return self
+
 
     def fill_into_maskable_buffer(self, buffer, iy_idx, ix_idx, by_idx, bx_idx):
         """

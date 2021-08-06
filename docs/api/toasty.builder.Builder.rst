@@ -21,6 +21,7 @@ Builder
       ~Builder.apply_avm_info
       ~Builder.apply_wcs_info
       ~Builder.cascade
+      ~Builder.create_wtml_folder
       ~Builder.default_tiled_study_astrometry
       ~Builder.load_from_wwtl
       ~Builder.make_placeholder_thumbnail
@@ -41,6 +42,7 @@ Builder
    .. automethod:: apply_avm_info
    .. automethod:: apply_wcs_info
    .. automethod:: cascade
+   .. automethod:: create_wtml_folder
    .. automethod:: default_tiled_study_astrometry
    .. automethod:: load_from_wwtl
    .. automethod:: make_placeholder_thumbnail

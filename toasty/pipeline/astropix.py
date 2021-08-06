@@ -8,6 +8,11 @@ Support for loading images from an AstroPix feed.
 TODO: update metadata tomfoolery to match the new things that I've learned. Cf.
 the ``wwtdatatool wtml report`` utility and the djangoplicity implementation.
 
+NOTE: AstroPix seems to have its image parity backwards. Standard JPEGs are
+reported with ``wcs_scale[0] < 0``, which is *positive* AKA bottoms-up AKA FITS
+parity. If we pass their parameters more-or-less straight through to WWT, we get
+the right appearance onscreen.
+
 """
 
 __all__ = '''
@@ -261,7 +266,10 @@ class AstroPixMetadata(object):
         headers['CRPIX1'] = (self.wcs_reference_pixel[0] - 0.5) * factor0 + 0.5
         headers['CRPIX2'] = (self.wcs_reference_pixel[1] - 0.5) * factor1 + 0.5
         headers['CDELT1'] = self.wcs_scale[0] / factor0
-        headers['CDELT2'] = self.wcs_scale[1] / factor1
+
+        # We need the negation here to properly express the parity of this
+        # JPEG-type image in WCS:
+        headers['CDELT2'] = -self.wcs_scale[1] / factor1
 
         return headers
 

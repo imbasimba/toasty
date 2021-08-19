@@ -50,7 +50,7 @@ class TestStudy(object):
 
         # Now run it through the CLI.
 
-        for variants in ([], ['--placeholder-thumbnail']):
+        for variants in ([], ['--placeholder-thumbnail'], ['--name=Custom Name']):
             args = ['tile-wwtl']
             args += variants
             args += [

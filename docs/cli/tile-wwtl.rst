@@ -21,6 +21,7 @@ Usage
       [standard image-loading options]
       [--placeholder-thumbnail]
       [--outdir DIR]
+      [--name NAME]
       WWTL-PATH
 
 See the :ref:`cli-std-image-options` section for documentation on those options.
@@ -35,6 +36,9 @@ in a tangential (gnomonic) projection on the sky.
 
 The ``--outdir DIR`` option specifies where the output data should be written.
 If unspecified, the data root will be the current directory.
+
+The ``--name NAME`` option specifies the descriptive name for the imagery to be
+embedded inside the output WTML file. It defaults to "Toasty".
 
 If the ``--placeholder-thumbnail`` argument is given, an all-black placeholder
 thumbnail will be created. Otherwise, the thumbnail will be created by

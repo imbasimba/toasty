@@ -378,6 +378,12 @@ def tile_wwtl_getparser(parser):
     ImageLoader.add_arguments(parser)
 
     parser.add_argument(
+        '--name',
+        metavar = 'NAME',
+        default = 'Toasty',
+        help = 'The image name to embed in the output WTML file (default: %(default)s)',
+    )
+    parser.add_argument(
         '--placeholder-thumbnail',
         action = 'store_true',
         help = 'Do not attempt to thumbnail the input image -- saves memory for large inputs',
@@ -410,6 +416,7 @@ def tile_wwtl_impl(settings):
     else:
         builder.make_thumbnail_from_other(img)
 
+    builder.set_name(settings.name)
     builder.write_index_rel_wtml()
 
     print(f'Successfully tiled input "{settings.wwtl_path}" at level {builder.imgset.tile_levels}.')

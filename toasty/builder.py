@@ -127,7 +127,7 @@ class Builder(object):
         return img
 
 
-    def toast_base(self, sampler, depth, is_planet=False, **kwargs):
+    def toast_base(self, sampler, depth, is_planet=False, is_pano=False, **kwargs):
         from .toast import sample_layer
 
         self._check_no_wcs_yet()
@@ -135,6 +135,8 @@ class Builder(object):
 
         if is_planet:
             self.imgset.data_set_type = DataSetType.PLANET
+        elif is_pano:
+            self.imgset.data_set_type = DataSetType.PANORAMA
         else:
             self.imgset.data_set_type = DataSetType.SKY
 

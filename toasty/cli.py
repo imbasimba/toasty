@@ -144,7 +144,7 @@ def tile_allsky_getparser(parser):
         metavar = 'PROJTYPE',
         default = 'plate-carree',
         help = 'The projection type of the input image (default: %(default)s; choices: %(choices)s)',
-        choices = ['plate-carree', 'plate-carree-galactic', 'plate-carree-ecliptic', 'plate-carree-planet'],
+        choices = ['plate-carree', 'plate-carree-galactic', 'plate-carree-ecliptic', 'plate-carree-planet', 'plate-carree-panorama'],
     )
     parser.add_argument(
         '--parallelism', '-j',
@@ -173,6 +173,7 @@ def tile_allsky_impl(settings):
     img = ImageLoader.create_from_args(settings).load_path(settings.imgpath)
     pio = PyramidIO(settings.outdir)
     is_planet = False
+    is_pano = False
 
     if settings.projection == 'plate-carree':
         from .samplers import plate_carree_sampler
@@ -187,6 +188,10 @@ def tile_allsky_impl(settings):
         from .samplers import plate_carree_planet_sampler
         sampler = plate_carree_planet_sampler(img.asarray())
         is_planet = True
+    elif settings.projection == 'plate-carree-panorama':
+        from .samplers import plate_carree_sampler
+        sampler = plate_carree_sampler(img.asarray())
+        is_pano = True
     else:
         die('the image projection type {!r} is not recognized'.format(settings.projection))
 
@@ -202,6 +207,7 @@ def tile_allsky_impl(settings):
         sampler,
         settings.depth,
         is_planet=is_planet,
+        is_pano=is_pano,
         parallel=settings.parallelism,
         cli_progress=True,
     )

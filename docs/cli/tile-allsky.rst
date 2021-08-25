@@ -63,6 +63,8 @@ mapped on to the image. Allowed types are:
   the right. This is the format in which planetary maps are typically
   represented. If you use this option when you should have used
   ``plate-carree``, or vice versa, your map come out flipped horizontally.
+- ``plate-carree-panorama`` — like the default “plate carrée” projection, but 
+  the image is interpreted as a 360 degree panoramic image
 
 .. _equirectangular: https://en.wikipedia.org/wiki/Equirectangular_projection
 

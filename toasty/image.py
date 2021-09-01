@@ -1017,7 +1017,6 @@ class Image(object):
         path_or_stream : path-like object or file-like object
             The destination into which the data should be written. If file-like,
             the stream should accept bytes.
-
         """
 
         _validate_format('format', format)
@@ -1034,9 +1033,18 @@ class Image(object):
         elif format == 'npy':
             np.save(path_or_stream, self.asarray())
         elif format == 'fits':
-            header = None if self._wcs is None else self._wcs.to_header()
-            fits.writeto(path_or_stream, self.asarray(),
-                         header=header, overwrite=True)
+            header = fits.Header() if self._wcs is None else self._wcs.to_header()
+
+            arr = self.asarray()
+            header['DATAMIN'] = np.nanmin(arr)
+            header['DATAMAX'] = np.nanmax(arr)
+
+            fits.writeto(
+                path_or_stream,
+                arr,
+                header=header,
+                overwrite=True,
+            )
 
     def make_thumbnail_bitmap(self):
         """Create a thumbnail bitmap from the image.

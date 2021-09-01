@@ -74,11 +74,40 @@ class SimpleFitsCollection(ImageCollection):
                             break
 
                 wcs = WCS(hdu.header)
+                shape = hdu.shape
+
+                # We need to make sure the data are 2D celestial, since that's
+                # what our image code and `reproject` (if it's being used) expect.
+
+                full_wcs = None
+                keep_axes = None
+
+                if wcs.naxis != 2:
+                    if not wcs.has_celestial:
+                        raise Exception(f'cannot process input `{fits_path}`: WCS cannot be reduced to 2D celestial')
+
+                    full_wcs = wcs
+                    wcs = full_wcs.celestial
+
+                    # note: get_axis_types returns axes in FITS order, innermost first
+                    keep_axes = [t.get('coordinate_type') == 'celestial' for t in full_wcs.get_axis_types()[::-1]]
+
+                    for keep, axlen in zip(keep_axes, shape):
+                        if not keep and axlen != 1:
+                            raise Exception(f'cannot process input `{fits_path}`: found a non-celestial axis with size other than 1')
+
+                # OK, almost there. Are we loading data or just the descriptor?
 
                 if actually_load_data:
-                    result = Image.from_array(hdu.data, wcs=wcs, default_format='fits')
+                    data = hdu.data
+
+                    if full_wcs is not None:  # need to subset?
+                        data = data[tuple(slice(None) if k else 0 for k in keep_axes)]
+
+                    result = Image.from_array(data, wcs=wcs, default_format='fits')
                 else:
-                    shape = hdu.shape
+                    if full_wcs is not None:  # need to subset?
+                        shape = tuple(t[1] for t in zip(keep_axes, shape) if t[0])
 
                     if hasattr(hdu, 'dtype'):
                         mode = ImageMode.from_array_info(shape, hdu.dtype)

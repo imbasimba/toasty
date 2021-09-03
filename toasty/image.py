@@ -24,6 +24,7 @@ SUPPORTED_FORMATS
 from enum import Enum
 from PIL import Image as pil_image
 import numpy as np
+import warnings
 import sys
 
 try:
@@ -1036,8 +1037,18 @@ class Image(object):
             header = fits.Header() if self._wcs is None else self._wcs.to_header()
 
             arr = self.asarray()
-            header['DATAMIN'] = np.nanmin(arr)
-            header['DATAMAX'] = np.nanmax(arr)
+
+            # Avoid annoying RuntimeWarnings on all-NaN data
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+
+                m = np.nanmin(arr)
+                if np.isfinite(m):  # Astropy will raise an error if we don't NaN-guard
+                    header['DATAMIN'] = m
+
+                m = np.nanmax(arr)
+                if np.isfinite(m):
+                    header['DATAMAX'] = m
 
             fits.writeto(
                 path_or_stream,

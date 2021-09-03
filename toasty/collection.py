@@ -56,9 +56,10 @@ class ImageCollection(ABC):
 
 
 class SimpleFitsCollection(ImageCollection):
-    def __init__(self, paths, hdu_index=None):
+    def __init__(self, paths, hdu_index=None, blankval=None):
         self._paths = list(paths)
         self._hdu_index = hdu_index
+        self._blankval = blankval
 
     def _load(self, actually_load_data):
         from astropy.io import fits
@@ -103,6 +104,9 @@ class SimpleFitsCollection(ImageCollection):
 
                     if full_wcs is not None:  # need to subset?
                         data = data[tuple(slice(None) if k else 0 for k in keep_axes)]
+
+                    if self._blankval is not None:
+                        data[data == self._blankval] = np.nan
 
                     result = Image.from_array(data, wcs=wcs, default_format='fits')
                 else:

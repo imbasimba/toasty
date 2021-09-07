@@ -24,6 +24,7 @@ import warnings
 from .image import Image, ImageDescription, ImageMode
 from .study import StudyTiling
 
+MAXIMUM_CHUNK_SIZE = 128 * 1024 * 1024
 
 class MultiWcsDescriptor(object):
     ident = None
@@ -35,6 +36,12 @@ class MultiWcsDescriptor(object):
     jmin = None
     jmax = None
 
+    chunks = None
+
+
+class ChunkDescriptor(object):
+    j0 = None
+    j1 = None
     sub_tiling = None
 
 
@@ -104,20 +111,39 @@ class MultiWcsProcessor(object):
             desc.jmin = max(0, int(np.floor(yc_out.min() + 0.5)))
             desc.jmax = min(self._combined_shape[0], int(np.ceil(yc_out.max() + 0.5)))
 
-            # Compute the sub-tiling now so that we can count how many total
-            # tiles we'll need to process.
+            width = desc.imax - desc.imin
+            height = desc.jmax - desc.jmin
 
-            if desc.imax < desc.imin or desc.jmax < desc.jmin:
+            if width <= 0 or height <= 0:
                 raise Exception(f'segment {desc.ident} maps to zero size in the global mosaic')
 
-            desc.sub_tiling = self._tiling.compute_for_subimage(
-                desc.imin,
-                desc.jmin,
-                desc.imax - desc.imin,
-                desc.jmax - desc.jmin,
-            )
+            # Prepare to reproject the image onto the target pixelization.
+            # Reproject isn't very memory efficient and can blow up with large
+            # images. (My laptop with 64 GB of memory can't handle an
+            # all-at-once reprojection of a 12 GB FITS file.) To mitigate this,
+            # we reproject each image in chunks, moving down the image
+            # vertically in bands. If the image isn't very big this reduces to
+            # going all-at-once.
 
-            self._n_todo += desc.sub_tiling.count_populated_positions()
+            rows_per_chunk = max(MAXIMUM_CHUNK_SIZE // width, 1)
+            desc.chunks = []
+            delta_j = 0
+
+            while delta_j < height:
+                chunk = ChunkDescriptor()
+                chunk.j0 = desc.jmin + delta_j
+                chunk.j1 = min(chunk.j0 + rows_per_chunk, desc.jmax)
+                chunk_height = chunk.j1 - chunk.j0
+                chunk.sub_tiling = self._tiling.compute_for_subimage(
+                    desc.imin,
+                    chunk.j0,
+                    width,
+                    chunk_height,
+                )
+                desc.chunks.append(chunk)
+
+                self._n_todo += chunk.sub_tiling.count_populated_positions()
+                delta_j += chunk_height
 
         return self  # chaining convenience
 
@@ -160,51 +186,51 @@ class MultiWcsProcessor(object):
 
         with tqdm(total=self._n_todo, disable=not cli_progress) as progress:
             for image, desc in zip(self._collection.images(), self._descs):
-                # XXX: more copying from
-                # `reproject.mosaicking.coadd.reproject_and_coadd`.
+                input_array = image.asarray()
 
-                wcs_out_indiv = self._combined_wcs[desc.jmin:desc.jmax, desc.imin:desc.imax]
-                shape_out_indiv = (desc.jmax - desc.jmin, desc.imax - desc.imin)
+                for chunk in desc.chunks:
+                    chunk_shape = (chunk.j1 - chunk.j0, desc.imax - desc.imin)
+                    chunk_wcs = self._combined_wcs[chunk.j0:chunk.j1, desc.imin:desc.imax]
 
-                array = reproject_function(
-                    (image.asarray(), image.wcs),
-                    output_projection=wcs_out_indiv,
-                    shape_out=shape_out_indiv,
-                    return_footprint=False,
-                    **kwargs
-                )
+                    array = reproject_function(
+                        (input_array, image.wcs),
+                        output_projection=chunk_wcs,
+                        shape_out=chunk_shape,
+                        return_footprint=False,
+                        **kwargs
+                    )
 
-                image = Image.from_array(array.astype(np.float32))
+                    image_out = Image.from_array(array.astype(np.float32))
 
-                for pos, width, height, image_x, image_y, tile_x, tile_y in desc.sub_tiling.generate_populated_positions():
-                    # Because we are doing an arbitrary WCS reprojection anyway,
-                    # we can ensure that our source image is stored with a
-                    # top-down vertical data layout, AKA negative image parity,
-                    # which is what the overall "study" coordinate system needs.
-                    # But if we're writing to FITS format tiles, those need to
-                    # end up with a bottoms-up format. So we need to flip the
-                    # vertical orientation of how we put the data into the tile
-                    # buffer.
+                    for pos, width, height, image_x, image_y, tile_x, tile_y in chunk.sub_tiling.generate_populated_positions():
+                        # Because we are doing an arbitrary WCS reprojection anyway,
+                        # we can ensure that our source image is stored with a
+                        # top-down vertical data layout, AKA negative image parity,
+                        # which is what the overall "study" coordinate system needs.
+                        # But if we're writing to FITS format tiles, those need to
+                        # end up with a bottoms-up format. So we need to flip the
+                        # vertical orientation of how we put the data into the tile
+                        # buffer.
 
-                    if invert_into_tiles:
-                        flip_tile_y1 = 255 - tile_y
-                        flip_tile_y0 = flip_tile_y1 - height
+                        if invert_into_tiles:
+                            flip_tile_y1 = 255 - tile_y
+                            flip_tile_y0 = flip_tile_y1 - height
 
-                        if flip_tile_y0 == -1:
-                            flip_tile_y0 = None  # with a slice, -1 does the wrong thing
+                            if flip_tile_y0 == -1:
+                                flip_tile_y0 = None  # with a slice, -1 does the wrong thing
 
-                        by_idx = slice(flip_tile_y1, flip_tile_y0, -1)
-                    else:
-                        by_idx = slice(tile_y, tile_y + height)
+                            by_idx = slice(flip_tile_y1, flip_tile_y0, -1)
+                        else:
+                            by_idx = slice(tile_y, tile_y + height)
 
-                    iy_idx = slice(image_y, image_y + height)
-                    ix_idx = slice(image_x, image_x + width)
-                    bx_idx = slice(tile_x, tile_x + width)
+                        iy_idx = slice(image_y, image_y + height)
+                        ix_idx = slice(image_x, image_x + width)
+                        bx_idx = slice(tile_x, tile_x + width)
 
-                    with pio.update_image(pos, masked_mode=image.mode, default='masked') as basis:
-                        image.update_into_maskable_buffer(basis, iy_idx, ix_idx, by_idx, bx_idx)
+                        with pio.update_image(pos, masked_mode=image_out.mode, default='masked') as basis:
+                            image_out.update_into_maskable_buffer(basis, iy_idx, ix_idx, by_idx, bx_idx)
 
-                    progress.update(1)
+                        progress.update(1)
 
         if cli_progress:
             print()
@@ -228,8 +254,7 @@ class MultiWcsProcessor(object):
 
         with tqdm(total=len(self._descs), disable=not cli_progress) as progress:
             for image, desc in zip(self._collection.images(), self._descs):
-                wcs_out_indiv = self._combined_wcs[desc.jmin:desc.jmax, desc.imin:desc.imax]
-                queue.put((image, desc, wcs_out_indiv))
+                queue.put((image, desc, self._combined_wcs))
                 progress.update(1)
 
             queue.close()
@@ -252,41 +277,45 @@ def _mp_tile_worker(queue, pio, reproject_function, kwargs):
     while True:
         try:
             # un-pickling WCS objects always triggers warnings right now
-            with warnings.catch_warnings():
-                warnings.simplefilter('ignore')
-                image, desc, wcs_out_indiv = queue.get(True, timeout=1)
-        except (OSError, ValueError, Empty):
+            #with warnings.catch_warnings():
+            #    warnings.simplefilter('ignore')
+            image, desc, combined_wcs = queue.get(True, timeout=10)
+        except (OSError, ValueError, Empty) as e:
             # OSError or ValueError => queue closed. This signal seems not to
             # cross multiprocess lines, though.
             break
 
-        shape_out_indiv = (desc.jmax - desc.jmin, desc.imax - desc.imin)
+        input_array = image.asarray()
 
-        array = reproject_function(
-            (image.asarray(), image.wcs),
-            output_projection=wcs_out_indiv,
-            shape_out=shape_out_indiv,
-            return_footprint=False,
-            **kwargs
-        )
+        for chunk in desc.chunks:
+            chunk_shape = (chunk.j1 - chunk.j0, desc.imax - desc.imin)
+            chunk_wcs = combined_wcs[chunk.j0:chunk.j1, desc.imin:desc.imax]
 
-        image = Image.from_array(array.astype(np.float32))
+            array = reproject_function(
+                (input_array, image.wcs),
+                output_projection=chunk_wcs,
+                shape_out=chunk_shape,
+                return_footprint=False,
+                **kwargs
+            )
 
-        for pos, width, height, image_x, image_y, tile_x, tile_y in desc.sub_tiling.generate_populated_positions():
-            if invert_into_tiles:
-                flip_tile_y1 = 255 - tile_y
-                flip_tile_y0 = flip_tile_y1 - height
+            image_out = Image.from_array(array.astype(np.float32))
 
-                if flip_tile_y0 == -1:
-                    flip_tile_y0 = None  # with a slice, -1 does the wrong thing
+            for pos, width, height, image_x, image_y, tile_x, tile_y in chunk.sub_tiling.generate_populated_positions():
+                if invert_into_tiles:
+                    flip_tile_y1 = 255 - tile_y
+                    flip_tile_y0 = flip_tile_y1 - height
 
-                by_idx = slice(flip_tile_y1, flip_tile_y0, -1)
-            else:
-                by_idx = slice(tile_y, tile_y + height)
+                    if flip_tile_y0 == -1:
+                        flip_tile_y0 = None  # with a slice, -1 does the wrong thing
 
-            iy_idx = slice(image_y, image_y + height)
-            ix_idx = slice(image_x, image_x + width)
-            bx_idx = slice(tile_x, tile_x + width)
+                    by_idx = slice(flip_tile_y1, flip_tile_y0, -1)
+                else:
+                    by_idx = slice(tile_y, tile_y + height)
 
-            with pio.update_image(pos, masked_mode=image.mode, default='masked') as basis:
-                image.update_into_maskable_buffer(basis, iy_idx, ix_idx, by_idx, bx_idx)
+                iy_idx = slice(image_y, image_y + height)
+                ix_idx = slice(image_x, image_x + width)
+                bx_idx = slice(tile_x, tile_x + width)
+
+                with pio.update_image(pos, masked_mode=image_out.mode, default='masked') as basis:
+                    image_out.update_into_maskable_buffer(basis, iy_idx, ix_idx, by_idx, bx_idx)

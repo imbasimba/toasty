@@ -24,6 +24,7 @@ SUPPORTED_FORMATS
 from enum import Enum
 from PIL import Image as pil_image
 import numpy as np
+import warnings
 import sys
 
 try:
@@ -1017,7 +1018,6 @@ class Image(object):
         path_or_stream : path-like object or file-like object
             The destination into which the data should be written. If file-like,
             the stream should accept bytes.
-
         """
 
         _validate_format('format', format)
@@ -1034,9 +1034,28 @@ class Image(object):
         elif format == 'npy':
             np.save(path_or_stream, self.asarray())
         elif format == 'fits':
-            header = None if self._wcs is None else self._wcs.to_header()
-            fits.writeto(path_or_stream, self.asarray(),
-                         header=header, overwrite=True)
+            header = fits.Header() if self._wcs is None else self._wcs.to_header()
+
+            arr = self.asarray()
+
+            # Avoid annoying RuntimeWarnings on all-NaN data
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+
+                m = np.nanmin(arr)
+                if np.isfinite(m):  # Astropy will raise an error if we don't NaN-guard
+                    header['DATAMIN'] = m
+
+                m = np.nanmax(arr)
+                if np.isfinite(m):
+                    header['DATAMAX'] = m
+
+            fits.writeto(
+                path_or_stream,
+                arr,
+                header=header,
+                overwrite=True,
+            )
 
     def make_thumbnail_bitmap(self):
         """Create a thumbnail bitmap from the image.

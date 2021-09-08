@@ -112,8 +112,14 @@ class Builder(object):
             img_data = lc.read_layer_file(layer, layer.extension)
             img = loader.load_stream(BytesIO(img_data))
 
+        # (Re-)initialize with the imageset info extracted from the WWTL.
+
         self.imgset = imgset
         self.place.foreground_image_set = self.imgset
+
+        self.imgset.file_type = '.' + self.pio.get_default_format()
+        self.imgset.url = self.pio.get_path_scheme() + self.imgset.file_type
+        self.place.name = self.imgset.name
 
         # Transmogrify untiled image info to tiled image info. We reuse the
         # existing imageset as much as possible, but update the parameters that

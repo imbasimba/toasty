@@ -17,6 +17,8 @@ warn
 import argparse
 import os.path
 import sys
+import warnings
+
 from wwt_data_formats.cli import EnsureGlobsExpandedAction
 
 
@@ -77,6 +79,61 @@ def cascade_impl(settings):
         parallel=settings.parallelism,
         cli_progress=True
     )
+
+
+# "check-avm" subcommand
+
+def check_avm_getparser(parser):
+    parser.add_argument(
+        '--print', '-p',
+        dest = 'print_avm',
+        action = 'store_true',
+        help = 'Print the AVM data if present',
+    )
+    parser.add_argument(
+        '--exitcode',
+        action = 'store_true',
+        help = 'Exit with code 1 if no AVM tags are present',
+    )
+    parser.add_argument(
+        'image',
+        metavar = 'PATH',
+        help = 'An image to check for AVM tags',
+    )
+
+
+def check_avm_impl(settings):
+    try:
+        from pyavm import AVM, exceptions
+
+        SYNTAX_EXCEPTIONS = (
+            exceptions.AVMListLengthError,
+            exceptions.AVMItemNotInControlledVocabularyError,
+            exceptions.AVMEmptyValueError,
+        )
+    except ImportError:
+        die('cannot check AVM tags: you must install the `pyavm` package')
+
+    try:
+        # PyAVM can issue a lot of warnings that aren't helpful to the user.
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            avm = AVM.from_image(settings.image)
+    except exceptions.NoXMPPacketFound:
+        print(f'{settings.image}: no AVM tags')
+        sys.exit(1 if settings.exitcode else 0)
+    except SYNTAX_EXCEPTIONS as e:
+        print(f'{settings.image}: AVM data are present but malformed: {e} ({e.__class__.__name__})')
+        sys.exit(1)
+    except IOError as e:
+        die(f'error probing AVM tags of `{settings.image}`: {e}')
+
+    if settings.print_avm:
+        print(f'{settings.image}: AVM tags are present')
+        print()
+        print(avm)
+    else:
+        print(f'{settings.image}: AVM tags are present (use `--print` to display them)')
 
 
 # "make_thumbnail" subcommand

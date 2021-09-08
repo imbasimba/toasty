@@ -6,6 +6,7 @@ CLI Reference
 
    cli/std-image-options
    cli/cascade
+   cli/check-avm
    cli/make-thumbnail
    cli/pipeline-approve
    cli/pipeline-fetch

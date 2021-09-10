@@ -15,8 +15,9 @@ maps can be viewed in software such as the [AAS] [WorldWide Telescope].
 [AAS]: https://aas.org/
 [WorldWide Telescope]: http://www.worldwidetelescope.org/
 
-[toasty] was originally written by [Chris Beaumont] and is currently maintained
-as part of the AAS [WorldWide Telescope] project.
+[toasty] was originally written by [Chris Beaumont], benefited from
+contributions by Clara Brasseur (Space Telescope Science Institute), and is
+currently maintained as part of the AAS [WorldWide Telescope] project.
 
 [Chris Beaumont]: https://chrisbeaumont.org/
 <!--pypi-end-->
@@ -75,11 +76,13 @@ and [PyPI](https://pypi.org/project/toasty/#history).
 - [healpy] if using [HEALPix] maps
 - [numpy]
 - [pillow]
+- [pyavm] if using [Astronomy Visualization Metadata] tags
 - [pytest] to run the test suite
 - [PyYAML]
 - [tqdm]
 - [wwt_data_formats] >= 0.7
 
+[Astronomy Visualization Metadata]: https://virtualastronomy.org/avm_metadata.php
 [astropy]: https://www.astropy.org/
 [azure-storage-blob]: https://github.com/Azure/azure-sdk-for-python/tree/master/sdk/storage/azure-storage-blob
 [cython]: https://cython.org/
@@ -88,6 +91,7 @@ and [PyPI](https://pypi.org/project/toasty/#history).
 [HEALPix]: https://healpix.jpl.nasa.gov/
 [numpy]: https://numpy.org/
 [pillow]: https://pillow.readthedocs.io/
+[pyavm]: https://astrofrog.github.io/pyavm/
 [pytest]: https://docs.pytest.org/
 [PyYAML]: https://github.com/yaml/pyyaml
 [tqdm]: https://tqdm.github.io/

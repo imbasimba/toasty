@@ -87,6 +87,7 @@ setup_args = dict(
             'pytest-cov',
         ],
         'docs': [
+            'astropy',
             'astropy-sphinx-theme',
             'numpydoc',
             'sphinx',

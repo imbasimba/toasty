@@ -44,3 +44,9 @@ Notes
 This functionality requires that the `pyavm`_ Python package has been installed.
 
 .. _pyavm: https://astrofrog.github.io/pyavm/
+
+
+See Also
+========
+
+- :ref:`cli-tile-study`

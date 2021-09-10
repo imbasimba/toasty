@@ -17,6 +17,7 @@ Usage
       [--placeholder-thumbnail]
       [--outdir DIR]
       [--name NAME]
+      [--avm]
       IMAGE-PATH
 
 See the :ref:`cli-std-image-options` section for documentation on those options.
@@ -38,6 +39,15 @@ memory-intensive part of the process, and can yield poor results with
 mostly-empty images. You can avoid this by using this argument and then invoking
 :ref:`cli-make-thumbnail` with a better-suited input image.
 
+If the ``--avm`` argument is given, Toasty will attempt to load world-coordinate
+information from AVM (`Astronomy Visualization Metadata`_) tags in the input
+image’s metadata. This isn’t checked automatically because this functionality
+requires the `pyavm`_ package to be installed on your system.
+
+.. _Astronomy Visualization Metadata: https://virtualastronomy.org/avm_metadata.php
+
+.. _pyavm: https://astrofrog.github.io/pyavm/
+
 
 Notes
 =====
@@ -49,3 +59,9 @@ be able to get away with fudging the projection type.
 If the input image does not contain any useful astrometric information, the
 emited ``index_rel.wtml`` file will contain generic information that makes the
 image 1° wide and places it at RA = Dec = 0.
+
+
+See Also
+========
+
+- :ref:`cli-check-avm`

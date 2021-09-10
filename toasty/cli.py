@@ -387,6 +387,11 @@ def tile_study_getparser(parser):
         help = 'The image name to embed in the output WTML file (default: %(default)s)',
     )
     parser.add_argument(
+        '--avm',
+        action = 'store_true',
+        help = 'Expect the input image to have AVM positioning tags',
+    )
+    parser.add_argument(
         '--placeholder-thumbnail',
         action = 'store_true',
         help = 'Do not attempt to thumbnail the input image -- saves memory for large inputs',
@@ -413,10 +418,23 @@ def tile_study_impl(settings):
     pio = PyramidIO(settings.outdir, default_format=img.default_format)
     builder = Builder(pio)
 
-    if img.wcs is None:
-        builder.default_tiled_study_astrometry()
+    if settings.avm:
+        # We don't *always* check for AVM because pyavm prints out a lot of junk
+        # and may not be installed.
+        try:
+            from pyavm import AVM
+        except ImportError:
+            die('cannot use AVM data: you must install the `pyavm` package')
+
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                avm = AVM.from_image(settings.imgpath)
+        except Exception:
+            print(f'error: failed to read AVM tags of input `{settings.imgpath}`', file=sys.stderr)
+            raise
     else:
-        builder.apply_wcs_info(img.wcs, img.width, img.height)
+        builder.default_tiled_study_astrometry()
 
     # Do the thumbnail first since for large inputs it can be the memory high-water mark!
     if settings.placeholder_thumbnail:
@@ -425,6 +443,12 @@ def tile_study_impl(settings):
         builder.make_thumbnail_from_other(img)
 
     builder.tile_base_as_study(img, cli_progress=True)
+
+    if settings.avm:
+        builder.apply_avm_info(avm, img.width, img.height)
+    elif img.wcs is not None:
+        builder.apply_wcs_info(img.wcs, img.width, img.height)
+
     builder.set_name(settings.name)
     builder.write_index_rel_wtml()
 

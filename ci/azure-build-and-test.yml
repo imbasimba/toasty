@@ -101,6 +101,7 @@ jobs:
         numpy \
         openexr-python \
         pillow \
+        pyavm \
         pytest-cov \
         pyyaml \
         tqdm

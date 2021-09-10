@@ -194,7 +194,22 @@ class Builder(object):
 
 
     def apply_avm_info(self, avm, width, height):
-        self.apply_wcs_info(avm.to_wcs(target_shape=(width, height)), width, height)
+        # So. The AVM standard discusses how parity should be expressed and how
+        # it should be translated into WCS data, but in practice things are a
+        # bit wonky: the AVM data that we've seen in the wild basically express
+        # FITS-like (positive parity) WCS, while the actual associated image
+        # data have a JPEG-like (negative parity) data layout. WCS can express
+        # either parity so it would arguably be more correct for the generated
+        # WCS to have negative parity. Based on the current state of knowledge,
+        # I think the best option for now is to always flip the parity of the
+        # WCS that pyavm hands us. We might need to change the heuristic or
+        # allow the user to change the behavior.
+
+        wcs = avm.to_wcs(target_shape=(width, height))
+        from .image import _flip_wcs_parity
+        wcs = _flip_wcs_parity(wcs, height)
+
+        self.apply_wcs_info(wcs, width, height)
 
         if avm.Title:
             self.imgset.name = avm.Title

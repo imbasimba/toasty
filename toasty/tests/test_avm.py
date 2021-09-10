@@ -22,7 +22,7 @@ class TestAvm(object):
         return os.path.join(self.work_dir, *pieces)
 
     @pytest.mark.skipif('not HAS_AVM')
-    def test_check_cli(self):
+    def test_check_cli_bad(self):
         args = [
             'check-avm',
             '--print',
@@ -36,3 +36,13 @@ class TestAvm(object):
             assert e.code == 1
         else:
             assert False, 'no error exit on bad AVM'
+
+    @pytest.mark.skipif('not HAS_AVM')
+    def test_check_cli_good(self):
+        args = [
+            'check-avm',
+            '--print',
+            test_path('geminiann11015a.jpg'),
+        ]
+
+        cli.entrypoint(args)

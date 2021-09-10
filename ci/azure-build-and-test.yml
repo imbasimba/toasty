@@ -66,7 +66,7 @@ jobs:
         if [[ $AGENT_OS == Windows_NT ]] ; then
           \conda install -y astropy pytest
         else
-          \conda install -y astropy healpy pytest
+          \conda install -y astropy healpy pyavm pytest
         fi
 
         pytest --pyargs toasty
@@ -101,6 +101,7 @@ jobs:
         numpy \
         openexr-python \
         pillow \
+        pyavm \
         pytest-cov \
         pyyaml \
         tqdm

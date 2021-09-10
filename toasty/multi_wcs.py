@@ -277,9 +277,9 @@ def _mp_tile_worker(queue, pio, reproject_function, kwargs):
     while True:
         try:
             # un-pickling WCS objects always triggers warnings right now
-            #with warnings.catch_warnings():
-            #    warnings.simplefilter('ignore')
-            image, desc, combined_wcs = queue.get(True, timeout=10)
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                image, desc, combined_wcs = queue.get(True, timeout=10)
         except (OSError, ValueError, Empty) as e:
             # OSError or ValueError => queue closed. This signal seems not to
             # cross multiprocess lines, though.

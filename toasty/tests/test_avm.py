@@ -2,15 +2,11 @@
 # Copyright 2021 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
-import numpy as np
-from numpy import testing as nt
 import os.path
 import pytest
-import sys
 
-from . import assert_xml_elements_equal, test_path
+from . import HAS_AVM, test_path
 from .. import cli
-from .. import study
 
 
 class TestAvm(object):
@@ -25,6 +21,7 @@ class TestAvm(object):
     def work_path(self, *pieces):
         return os.path.join(self.work_dir, *pieces)
 
+    @pytest.mark.skipif('not HAS_AVM')
     def test_check_cli(self):
         args = [
             'check-avm',

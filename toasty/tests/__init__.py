@@ -5,6 +5,7 @@
 __all__ = '''
 assert_xml_elements_equal
 check_xml_elements_equal
+HAS_AVM
 test_path
 '''.split()
 
@@ -16,6 +17,12 @@ TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 def test_path(*pieces):
     return os.path.join(TESTS_DIR, *pieces)
 
+
+try:
+    import pyavm
+    HAS_AVM = True
+except ImportError:
+    HAS_AVM = False
 
 def check_xml_elements_equal(observed, expected):
     """See if two XML elements are equal through recursive comparison. We do *not*

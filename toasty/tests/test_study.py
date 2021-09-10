@@ -5,12 +5,10 @@
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-from numpy import testing as nt
 import os.path
 import pytest
-import sys
 
-from . import assert_xml_elements_equal, test_path
+from . import HAS_AVM, assert_xml_elements_equal, test_path
 from .. import cli
 from .. import study
 
@@ -115,6 +113,7 @@ Permission="0" Searchable="True" Type="Sky">
     </Place>
 </Folder>"""
 
+    @pytest.mark.skipif('not HAS_AVM')
     def test_avm(self):
         from xml.etree import ElementTree as etree
         expected = etree.fromstring(self.AVM_WTML)

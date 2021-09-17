@@ -7,7 +7,7 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 import numpy.testing as nt
 import os.path
-import sys
+import pytest
 from xml.etree import ElementTree as etree
 
 from . import assert_xml_elements_equal, test_path
@@ -22,6 +22,13 @@ try:
     HAS_ASTRO = True
 except ImportError:
     HAS_ASTRO = False
+
+
+try:
+    import reproject
+    HAS_REPROJECT = True
+except ImportError:
+    HAS_REPROJECT = False
 
 
 class TestMultiTan(object):
@@ -177,3 +184,33 @@ class TestMultiTan(object):
         cli.entrypoint(args)
 
         self.maybe_test_barycenter(self.work_path('study_cli', '0', '0', '0_0.fits'), self.WCS512_BARYDATA)
+
+
+    @pytest.mark.skipif('not HAS_REPROJECT')
+    def test_as_multi_wcs(self):
+        """
+        Once again, this doesn't super belong here, but this is where we have
+        the reference data. We don't compare the WTML contents here since the
+        reprojection isn't going to preserve the WCS in detail.
+        """
+        from .. import builder, collection, multi_wcs, pyramid
+
+        reproject_function = reproject.reproject_interp
+        outdir = self.work_path('as_multi_wcs')
+
+        pio = pyramid.PyramidIO(outdir, default_format='fits')
+        bld = builder.Builder(pio)
+        coll = collection.SimpleFitsCollection([test_path('wcs512.fits.gz')], hdu_index=0)
+        proc = multi_wcs.MultiWcsProcessor(coll)
+        proc.compute_global_pixelization(bld)
+        proc.tile(pio, reproject_function, cli_progress=False, parallel=1)
+        bld.write_index_rel_wtml()
+
+        args = [
+            'cascade',
+            '--start', '1',
+            self.work_path('as_multi_wcs'),
+        ]
+        cli.entrypoint(args)
+
+        self.maybe_test_barycenter(self.work_path('as_multi_wcs', '0', '0', '0_0.fits'), self.WCS512_BARYDATA)

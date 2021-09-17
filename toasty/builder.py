@@ -71,7 +71,74 @@ class Builder(object):
             raise Exception('order-of-operations error: you must apply WCS after applying tiling settings')
 
 
+    def prepare_study_tiling(self, image):
+        """
+        Set up to tile the specified image as a WWT "study".
+
+        Parameters
+        ----------
+        image : `toasty.image.Image`
+            The image that will be tiled
+
+        Returns
+        -------
+        tiling : `toasty.study.StudyTiling`
+            The prepared tiling information
+
+        Remarks
+        -------
+        After calling this method, you should set up the WCS for the tiled
+        imagery, using :meth:`default_tiled_study_astrometry` as a backstop if
+        no real information is available. Then use :meth:`execute_study_tiling`
+        to actually perform the tiling process.
+        """
+
+        from .study import StudyTiling
+
+        tiling = StudyTiling(image.width, image.height)
+        tiling.apply_to_imageset(self.imgset)
+        return tiling
+
+
+    def execute_study_tiling(self, image, tiling, **kwargs):
+        """
+        Tile the specified image as a WWT "study".
+
+        Parameters
+        ----------
+        image : `toasty.image.Image`
+            The image that will be tiled
+        tiling : `toasty.study.StudyTiling`
+            The prepared tiling information
+        **kwargs
+            Arguments relayed to :meth:`toasty.study.StudyTiling.tile_image`,
+            such as ``cli_progress``.
+
+        Returns
+        -------
+        *self*
+        """
+
+        tiling.tile_image(image, self.pio, **kwargs)
+        return self
+
+
     def tile_base_as_study(self, image, **kwargs):
+        """
+        Tile an image assuming that it is in the appropriate format for WWT's
+        "study" framework, namely that it uses a tangential (gnomonic)
+        projection on the sky.
+
+        Use of this method is somewhat discouraged since it both analyzes and
+        performs the tiling all at once, which means that you can only correctly
+        set (and validate) the WCS information *after* doing all the work of
+        tiling. (Which in turn is because the proper way to apply WCS
+        information to an imageset depends on the tiling parameters.) It is
+        generally better to use :meth:`prepare_study_tiling` and
+        :meth:`execute_study_tiling`, applying the WCS metadata in between, so
+        that WCS errors can be caught and reported before doing the I/O.
+        """
+
         from .study import tile_study_image
 
         self._check_no_wcs_yet()

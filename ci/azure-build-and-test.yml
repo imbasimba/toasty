@@ -104,6 +104,8 @@ jobs:
         pyavm \
         pytest-cov \
         pyyaml \
+        reproject \
+        shapely \
         tqdm
       pip install wwt_data_formats
       pip install -e .

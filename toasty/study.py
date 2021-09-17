@@ -320,6 +320,12 @@ class StudyTiling(object):
         if image.width != self._width:
             raise ValueError('width of image to be sampled does not match tiling')
 
+        # For tiled FITS, the overall input image and tiling coordinate system
+        # need to have negative (JPEG-like) parity, but the individal tiles need
+        # to be saved with positive (FITS-like) parity. The upshot is that we
+        # have to vertically flip the data layout in our tile buffers.
+        invert_into_tiles = pio.get_default_vertical_parity_sign() == 1
+
         # TODO: ideally make_maskable_buffer should be a method
         # on the Image class which could then avoid having to
         # manually transfer _format.
@@ -328,10 +334,21 @@ class StudyTiling(object):
 
         with tqdm(total=self.count_populated_positions(), disable=not cli_progress) as progress:
             for pos, width, height, image_x, image_y, tile_x, tile_y in self.generate_populated_positions():
+                if invert_into_tiles:
+                    flip_tile_y1 = 255 - tile_y
+                    flip_tile_y0 = flip_tile_y1 - height
+
+                    if flip_tile_y0 == -1:
+                        flip_tile_y0 = None  # with a slice, -1 does the wrong thing
+
+                    by_idx = slice(flip_tile_y1, flip_tile_y0, -1)
+                else:
+                    by_idx = slice(tile_y, tile_y + height)
+
                 iy_idx = slice(image_y, image_y + height)
                 ix_idx = slice(image_x, image_x + width)
-                by_idx = slice(tile_y, tile_y + height)
                 bx_idx = slice(tile_x, tile_x + width)
+
                 image.fill_into_maskable_buffer(buffer, iy_idx, ix_idx, by_idx, bx_idx)
                 pio.write_image(pos, buffer)
                 progress.update(1)

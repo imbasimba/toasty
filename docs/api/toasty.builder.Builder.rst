@@ -23,9 +23,11 @@ Builder
       ~Builder.cascade
       ~Builder.create_wtml_folder
       ~Builder.default_tiled_study_astrometry
+      ~Builder.execute_study_tiling
       ~Builder.load_from_wwtl
       ~Builder.make_placeholder_thumbnail
       ~Builder.make_thumbnail_from_other
+      ~Builder.prepare_study_tiling
       ~Builder.set_name
       ~Builder.tile_base_as_study
       ~Builder.toast_base
@@ -44,9 +46,11 @@ Builder
    .. automethod:: cascade
    .. automethod:: create_wtml_folder
    .. automethod:: default_tiled_study_astrometry
+   .. automethod:: execute_study_tiling
    .. automethod:: load_from_wwtl
    .. automethod:: make_placeholder_thumbnail
    .. automethod:: make_thumbnail_from_other
+   .. automethod:: prepare_study_tiling
    .. automethod:: set_name
    .. automethod:: tile_base_as_study
    .. automethod:: toast_base

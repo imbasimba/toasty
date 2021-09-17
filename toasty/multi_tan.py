@@ -168,8 +168,8 @@ class MultiTanProcessor(object):
             desc.sub_tiling = self._tiling.compute_for_subimage(
                 desc.imin,
                 desc.jmin,
-                desc.imax - desc.imin,
-                desc.jmax - desc.jmin,
+                desc.imax + 1 - desc.imin,
+                desc.jmax + 1 - desc.jmin,
             )
 
             self._n_todo += desc.sub_tiling.count_populated_positions()

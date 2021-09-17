@@ -418,6 +418,13 @@ def tile_study_impl(settings):
     pio = PyramidIO(settings.outdir, default_format=img.default_format)
     builder = Builder(pio)
 
+    # First, prepare the tiling, because we can't correctly apply WCS until we
+    # know the details of the tiling parameters
+
+    tiling = builder.prepare_study_tiling(img)
+
+    # Now deal with the WCS
+
     if settings.avm:
         # We don't *always* check for AVM because pyavm prints out a lot of junk
         # and may not be installed.
@@ -433,22 +440,26 @@ def tile_study_impl(settings):
         except Exception:
             print(f'error: failed to read AVM tags of input `{settings.imgpath}`', file=sys.stderr)
             raise
+
+        builder.apply_avm_info(avm, img.width, img.height)
+    elif img.wcs is not None:
+        # Study images must have negative parity.
+        img.ensure_negative_parity()
+        builder.apply_wcs_info(img.wcs, img.width, img.height)
     else:
         builder.default_tiled_study_astrometry()
 
-    # Do the thumbnail first since for large inputs it can be the memory high-water mark!
+    # Do the thumbnail before the main image since for large inputs it can be
+    # the memory high-water mark!
     if settings.placeholder_thumbnail:
         builder.make_placeholder_thumbnail()
     else:
         builder.make_thumbnail_from_other(img)
 
-    builder.tile_base_as_study(img, cli_progress=True)
+    # Finally, actually tile the image
+    builder.execute_study_tiling(img, tiling, cli_progress=True)
 
-    if settings.avm:
-        builder.apply_avm_info(avm, img.width, img.height)
-    elif img.wcs is not None:
-        builder.apply_wcs_info(img.wcs, img.width, img.height)
-
+    # Final metadata
     builder.set_name(settings.name)
     builder.write_index_rel_wtml()
 

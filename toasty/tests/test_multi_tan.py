@@ -8,6 +8,7 @@ import numpy as np
 import numpy.testing as nt
 import os.path
 import pytest
+import sys
 from xml.etree import ElementTree as etree
 
 from . import assert_xml_elements_equal, test_path
@@ -54,6 +55,11 @@ class TestMultiTan(object):
     </ForegroundImageSet>
   </Place>
 </Folder>"""
+
+    # Gross workaround for platform differences in the XML output.
+
+    if sys.platform == 'darwin':
+        WTML = WTML.replace('Dec="0.7438249862258411"', 'Dec="0.743824986225841"')
 
     # Back to the non-gross stuff.
 

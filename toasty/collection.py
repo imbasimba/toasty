@@ -71,9 +71,12 @@ class SimpleFitsCollection(ImageCollection):
                     hdu = hdul[self._hdu_index]
                 else:
                     for hdu in hdul:
-                        if len(hdu.shape) > 1:
+                        if (hasattr(hdu, 'shape') and len(hdu.shape) > 1
+                                and type(hdu) is not fits.hdu.table.BinTableHDU):
                             break
 
+                if type(hdu) is fits.hdu.table.BinTableHDU:
+                    raise Exception(f'cannot process input `{fits_path}`: Did not find any HDU with image data')
                 wcs = WCS(hdu.header)
                 shape = hdu.shape
 

@@ -11,6 +11,7 @@ wwt_data_formats.
 from __future__ import absolute_import, division, print_function
 
 __all__ = '''
+create_single_tile
 generate_tiles
 sample_layer
 Tile
@@ -40,16 +41,16 @@ _level1_lonlats = [
     for row in [
         [(0, -90), (90, 0), (0, 90), (180, 0)],
         [(90, 0), (0, -90), (0, 0), (0, 90)],
-        [(0, 90), (0, 0), (0, -90), (270, 0)],
         [(180, 0), (0, 90), (270, 0), (0, -90)],
+        [(0, 90), (0, 0), (0, -90), (270, 0)],
     ]
 ]
 
 LEVEL1_TILES = [
     Tile(Pos(n=1, x=0, y=0), _level1_lonlats[0], True),
     Tile(Pos(n=1, x=1, y=0), _level1_lonlats[1], False),
-    Tile(Pos(n=1, x=1, y=1), _level1_lonlats[2], True),
-    Tile(Pos(n=1, x=0, y=1), _level1_lonlats[3], False),
+    Tile(Pos(n=1, x=0, y=1), _level1_lonlats[2], False),
+    Tile(Pos(n=1, x=1, y=1), _level1_lonlats[3], True),
 ]
 
 
@@ -209,7 +210,7 @@ def toast_tile_for_point(depth, lat, lon):
         The latitude (declination) of the point, in radians.
     lon : number
         The longitude (RA) of the point, in radians. This value must
-        have already been normalied to lie within the range [0, 2pi]
+        have already been normalized to lie within the range [0, 2pi]
         (inclusive on both ends.)
 
     Returns
@@ -266,7 +267,7 @@ def toast_pixel_for_point(depth, lat, lon):
         The latitude (declination) of the point, in radians.
     lon : number
         The longitude (RA) of the point, in radians. This value must
-        have already been normalied to lie within the range [0, 2pi]
+        have already been normalized to lie within the range [0, 2pi]
         (inclusive on both ends.)
 
     Returns
@@ -389,6 +390,44 @@ def _div4(tile):
     ]
 
 
+def create_single_tile(pos):
+    """
+    Create a single TOAST tile.
+
+    Parameters
+    ----------
+    pos : :class:`Position`
+        The position of the tile that will be created. The depth of the
+        tile must be at least 1.
+
+    Returns
+    -------
+    :class:`Tile`
+
+    Notes
+    -----
+    This function should only be used for one-off investigations and debugging.
+    It is much more efficient to use :func:`generate_tiles` for bulk computations.
+    """
+
+    if pos.n == 0:
+        raise ArgumentError('cannot create a Tile for the n=0 tile')
+
+    children = LEVEL1_TILES
+    cur_n = 0
+
+    while True:
+        cur_n += 1
+        ix = (pos.x >> (pos.n - cur_n)) & 0x1
+        iy = (pos.y >> (pos.n - cur_n)) & 0x1
+        tile = children[iy * 2 + ix]
+
+        if cur_n == pos.n:
+            return tile
+
+        children = _div4(tile)
+
+
 def generate_tiles(depth, bottom_only=True):
     """Generate a pyramid of TOAST tiles in deepest-first order.
 
@@ -402,7 +441,7 @@ def generate_tiles(depth, bottom_only=True):
     Yields
     ------
     tile : Tile
-        An individual tile to process. Tiles are yield deepest-first.
+        An individual tile to process. Tiles are yielded deepest-first.
 
     The ``n = 0`` depth is not included.
 

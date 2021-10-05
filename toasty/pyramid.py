@@ -220,13 +220,15 @@ class PyramidIO(object):
 
         self._default_format = default_format
 
-    def tile_path(self, pos, format=None):
+    def tile_path(self, pos, format=None, makedirs=True):
         """Get the path for a tile, creating its containing directories.
 
         Parameters
         ----------
         pos : Pos
             The tile to get a path for.test_plate_carree_ecliptic
+        makedirs : optional :class:`bool`
+            If True (the default), create containing directories.
 
         Returns
         -------
@@ -234,35 +236,25 @@ class PyramidIO(object):
 
         Notes
         -----
-        This function does I/O itself — it creates the parent directories
-        containing the tile path. It is not an error for the parent
-        directories to already exist.
-
+        In its default mode this function does I/O itself — it creates the
+        parent directories containing the tile path. It is not an error for
+        the parent directories to already exist.
         """
+
         level = str(pos.n)
         ix = str(pos.x)
         iy = str(pos.y)
-        return self._tile_path(level, ix, iy, format=format)
+        return self._tile_path(level, ix, iy, format=format, makedirs=makedirs)
 
-    def _tile_path_LsYsYX(self, level, ix, iy, format=None):
+    def _tile_path_LsYsYX(self, level, ix, iy, format=None, makedirs=True):
         d = os.path.join(self._base_dir, level, iy)
-
-        # We can't use the `exist_ok` kwarg because it's not available in Python 2.
-        try:
-            os.makedirs(d)
-        except OSError as e:
-            if e.errno != 17:
-                raise  # not EEXIST
-
+        if makedirs:
+            os.makedirs(d, exist_ok=True)
         return os.path.join(d, '{}_{}.{}'.format(iy, ix, format or self._default_format))
 
-    def _tile_path_LXY(self, level, ix, iy, format=None):
-        # We can't use the `exist_ok` kwarg because it's not available in Python 2.
-        try:
-            os.makedirs(self._base_dir)
-        except OSError as e:
-            if e.errno != 17:
-                raise  # not EEXIST
+    def _tile_path_LXY(self, level, ix, iy, format=None, makedirs=True):
+        if makedirs:
+            os.makedirs(self._base_dir, exist_ok=True)
 
         return os.path.join(
             self._base_dir,
@@ -398,7 +390,7 @@ class PyramidIO(object):
         for x in range(0, 2**level):
             for y in range(0, 2**level):
                 pos = Pos(level, x, y)
-                p = self.tile_path(pos) + '.lock'
+                p = self.tile_path(pos, makedirs=False) + '.lock'
 
                 try:
                     os.unlink(p)

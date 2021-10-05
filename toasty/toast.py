@@ -13,6 +13,7 @@ from __future__ import absolute_import, division, print_function
 __all__ = '''
 create_single_tile
 generate_tiles
+generate_tiles_filtered
 sample_layer
 Tile
 toast_pixel_for_point
@@ -357,7 +358,7 @@ def toast_pixel_for_point(depth, lat, lon):
     return tile, x0 + x, y0 + y
 
 
-def _postfix_corner(tile, depth, bottom_only):
+def _postfix_corner(tile, depth, filter, bottom_only):
     """
     Yield subtiles of a given tile, in postfix (deepest-first) order.
 
@@ -367,6 +368,9 @@ def _postfix_corner(tile, depth, bottom_only):
         Parameters of the current tile.
     depth : int
         The depth to descend to.
+    filter : function(Tile)->bool
+        A filter function; only tiles for which the function returns True will
+        be investigated.
     bottom_only : bool
         If True, only yield tiles at max_depth.
 
@@ -375,8 +379,11 @@ def _postfix_corner(tile, depth, bottom_only):
     if n > depth:
         return
 
+    if n > 1 and not filter(tile):
+        return
+
     for child in _div4(tile):
-        for item in _postfix_corner(child, depth, bottom_only):
+        for item in _postfix_corner(child, depth, filter, bottom_only):
             yield item
 
     if n == depth or not bottom_only:
@@ -463,8 +470,32 @@ def generate_tiles(depth, bottom_only=True):
     The ``n = 0`` depth is not included.
 
     """
+    return generate_tiles_filtered(depth, lambda t: True, bottom_only)
+
+
+def generate_tiles_filtered(depth, filter, bottom_only=True):
+    """Generate a pyramid of TOAST tiles in deepest-first order, filtering out subtrees.
+
+    Parameters
+    ----------
+    depth : int
+        The tile depth to recurse to.
+    filter : function(Tile)->bool
+        A filter function; only tiles for which the function returns True will
+        be investigated.
+    bottom_only : bool
+        If True, then only the lowest tiles will be yielded.
+
+    Yields
+    ------
+    tile : Tile
+        An individual tile to process. Tiles are yielded deepest-first.
+
+    The ``n = 0`` depth is not included.
+
+    """
     for t in LEVEL1_TILES:
-        for item in _postfix_corner(t, depth, bottom_only):
+        for item in _postfix_corner(t, depth, filter, bottom_only):
             yield item
 
 

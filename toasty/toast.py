@@ -18,6 +18,7 @@ Tile
 toast_pixel_for_point
 toast_tile_area
 toast_tile_for_point
+toast_tile_get_coords
 '''.split()
 
 from collections import defaultdict, namedtuple
@@ -252,6 +253,30 @@ def toast_tile_for_point(depth, lat, lon):
     return tile
 
 
+def toast_tile_get_coords(tile):
+    """
+    Get the coordinates of the pixel centers of a TOAST Tile.
+
+    Parameters
+    ----------
+    tile : :class:`Tile`
+        A TOAST tile
+
+    Returns
+    -------
+    A tuple ``(lons, lats)``, each of which is a 256x256 array of longitudes and
+    latitudes of the tile pixel centers, in radians.
+
+    """
+    return subsample(
+        tile.corners[0],
+        tile.corners[1],
+        tile.corners[2],
+        tile.corners[3],
+        256,
+        tile.increasing,
+    )
+
 def toast_pixel_for_point(depth, lat, lon):
     """
     Identify the pixel within a TOAST tile at a given depth that contains the
@@ -284,15 +309,7 @@ def toast_pixel_for_point(depth, lat, lon):
     # Now that we have the tile, get its pixel locations and identify the pixel
     # that is closest to the input position.
 
-    lons, lats = subsample(
-        tile.corners[0],
-        tile.corners[1],
-        tile.corners[2],
-        tile.corners[3],
-        256,
-        tile.increasing,
-    )
-
+    lons, lats = toast_tile_get_coords(tile)
     dist2 = (lons - lon)**2 + (lats - lat)**2
     min_y, min_x = np.unravel_index(np.argmin(dist2), (256, 256))
 
@@ -488,14 +505,7 @@ def sample_layer(pio, sampler, depth, parallel=None, cli_progress=False,
 def _sample_layer_serial(pio, format, sampler, depth, cli_progress):
     with tqdm(total=tiles_at_depth(depth), disable=not cli_progress) as progress:
         for tile in generate_tiles(depth, bottom_only=True):
-            lon, lat = subsample(
-                tile.corners[0],
-                tile.corners[1],
-                tile.corners[2],
-                tile.corners[3],
-                256,
-                tile.increasing,
-            )
+            lon, lat = toast_tile_get_coords(tile)
             sampled_data = sampler(lon, lat)
             pio.write_image(tile.pos, Image.from_array(sampled_data), format=format)
             progress.update(1)
@@ -554,13 +564,6 @@ def _mp_sample_worker(queue, pio, sampler, format):
             # cross multiprocess lines, though.
             break
 
-        lon, lat = subsample(
-            tile.corners[0],
-            tile.corners[1],
-            tile.corners[2],
-            tile.corners[3],
-            256,
-            tile.increasing,
-        )
+        lon, lat = toast_tile_get_coords(tile)
         sampled_data = sampler(lon, lat)
         pio.write_image(tile.pos, Image.from_array(sampled_data), format=format)

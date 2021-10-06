@@ -1,16 +1,30 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2013-2020 Chris Beaumont and the AAS WorldWide Telescope project
+# Copyright 2013-2021 Chris Beaumont and the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 """Computations for the TOAST projection scheme and tile pyramid format.
 
-TODO this all needs to be ported to modern Toasty infrastructure and
-wwt_data_formats.
+For all TOAST maps, the north pole is in the dead center of the virtual image
+square, the south pole is at all four of its corners, and the equator is a
+diamond connecting the midpoints of the four sides of the square. (See Figure 3
+of McGlynn+ 2019, DOI:10.3847/1538-4365/aaf79e).
+
+For TOAST maps of the sky, the line of RA (lon) = 0 in the northern hemisphere
+extends from the center of the square to the right, as in the Figure 3 mentioned
+above. The RA = 90 line goes from the center up, and so on counter-clockwise
+around the square.
+
+For TOAST planetary maps, the lon = 0 line in the northern hemisphere extends
+from the center of the square to the *left*. The lon = 90 line extends
+downwards, and increasing longitude results in counter-clockwise motion around
+the square as for sky maps. In other words, the longitudinal orientation is
+rotated by 180 degrees.
 
 """
 from __future__ import absolute_import, division, print_function
 
 __all__ = '''
+count_tiles_matching_filter
 create_single_tile
 generate_tiles
 generate_tiles_filtered
@@ -497,6 +511,39 @@ def generate_tiles_filtered(depth, filter, bottom_only=True):
     for t in LEVEL1_TILES:
         for item in _postfix_corner(t, depth, filter, bottom_only):
             yield item
+
+
+def count_tiles_matching_filter(depth, filter, bottom_only=True):
+    """
+    Count the number of tiles matching a filter.
+
+    Parameters
+    ----------
+    depth : int
+        The tile depth to recurse to.
+    filter : function(Tile)->bool
+        A filter function; only tiles for which the function returns True will
+        be investigated.
+    bottom_only : bool
+        If True, then only the lowest tiles will be processed.
+
+    Returns
+    ------
+    The number of tiles matching the filter. Even if ``bottom_only`` is false,
+    the ``n = 0`` tile is not counted.
+
+    Notes
+    -----
+    This function's call signature and tree-exploration semantics match
+    :func:`generated_tiles_filtered`.
+    """
+    # With a generic filter function, brute force is our only option:
+    n = 0
+
+    for _tile in generate_tiles_filtered(depth, filter, bottom_only=bottom_only):
+        n += 1
+
+    return n
 
 
 def sample_layer(pio, sampler, depth, parallel=None, cli_progress=False,

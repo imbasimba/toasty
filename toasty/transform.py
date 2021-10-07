@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2020 the AAS WorldWide Telescope project
+# Copyright 2020-2021 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 """
@@ -51,11 +51,12 @@ def _float_to_rgb_parallel(pio, depth, read_mode, transform, cli_progress, paral
 
     # Start up the workers
 
+    done_event = mp.Event()
     queue = mp.Queue(maxsize = 16 * parallel)
     workers = []
 
     for _ in range(parallel):
-        w = mp.Process(target=_float_to_rgb_mp_worker, args=(queue, pio, read_mode, transform))
+        w = mp.Process(target=_float_to_rgb_mp_worker, args=(queue, done_event, pio, read_mode, transform))
         w.daemon = True
         w.start()
         workers.append(w)
@@ -68,6 +69,8 @@ def _float_to_rgb_parallel(pio, depth, read_mode, transform, cli_progress, paral
               progress.update(1)
 
         queue.close()
+        queue.join_thread()
+        done_event.set()
 
         for w in workers:
             w.join()
@@ -76,7 +79,7 @@ def _float_to_rgb_parallel(pio, depth, read_mode, transform, cli_progress, paral
         print()
 
 
-def _float_to_rgb_mp_worker(queue, pio, read_mode, transform):
+def _float_to_rgb_mp_worker(queue, done_event, pio, read_mode, transform):
     """
     Do the colormapping.
     """
@@ -85,12 +88,13 @@ def _float_to_rgb_mp_worker(queue, pio, read_mode, transform):
     buf = np.empty((256, 256, 4), dtype=np.uint8)
 
     while True:
+        if done_event.is_set():
+            break
+
         try:
             pos = queue.get(True, timeout=1)
-        except (OSError, ValueError, Empty):
-            # OSError or ValueError => queue closed. This signal seems not to
-            # cross multiprocess lines, though.
-            break
+        except Empty:
+            continue
 
         _float_to_rgb_do_one(buf, pos, pio, read_mode, transform)
 

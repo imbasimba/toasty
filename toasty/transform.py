@@ -9,6 +9,7 @@ RGB.
 
 __all__ = '''
 f16x3_to_rgb
+u8_to_rgb
 '''.split()
 
 from astropy import visualization as viz
@@ -19,34 +20,27 @@ from .image import ImageMode, Image
 from .pyramid import depth2tiles, generate_pos
 
 
-def f16x3_to_rgb(pio, start_depth, clip=1, parallel=None, cli_progress=False):
-    transform = viz.SqrtStretch() + viz.ManualInterval(0, clip)
-    _float_to_rgba(pio, start_depth, ImageMode.F16x3, transform, parallel=parallel, cli_progress=cli_progress)
+# Generalized transform machinery, with both serial and parallel support
 
-
-def _float_to_rgba(pio, depth, read_mode, transform, parallel=None, cli_progress=False):
+def _do_a_transform(pio, depth, make_buf, do_one, parallel=None, cli_progress=False):
     from .par_util import resolve_parallelism
     parallel = resolve_parallelism(parallel)
 
     if parallel > 1:
-        _float_to_rgba_parallel(pio, depth, read_mode, transform, cli_progress, parallel)
+        _transform_parallel(pio, depth, make_buf, do_one, cli_progress, parallel)
     else:
-        _float_to_rgba_serial(pio, depth, read_mode, transform, cli_progress)
+        buf = make_buf()
+
+        with tqdm(total=depth2tiles(depth), disable=not cli_progress) as progress:
+            for pos in generate_pos(depth):
+                do_one(buf, pos, pio)
+                progress.update(1)
+
+        if cli_progress:
+            print()
 
 
-def _float_to_rgba_serial(pio, depth, read_mode, transform, cli_progress):
-    buf = np.empty((256, 256, 4), dtype=np.uint8)
-
-    with tqdm(total=depth2tiles(depth), disable=not cli_progress) as progress:
-        for pos in generate_pos(depth):
-            _float_to_rgb_do_one(buf, pos, pio, read_mode, transform)
-            progress.update(1)
-
-    if cli_progress:
-        print()
-
-
-def _float_to_rgba_parallel(pio, depth, read_mode, transform, cli_progress, parallel):
+def _transform_parallel(pio, depth, make_buf, do_one, cli_progress, parallel):
     import multiprocessing as mp
 
     # Start up the workers
@@ -56,7 +50,7 @@ def _float_to_rgba_parallel(pio, depth, read_mode, transform, cli_progress, para
     workers = []
 
     for _ in range(parallel):
-        w = mp.Process(target=_float_to_rgba_mp_worker, args=(queue, done_event, pio, read_mode, transform))
+        w = mp.Process(target=_transform_mp_worker, args=(queue, done_event, pio, make_buf, do_one))
         w.daemon = True
         w.start()
         workers.append(w)
@@ -68,24 +62,26 @@ def _float_to_rgba_parallel(pio, depth, read_mode, transform, cli_progress, para
               queue.put(pos)
               progress.update(1)
 
-        queue.close()
-        queue.join_thread()
-        done_event.set()
+    # All done
 
-        for w in workers:
-            w.join()
+    queue.close()
+    queue.join_thread()
+    done_event.set()
+
+    for w in workers:
+        w.join()
 
     if cli_progress:
         print()
 
 
-def _float_to_rgba_mp_worker(queue, done_event, pio, read_mode, transform):
+def _transform_mp_worker(queue, done_event, pio, make_buf, do_one):
     """
     Do the colormapping.
     """
     from queue import Empty
 
-    buf = np.empty((256, 256, 4), dtype=np.uint8)
+    buf = make_buf()
 
     while True:
         if done_event.is_set():
@@ -96,14 +92,23 @@ def _float_to_rgba_mp_worker(queue, done_event, pio, read_mode, transform):
         except Empty:
             continue
 
-        _float_to_rgba_do_one(buf, pos, pio, read_mode, transform)
+        do_one(buf, pos, pio)
 
 
-def _float_to_rgba_do_one(buf, pos, pio, read_mode, transform):
-    """
-    Do one float-to-RGB job. This problem is embarassingly parallel so we can
-    share code between the serial and parallel implementations.
-    """
+# float-to-RGBA, with a generalized float-to-unit transform
+
+def f16x3_to_rgb(pio, start_depth, clip=1, parallel=None, cli_progress=False):
+    transform = viz.SqrtStretch() + viz.ManualInterval(0, clip)
+    _float_to_rgba(pio, start_depth, ImageMode.F16x3, transform, parallel=parallel, cli_progress=cli_progress)
+
+
+def _float_to_rgba(pio, depth, transform, **kwargs):
+    make_buf = lambda: np.empty((256, 256, 4), dtype=np.uint8)
+    do_one = lambda buf, pos, pio: _float_to_rgba_do_one(buf, pos, pio, transform)
+    _do_a_transform(pio, depth, make_buf, do_one, **kwargs)
+
+
+def _float_to_rgba_do_one(buf, pos, pio, transform):
     img = pio.read_image(pos, format='npy')
     if img is None:
         return
@@ -124,5 +129,22 @@ def _float_to_rgba_do_one(buf, pos, pio, read_mode, transform):
         buf[...,:3] = mapped
         buf[...,3] = 255 * valid
 
+    rgba = Image.from_array(buf)
+    pio.write_image(pos, rgba, format='png', mode=ImageMode.RGBA)
+
+
+# u8-to-RGB
+
+def u8_to_rgb(pio, depth, **kwargs):
+    make_buf = lambda: np.empty((256, 256, 3), dtype=np.uint8)
+    _do_a_transform(pio, depth, make_buf, _u8_to_rgb_do_one, **kwargs)
+
+
+def _u8_to_rgb_do_one(buf, pos, pio):
+    img = pio.read_image(pos, format='npy')
+    if img is None:
+        return
+
+    buf[...] = img.asarray()[...,np.newaxis]
     rgb = Image.from_array(buf)
-    pio.write_image(pos, rgb, format='png', mode=ImageMode.RGB)
+    pio.write_image(pos, rgb, format='jpg', mode=ImageMode.RGB)

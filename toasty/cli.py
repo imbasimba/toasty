@@ -554,6 +554,25 @@ def transform_getparser(parser):
         help = 'The directory containing the tile pyramid to cascade',
     )
 
+    parser = subparsers.add_parser('u8-to-rgb')
+    parser.add_argument(
+        '--parallelism', '-j',
+        metavar = 'COUNT',
+        type = int,
+        help = 'The parallelization level (default: use all CPUs; specify `1` to force serial processing)',
+    )
+    parser.add_argument(
+        '--start',
+        metavar = 'DEPTH',
+        type = int,
+        help = 'The depth of the pyramid layer to start the cascade',
+    )
+    parser.add_argument(
+        'pyramid_dir',
+        metavar = 'DIR',
+        help = 'The directory containing the tile pyramid to cascade',
+    )
+
 
 def transform_impl(settings):
     from .pyramid import PyramidIO
@@ -568,6 +587,14 @@ def transform_impl(settings):
         f16x3_to_rgb(
             pio, settings.start,
             clip = settings.clip,
+            parallel = settings.parallelism,
+            cli_progress = True,
+        )
+    elif settings.transform_command == 'u8-to-rgb':
+        from .transform import u8_to_rgb
+        pio = PyramidIO(settings.pyramid_dir)
+        u8_to_rgb(
+            pio, settings.start,
             parallel = settings.parallelism,
             cli_progress = True,
         )

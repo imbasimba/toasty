@@ -21,20 +21,20 @@ from .pyramid import depth2tiles, generate_pos
 
 def f16x3_to_rgb(pio, start_depth, clip=1, parallel=None, cli_progress=False):
     transform = viz.SqrtStretch() + viz.ManualInterval(0, clip)
-    _float_to_rgb(pio, start_depth, ImageMode.F16x3, transform, parallel=parallel, cli_progress=cli_progress)
+    _float_to_rgba(pio, start_depth, ImageMode.F16x3, transform, parallel=parallel, cli_progress=cli_progress)
 
 
-def _float_to_rgb(pio, depth, read_mode, transform, parallel=None, cli_progress=False):
+def _float_to_rgba(pio, depth, read_mode, transform, parallel=None, cli_progress=False):
     from .par_util import resolve_parallelism
     parallel = resolve_parallelism(parallel)
 
     if parallel > 1:
-        _float_to_rgb_parallel(pio, depth, read_mode, transform, cli_progress, parallel)
+        _float_to_rgba_parallel(pio, depth, read_mode, transform, cli_progress, parallel)
     else:
-        _float_to_rgb_serial(pio, depth, read_mode, transform, cli_progress)
+        _float_to_rgba_serial(pio, depth, read_mode, transform, cli_progress)
 
 
-def _float_to_rgb_serial(pio, depth, read_mode, transform, cli_progress):
+def _float_to_rgba_serial(pio, depth, read_mode, transform, cli_progress):
     buf = np.empty((256, 256, 4), dtype=np.uint8)
 
     with tqdm(total=depth2tiles(depth), disable=not cli_progress) as progress:
@@ -46,7 +46,7 @@ def _float_to_rgb_serial(pio, depth, read_mode, transform, cli_progress):
         print()
 
 
-def _float_to_rgb_parallel(pio, depth, read_mode, transform, cli_progress, parallel):
+def _float_to_rgba_parallel(pio, depth, read_mode, transform, cli_progress, parallel):
     import multiprocessing as mp
 
     # Start up the workers
@@ -56,7 +56,7 @@ def _float_to_rgb_parallel(pio, depth, read_mode, transform, cli_progress, paral
     workers = []
 
     for _ in range(parallel):
-        w = mp.Process(target=_float_to_rgb_mp_worker, args=(queue, done_event, pio, read_mode, transform))
+        w = mp.Process(target=_float_to_rgba_mp_worker, args=(queue, done_event, pio, read_mode, transform))
         w.daemon = True
         w.start()
         workers.append(w)
@@ -79,7 +79,7 @@ def _float_to_rgb_parallel(pio, depth, read_mode, transform, cli_progress, paral
         print()
 
 
-def _float_to_rgb_mp_worker(queue, done_event, pio, read_mode, transform):
+def _float_to_rgba_mp_worker(queue, done_event, pio, read_mode, transform):
     """
     Do the colormapping.
     """
@@ -96,10 +96,10 @@ def _float_to_rgb_mp_worker(queue, done_event, pio, read_mode, transform):
         except Empty:
             continue
 
-        _float_to_rgb_do_one(buf, pos, pio, read_mode, transform)
+        _float_to_rgba_do_one(buf, pos, pio, read_mode, transform)
 
 
-def _float_to_rgb_do_one(buf, pos, pio, read_mode, transform):
+def _float_to_rgba_do_one(buf, pos, pio, read_mode, transform):
     """
     Do one float-to-RGB job. This problem is embarassingly parallel so we can
     share code between the serial and parallel implementations.

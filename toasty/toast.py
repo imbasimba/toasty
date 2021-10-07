@@ -701,3 +701,68 @@ def _mp_sample_worker(queue, pio, sampler, format):
         lon, lat = toast_tile_get_coords(tile)
         sampled_data = sampler(lon, lat)
         pio.write_image(tile.pos, Image.from_array(sampled_data), format=format)
+
+
+def _sample_filtered_parallel(pio, format, tile_filter, sampler, depth, coordsys, cli_progress, parallel):
+    import multiprocessing as mp
+
+    n_todo = count_tiles_matching_filter(depth, tile_filter, bottom_only=True, coordsys=coordsys)
+
+    done_event = mp.Event()
+    queue = mp.Queue(maxsize = 2 * parallel)
+    workers = []
+
+    for _ in range(parallel):
+        w = mp.Process(target=_mp_sample_filtered, args=(queue, done_event, pio, sampler, format))
+        w.daemon = True
+        w.start()
+        workers.append(w)
+
+    # Here we go:
+
+    with tqdm(total=n_todo, disable=not cli_progress) as progress:
+        for tile in generate_tiles_filtered(depth, tile_filter, bottom_only=True, coordsys=coordsys):
+            queue.put(tile)
+            progress.update(1)
+
+    # OK, we're done!
+
+    queue.close()
+    queue.join_thread()
+    done_event.set()
+
+    for w in workers:
+        w.join()
+
+    if cli_progress:
+        print()
+
+    # do not clean lockfiles, for HPC contexts where we're processing different
+    # chunks in parallel.
+
+def _mp_sample_filtered(queue, done_event, pio, sampler, format):
+    """
+    Process tiles on the queue.
+
+    We use ``pio.update_image`` in case we are in an HPC-type context where
+    other chunks may be trying to write out the populate the same tiles as us at
+    the same time.
+    """
+
+    from queue import Empty
+
+    while True:
+        if done_event.is_set():
+            break
+
+        try:
+            tile = queue.get(True, timeout=1)
+        except Empty:
+            continue
+
+        lon, lat = toast_tile_get_coords(tile)
+        sampled_data = sampler(lon, lat)
+        img = Image.from_array(sampled_data)
+
+        with pio.update_image(tile.pos, masked_mode=img.mode, default='masked') as basis:
+            img.update_into_maskable_buffer(basis, slice(None), slice(None), slice(None), slice(None))

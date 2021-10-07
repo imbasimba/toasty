@@ -30,6 +30,7 @@ generate_tiles
 generate_tiles_filtered
 sample_layer
 Tile
+ToastCoordinateSystem
 toast_pixel_for_point
 toast_tile_area
 toast_tile_for_point
@@ -37,6 +38,7 @@ toast_tile_get_coords
 '''.split()
 
 from collections import defaultdict, namedtuple
+from enum import Enum
 import os
 import logging
 import numpy as np
@@ -49,25 +51,6 @@ from .pyramid import Pos, depth2tiles, is_subtile, pos_parent, tiles_at_depth
 HALFPI = 0.5 * np.pi
 THREEHALFPI = 1.5 * np.pi
 TWOPI = 2 * np.pi
-
-Tile = namedtuple('Tile', 'pos corners increasing')
-
-_level1_lonlats = [
-    [np.radians(c) for c in row]
-    for row in [
-        [(0, -90), (90, 0), (0, 90), (180, 0)],
-        [(90, 0), (0, -90), (0, 0), (0, 90)],
-        [(180, 0), (0, 90), (270, 0), (0, -90)],
-        [(0, 90), (0, 0), (0, -90), (270, 0)],
-    ]
-]
-
-LEVEL1_TILES = [
-    Tile(Pos(n=1, x=0, y=0), _level1_lonlats[0], True),
-    Tile(Pos(n=1, x=1, y=0), _level1_lonlats[1], False),
-    Tile(Pos(n=1, x=0, y=1), _level1_lonlats[2], False),
-    Tile(Pos(n=1, x=1, y=1), _level1_lonlats[3], True),
-]
 
 
 def _arclength(lat1, lon1, lat2, lon2):
@@ -94,6 +77,47 @@ def _spherical_triangle_area(lat1, lon1, lat2, lon2, lat3, lon3):
     tane4 = np.sqrt(np.tan(0.5 * s) * np.tan(0.5 * (s - a)) * np.tan(0.5 * (s - b)) * np.tan(0.5 * (s - c)))
     e = 4 * np.arctan(tane4)
     return e
+
+
+class ToastCoordinateSystem(Enum):
+    """
+    Different TOAST coordinate systems that are in use.
+    """
+
+    ASTRONOMICAL = 'astronomical'
+    """The default TOAST coordinate system, where the ``lat = lon = 0`` point
+    lies at the middle right edge of the TOAST projection square."""
+
+    PLANETARY = 'planetary'
+    """The planetary TOAST coordinate system. This is rotated 180 degrees in
+    longitude from the astronomical system, such that the ``lat = lon = 0``
+    point lies at the middle left edge of the TOAST projection square."""
+
+
+Tile = namedtuple('Tile', 'pos corners increasing')
+
+_level1_astronomical_lonlats = np.radians([
+    [(0, -90), (90, 0), (0, 90), (180, 0)],
+    [(90, 0), (0, -90), (0, 0), (0, 90)],
+    [(180, 0), (0, 90), (270, 0), (0, -90)],
+    [(0, 90), (0, 0), (0, -90), (270, 0)],
+])
+_level1_astronomical_lonlats.flags.writeable = False
+
+
+def _create_level1_tiles(coordsys):
+    lonlats = _level1_astronomical_lonlats
+
+    if coordsys == ToastCoordinateSystem.PLANETARY:
+        lonlats = lonlats.copy()
+        lonlats[...,0] = (lonlats[...,0] + np.pi) % TWOPI
+
+    return [
+        Tile(Pos(n=1, x=0, y=0), lonlats[0], True),
+        Tile(Pos(n=1, x=1, y=0), lonlats[1], False),
+        Tile(Pos(n=1, x=0, y=1), lonlats[2], False),
+        Tile(Pos(n=1, x=1, y=1), lonlats[3], True),
+    ]
 
 
 def toast_tile_area(tile):
@@ -212,7 +236,7 @@ def _toast_tile_containment_score(tile, lat, lon):
     return upper + right + lower + left
 
 
-def toast_tile_for_point(depth, lat, lon):
+def toast_tile_for_point(depth, lat, lon, coordsys=ToastCoordinateSystem.ASTRONOMICAL):
     """
     Identify the TOAST tile at a given depth that contains the given point.
 
@@ -228,6 +252,9 @@ def toast_tile_for_point(depth, lat, lon):
         The longitude (RA) of the point, in radians. This value must
         have already been normalized to lie within the range [0, 2pi]
         (inclusive on both ends.)
+    coordsys : optional :class:`ToastCoordinateSystem`
+        The TOAST coordinate system to use. Default is
+        :attr:`ToastCoordinateSystem.ASTRONOMICAL`.
 
     Returns
     -------
@@ -240,7 +267,7 @@ def toast_tile_for_point(depth, lat, lon):
     if depth == 0:
         return Tile(Pos(n=0, x=0, y=0), (None, None, None, None), False)
 
-    for tile in LEVEL1_TILES:
+    for tile in _create_level1_tiles(coordsys):
         if _toast_tile_containment_score(tile, lat, lon) == 0.:
             break
 
@@ -281,8 +308,8 @@ def toast_tile_get_coords(tile):
     -------
     A tuple ``(lons, lats)``, each of which is a 256x256 array of longitudes and
     latitudes of the tile pixel centers, in radians.
-
     """
+
     return subsample(
         tile.corners[0],
         tile.corners[1],
@@ -292,7 +319,8 @@ def toast_tile_get_coords(tile):
         tile.increasing,
     )
 
-def toast_pixel_for_point(depth, lat, lon):
+
+def toast_pixel_for_point(depth, lat, lon, coordsys=ToastCoordinateSystem.ASTRONOMICAL):
     """
     Identify the pixel within a TOAST tile at a given depth that contains the
     given point.
@@ -309,6 +337,9 @@ def toast_pixel_for_point(depth, lat, lon):
         The longitude (RA) of the point, in radians. This value must
         have already been normalized to lie within the range [0, 2pi]
         (inclusive on both ends.)
+    coordsys : optional :class:`ToastCoordinateSystem`
+        The TOAST coordinate system to use. Default is
+        :attr:`ToastCoordinateSystem.ASTRONOMICAL`.
 
     Returns
     -------
@@ -319,7 +350,7 @@ def toast_pixel_for_point(depth, lat, lon):
     coordinates of the pixels nearest the specified coordinates *lat* and *lon*.
 
     """
-    tile = toast_tile_for_point(depth, lat, lon)
+    tile = toast_tile_for_point(depth, lat, lon, coordsys=coordsys)
 
     # Now that we have the tile, get its pixel locations and identify the pixel
     # that is closest to the input position.
@@ -428,7 +459,7 @@ def _div4(tile):
     ]
 
 
-def create_single_tile(pos):
+def create_single_tile(pos, coordsys=ToastCoordinateSystem.ASTRONOMICAL):
     """
     Create a single TOAST tile.
 
@@ -437,6 +468,9 @@ def create_single_tile(pos):
     pos : :class:`Position`
         The position of the tile that will be created. The depth of the
         tile must be at least 1.
+    coordsys : optional :class:`ToastCoordinateSystem`
+        The TOAST coordinate system to use. Default is
+        :attr:`ToastCoordinateSystem.ASTRONOMICAL`.
 
     Returns
     -------
@@ -451,7 +485,7 @@ def create_single_tile(pos):
     if pos.n == 0:
         raise ArgumentError('cannot create a Tile for the n=0 tile')
 
-    children = LEVEL1_TILES
+    children = _create_level1_tiles(coordsys)
     cur_n = 0
 
     while True:
@@ -466,7 +500,7 @@ def create_single_tile(pos):
         children = _div4(tile)
 
 
-def generate_tiles(depth, bottom_only=True):
+def generate_tiles(depth, bottom_only=True, coordsys=ToastCoordinateSystem.ASTRONOMICAL):
     """Generate a pyramid of TOAST tiles in deepest-first order.
 
     Parameters
@@ -475,6 +509,9 @@ def generate_tiles(depth, bottom_only=True):
         The tile depth to recurse to.
     bottom_only : bool
         If True, then only the lowest tiles will be yielded.
+    coordsys : optional :class:`ToastCoordinateSystem`
+        The TOAST coordinate system to use. Default is
+        :attr:`ToastCoordinateSystem.ASTRONOMICAL`.
 
     Yields
     ------
@@ -484,10 +521,10 @@ def generate_tiles(depth, bottom_only=True):
     The ``n = 0`` depth is not included.
 
     """
-    return generate_tiles_filtered(depth, lambda t: True, bottom_only)
+    return generate_tiles_filtered(depth, lambda t: True, bottom_only, coordsys=coordsys)
 
 
-def generate_tiles_filtered(depth, filter, bottom_only=True):
+def generate_tiles_filtered(depth, filter, bottom_only=True, coordsys=ToastCoordinateSystem.ASTRONOMICAL):
     """Generate a pyramid of TOAST tiles in deepest-first order, filtering out subtrees.
 
     Parameters
@@ -497,8 +534,11 @@ def generate_tiles_filtered(depth, filter, bottom_only=True):
     filter : function(Tile)->bool
         A filter function; only tiles for which the function returns True will
         be investigated.
-    bottom_only : bool
+    bottom_only : optional bool
         If True, then only the lowest tiles will be yielded.
+    coordsys : optional :class:`ToastCoordinateSystem`
+        The TOAST coordinate system to use. Default is
+        :attr:`ToastCoordinateSystem.ASTRONOMICAL`.
 
     Yields
     ------
@@ -508,12 +548,12 @@ def generate_tiles_filtered(depth, filter, bottom_only=True):
     The ``n = 0`` depth is not included.
 
     """
-    for t in LEVEL1_TILES:
+    for t in _create_level1_tiles(coordsys):
         for item in _postfix_corner(t, depth, filter, bottom_only):
             yield item
 
 
-def count_tiles_matching_filter(depth, filter, bottom_only=True):
+def count_tiles_matching_filter(depth, filter, bottom_only=True, coordsys=ToastCoordinateSystem.ASTRONOMICAL):
     """
     Count the number of tiles matching a filter.
 
@@ -526,6 +566,9 @@ def count_tiles_matching_filter(depth, filter, bottom_only=True):
         be investigated.
     bottom_only : bool
         If True, then only the lowest tiles will be processed.
+    coordsys : optional :class:`ToastCoordinateSystem`
+        The TOAST coordinate system to use. Default is
+        :attr:`ToastCoordinateSystem.ASTRONOMICAL`.
 
     Returns
     ------
@@ -540,14 +583,21 @@ def count_tiles_matching_filter(depth, filter, bottom_only=True):
     # With a generic filter function, brute force is our only option:
     n = 0
 
-    for _tile in generate_tiles_filtered(depth, filter, bottom_only=bottom_only):
+    for _tile in generate_tiles_filtered(depth, filter, bottom_only=bottom_only, coordsys=coordsys):
         n += 1
 
     return n
 
 
-def sample_layer(pio, sampler, depth, parallel=None, cli_progress=False,
-                 format=None):
+def sample_layer(
+    pio,
+    sampler,
+    depth,
+    coordsys=ToastCoordinateSystem.ASTRONOMICAL,
+    format=None,
+    parallel=None,
+    cli_progress=False,
+):
     """Generate a layer of the TOAST tile pyramid through direct sampling.
 
     Parameters
@@ -562,6 +612,12 @@ def sample_layer(pio, sampler, depth, parallel=None, cli_progress=False,
         number of tiles in each layer is ``4**depth``. Each tile is 256×256
         TOAST pixels, so the resolution of the pixelization at which the
         data will be sampled is a refinement level of ``2**(depth + 8)``.
+    coordsys : optional :class:`ToastCoordinateSystem`
+        The TOAST coordinate system to use. Default is
+        :attr:`ToastCoordinateSystem.ASTRONOMICAL`.
+    format : optional :class:`str`
+        If provided, override the default data storage format of *pio* with the
+        named format, one of the values in :var:`toasty.image.SUPPORTED_FORMATS`.
     parallel : integer or None (the default)
         The level of parallelization to use. If unspecified, defaults to using
         all CPUs. If the OS does not support fork-based multiprocessing,
@@ -569,20 +625,20 @@ def sample_layer(pio, sampler, depth, parallel=None, cli_progress=False,
         forced. Pass ``1`` to force serial processing.
     cli_progress : optional boolean, defaults False
         If true, a progress bar will be printed to the terminal using tqdm.
-
     """
+
     from .par_util import resolve_parallelism
     parallel = resolve_parallelism(parallel)
 
     if parallel > 1:
-        _sample_layer_parallel(pio, format, sampler, depth, cli_progress, parallel)
+        _sample_layer_parallel(pio, format, sampler, depth, coordsys, cli_progress, parallel)
     else:
-        _sample_layer_serial(pio, format, sampler, depth, cli_progress)
+        _sample_layer_serial(pio, format, sampler, depth, coordsys, cli_progress)
 
 
-def _sample_layer_serial(pio, format, sampler, depth, cli_progress):
+def _sample_layer_serial(pio, format, sampler, depth, coordsys, cli_progress):
     with tqdm(total=tiles_at_depth(depth), disable=not cli_progress) as progress:
-        for tile in generate_tiles(depth, bottom_only=True):
+        for tile in generate_tiles(depth, bottom_only=True, coordsys=coordsys):
             lon, lat = toast_tile_get_coords(tile)
             sampled_data = sampler(lon, lat)
             pio.write_image(tile.pos, Image.from_array(sampled_data), format=format)
@@ -592,11 +648,11 @@ def _sample_layer_serial(pio, format, sampler, depth, cli_progress):
         print()
 
 
-def _sample_layer_parallel(pio, format, sampler, depth, cli_progress, parallel):
+def _sample_layer_parallel(pio, format, sampler, depth, coordsys, cli_progress, parallel):
     import multiprocessing as mp
 
     queue = mp.Queue(maxsize = 2 * parallel)
-    dispatcher = mp.Process(target=_mp_sample_dispatcher, args=(queue, depth, cli_progress))
+    dispatcher = mp.Process(target=_mp_sample_dispatcher, args=(queue, depth, cli_progress, coordsys))
     dispatcher.start()
 
     workers = []
@@ -613,12 +669,12 @@ def _sample_layer_parallel(pio, format, sampler, depth, cli_progress, parallel):
         w.join()
 
 
-def _mp_sample_dispatcher(queue, depth, cli_progress):
+def _mp_sample_dispatcher(queue, depth, cli_progress, coordsys):
     """
     Generate and enqueue the tiles that need to be processed.
     """
     with tqdm(total=tiles_at_depth(depth), disable=not cli_progress) as progress:
-        for tile in generate_tiles(depth, bottom_only=True):
+        for tile in generate_tiles(depth, bottom_only=True, coordsys=coordsys):
             queue.put(tile)
             progress.update(1)
 

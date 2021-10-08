@@ -539,7 +539,7 @@ def transform_getparser(parser):
         '--start',
         metavar = 'DEPTH',
         type = int,
-        help = 'The depth of the pyramid layer to start the cascade',
+        help = 'How deep in the tile pyramid to proceed wth the transformation',
     )
     parser.add_argument(
         '--clip', '-c',
@@ -549,9 +549,14 @@ def transform_getparser(parser):
         help = 'The level at which to start flipping the floating-point data',
     )
     parser.add_argument(
+        '--outdir',
+        metavar = 'PATH',
+        help = 'Output transformed data into this directory, instead of operating in-place',
+    )
+    parser.add_argument(
         'pyramid_dir',
         metavar = 'DIR',
-        help = 'The directory containing the tile pyramid to cascade',
+        help = 'The directory containing the tile pyramid to transform',
     )
 
     parser = subparsers.add_parser('u8-to-rgb')
@@ -565,12 +570,17 @@ def transform_getparser(parser):
         '--start',
         metavar = 'DEPTH',
         type = int,
-        help = 'The depth of the pyramid layer to start the cascade',
+        help = 'How deep in the tile pyramid to proceed wth the transformation',
+    )
+    parser.add_argument(
+        '--outdir',
+        metavar = 'PATH',
+        help = 'Output transformed data into this directory, instead of operating in-place',
     )
     parser.add_argument(
         'pyramid_dir',
         metavar = 'DIR',
-        help = 'The directory containing the tile pyramid to cascade',
+        help = 'The directory containing the tile pyramid to transform',
     )
 
 
@@ -582,19 +592,31 @@ def transform_impl(settings):
         return
 
     if settings.transform_command == 'fx3-to-rgb':
-        from .transform import f16x3_to_rgb
         pio = PyramidIO(settings.pyramid_dir)
+        pio_out = None
+
+        if settings.outdir is not None:
+            pio_out = PyramidIO(settings.outdir)
+
+        from .transform import f16x3_to_rgb
         f16x3_to_rgb(
             pio, settings.start,
             clip = settings.clip,
+            pio_out = pio_out,
             parallel = settings.parallelism,
             cli_progress = True,
         )
     elif settings.transform_command == 'u8-to-rgb':
-        from .transform import u8_to_rgb
         pio = PyramidIO(settings.pyramid_dir)
+        pio_out = None
+
+        if settings.outdir is not None:
+            pio_out = PyramidIO(settings.outdir)
+
+        from .transform import u8_to_rgb
         u8_to_rgb(
             pio, settings.start,
+            pio_out = pio_out,
             parallel = settings.parallelism,
             cli_progress = True,
         )

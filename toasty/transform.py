@@ -87,12 +87,11 @@ def _transform_mp_worker(queue, done_event, pio_in, pio_out, make_buf, do_one):
     buf = make_buf()
 
     while True:
-        if done_event.is_set():
-            break
-
         try:
             pos = queue.get(True, timeout=1)
         except Empty:
+            if done_event.is_set():
+                break
             continue
 
         do_one(buf, pos, pio_in, pio_out)

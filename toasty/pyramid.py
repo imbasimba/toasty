@@ -356,11 +356,15 @@ class PyramidIO(object):
 
     @contextmanager
     def update_image(self, pos, default='none', masked_mode=None, format=None):
-        from filelock import FileLock
+        # Plain FileLock doesn't work in HPC contexts, where we might be running
+        # multiple processes on different hosts simultaneously. But it might be
+        # more efficient in the non-HPC context? Should maybe choose the right
+        # one automagically.
+        from filelock import SoftFileLock
 
         p = self.tile_path(pos)
 
-        with FileLock(p + '.lock'):
+        with SoftFileLock(p + '.lock'):
             img = self.read_image(
                 pos,
                 default=default,

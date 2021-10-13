@@ -1,23 +1,23 @@
-ChunkedPlateCareeSampler
-========================
+ChunkedPlateCarreeSampler
+=========================
 
 .. currentmodule:: toasty.samplers
 
-.. autoclass:: ChunkedPlateCareeSampler
+.. autoclass:: ChunkedPlateCarreeSampler
    :show-inheritance:
 
    .. rubric:: Attributes Summary
 
    .. autosummary::
 
-      ~ChunkedPlateCareeSampler.n_chunks
+      ~ChunkedPlateCarreeSampler.n_chunks
 
    .. rubric:: Methods Summary
 
    .. autosummary::
 
-      ~ChunkedPlateCareeSampler.filter
-      ~ChunkedPlateCareeSampler.sampler
+      ~ChunkedPlateCarreeSampler.filter
+      ~ChunkedPlateCarreeSampler.sampler
 
    .. rubric:: Attributes Documentation
 

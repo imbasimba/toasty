@@ -18,14 +18,14 @@ from __future__ import absolute_import, division, print_function
 
 __all__ = '''
 ChunkedJPEG2000Reader
-HAVE_JPEG2000
+HAS_JPEG2000
 '''.split()
 
 try:
     import glymur
-    HAVE_JPEG2000 = True
+    HAS_JPEG2000 = True
 except ImportError:
-    HAVE_JPEG2000 = False
+    HAS_JPEG2000 = False
 
 
 class ChunkedJPEG2000Reader(object):
@@ -44,7 +44,7 @@ class ChunkedJPEG2000Reader(object):
     """
 
     def __init__(self, path, fake_data=False):
-        if not HAVE_JPEG2000:
+        if not HAS_JPEG2000:
             raise Exception('you must install the `glymur` Python package to process JPEG2000 files')
 
         self._jp2 = glymur.Jp2k(path)

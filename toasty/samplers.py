@@ -22,7 +22,7 @@ RGB colors.
 from __future__ import absolute_import, division, print_function
 
 __all__ = '''
-ChunkedPlateCareeSampler
+ChunkedPlateCarreeSampler
 plate_carree_sampler
 plate_carree_galactic_sampler
 plate_carree_ecliptic_sampler
@@ -326,7 +326,7 @@ def plate_carree_planet_sampler(data):
     return vec2pix
 
 
-class ChunkedPlateCareeSampler(object):
+class ChunkedPlateCarreeSampler(object):
     """
     Setup for TOAST sampling of a chunked plate-carree image.
 

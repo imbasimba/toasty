@@ -185,13 +185,13 @@ class TestSampleLayer(object):
         self.verify_level1(ref='tess')
 
     @pytest.mark.skipif('not HAS_OPENEXR')
-    def test_earth_plate_caree_exr(self):
+    def test_earth_plate_carree_exr(self):
         from ..samplers import plate_carree_sampler
 
         img = ImageLoader().load_path(test_path('Equirectangular_projection_SW-tweaked.exr'))
         sampler = plate_carree_sampler(img.asarray())
         sample_layer(self.pio, sampler, 1, format='npy')
-        f16x3_to_rgb(self.pio, 1, parallel=1)
+        f16x3_to_rgb(self.pio, 1, parallel=1, out_format='png')
         self.verify_level1()
 
     @pytest.mark.skipif('not HAS_ASTRO')

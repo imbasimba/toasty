@@ -97,11 +97,38 @@ def _transform_mp_worker(queue, done_event, pio_in, pio_out, make_buf, do_one):
         do_one(buf, pos, pio_in, pio_out)
 
 
-# float-to-RGBA, with a generalized float-to-unit transform
+# float-to-RGB(A), with a generalized float-to-unit transform
 
 def f16x3_to_rgb(pio, start_depth, clip=1, **kwargs):
     transform = viz.SqrtStretch() + viz.ManualInterval(0, clip)
-    _float_to_rgba(pio, start_depth, ImageMode.F16x3, transform, **kwargs)
+    _float_to_rgb(pio, start_depth, transform, **kwargs)
+
+
+def _float_to_rgb(pio_in, depth, transform, out_format='png', **kwargs):
+    make_buf = lambda: np.empty((256, 256, 3), dtype=np.uint8)
+    do_one = lambda buf, pos, pio_in, pio_out: _float_to_rgb_do_one(buf, pos, pio_in, pio_out, transform, out_format)
+    _do_a_transform(pio_in, depth, make_buf, do_one, **kwargs)
+
+
+def _float_to_rgb_do_one(buf, pos, pio_in, pio_out, transform, out_format):
+    img = pio_in.read_image(pos, format='npy')
+    if img is None:
+        return
+
+    mapped = transform(img.asarray())
+
+    if mapped.ndim == 2:
+        # TODO: allow real colormaps
+        valid = np.isfinite(mapped)
+        mapped = mapped.reshape((256, 256, 1))
+    else:
+        valid = np.all(np.isfinite(mapped), axis=2)
+
+    mapped[~valid] = 0
+    mapped = np.clip(mapped * 255, 0, 255).astype(np.uint8)
+    buf[...] = mapped
+    rgb = Image.from_array(buf)
+    pio_out.write_image(pos, rgb, format=out_format, mode=ImageMode.RGB)
 
 
 def _float_to_rgba(pio_in, depth, transform, **kwargs):

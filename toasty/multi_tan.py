@@ -249,11 +249,12 @@ class MultiTanProcessor(object):
 
         # Start up the workers
 
+        done_event = mp.Event()
         queue = mp.Queue(maxsize = 2 * parallel)
         workers = []
 
         for _ in range(parallel):
-            w = mp.Process(target=_mp_tile_worker, args=(queue, pio, kwargs))
+            w = mp.Process(target=_mp_tile_worker, args=(queue, done_event, pio, kwargs))
             w.daemon = True
             w.start()
             workers.append(w)
@@ -265,16 +266,20 @@ class MultiTanProcessor(object):
                 queue.put((image, desc))
                 progress.update(1)
 
-            queue.close()
+        # Finish up
 
-            for w in workers:
-                w.join()
+        queue.close()
+        queue.join_thread()
+        done_event.set()
+
+        for w in workers:
+            w.join()
 
         if cli_progress:
             print()
 
 
-def _mp_tile_worker(queue, pio, kwargs):
+def _mp_tile_worker(queue, done_event, pio, _kwargs):
     """
     Generate and enqueue the tiles that need to be processed.
     """
@@ -288,10 +293,10 @@ def _mp_tile_worker(queue, pio, kwargs):
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
                 image, desc = queue.get(True, timeout=1)
-        except (OSError, ValueError, Empty):
-            # OSError or ValueError => queue closed. This signal seems not to
-            # cross multiprocess lines, though.
-            break
+        except Empty:
+            if done_event.is_set():
+                break
+            continue
 
         if image.get_parity_sign() != tile_parity_sign:
             image.flip_parity()

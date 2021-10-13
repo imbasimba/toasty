@@ -957,6 +957,10 @@ class Image(object):
         i = self.asarray()
         b = buffer.asarray()
 
+        # Ensure that we don't try to use the PIL representation of the buffer anymore,
+        # since it will be out-of-date.
+        buffer._pil = None
+
         if self.mode == ImageMode.RGB:
             b.fill(0)
             b[by_idx,bx_idx,:3] = i[iy_idx,ix_idx]
@@ -996,6 +1000,10 @@ class Image(object):
         """
         i = self.asarray()
         b = buffer.asarray()
+
+        # Ensure that we don't try to use the PIL representation of the buffer anymore,
+        # since it will be out-of-date.
+        buffer._pil = None
 
         sub_b = b[by_idx,bx_idx]
         sub_i = i[iy_idx,ix_idx]

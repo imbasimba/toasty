@@ -465,7 +465,7 @@ def create_single_tile(pos, coordsys=ToastCoordinateSystem.ASTRONOMICAL):
 
     Parameters
     ----------
-    pos : :class:`Position`
+    pos : :class:`~toasty.pyramid.Pos`
         The position of the tile that will be created. The depth of the
         tile must be at least 1.
     coordsys : optional :class:`ToastCoordinateSystem`
@@ -578,7 +578,7 @@ def count_tiles_matching_filter(depth, filter, bottom_only=True, coordsys=ToastC
     Notes
     -----
     This function's call signature and tree-exploration semantics match
-    :func:`generated_tiles_filtered`.
+    :func:`generate_tiles_filtered`.
     """
     # With a generic filter function, brute force is our only option:
     n = 0
@@ -617,7 +617,7 @@ def sample_layer(
         :attr:`ToastCoordinateSystem.ASTRONOMICAL`.
     format : optional :class:`str`
         If provided, override the default data storage format of *pio* with the
-        named format, one of the values in :var:`toasty.image.SUPPORTED_FORMATS`.
+        named format, one of the values in ``toasty.image.SUPPORTED_FORMATS``.
     parallel : integer or None (the default)
         The level of parallelization to use. If unspecified, defaults to using
         all CPUs. If the OS does not support fork-based multiprocessing,

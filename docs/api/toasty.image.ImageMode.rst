@@ -15,6 +15,7 @@ ImageMode
       ~ImageMode.F64
       ~ImageMode.RGB
       ~ImageMode.RGBA
+      ~ImageMode.U8
 
    .. rubric:: Methods Summary
 
@@ -31,6 +32,7 @@ ImageMode
    .. autoattribute:: F64
    .. autoattribute:: RGB
    .. autoattribute:: RGBA
+   .. autoattribute:: U8
 
    .. rubric:: Methods Documentation
 

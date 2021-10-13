@@ -651,40 +651,37 @@ def _sample_layer_serial(pio, format, sampler, depth, coordsys, cli_progress):
 def _sample_layer_parallel(pio, format, sampler, depth, coordsys, cli_progress, parallel):
     import multiprocessing as mp
 
+    done_event = mp.Event()
     queue = mp.Queue(maxsize = 2 * parallel)
-    dispatcher = mp.Process(target=_mp_sample_dispatcher, args=(queue, depth, cli_progress, coordsys))
-    dispatcher.start()
-
     workers = []
 
     for _ in range(parallel):
-        w = mp.Process(target=_mp_sample_worker, args=(queue, pio, sampler, format))
+        w = mp.Process(target=_mp_sample_worker, args=(queue, done_event, pio, sampler, format))
         w.daemon = True
         w.start()
         workers.append(w)
 
-    dispatcher.join()
+    # Send out tiles:
 
-    for w in workers:
-        w.join()
-
-
-def _mp_sample_dispatcher(queue, depth, cli_progress, coordsys):
-    """
-    Generate and enqueue the tiles that need to be processed.
-    """
     with tqdm(total=tiles_at_depth(depth), disable=not cli_progress) as progress:
         for tile in generate_tiles(depth, bottom_only=True, coordsys=coordsys):
             queue.put(tile)
             progress.update(1)
 
+    # OK, we're done!
+
+    queue.close()
+    queue.join_thread()
+    done_event.set()
+
+    for w in workers:
+        w.join()
+
     if cli_progress:
         print()
 
-    queue.close()
 
-
-def _mp_sample_worker(queue, pio, sampler, format):
+def _mp_sample_worker(queue, done_event, pio, sampler, format):
     """
     Process tiles on the queue.
     """
@@ -693,10 +690,10 @@ def _mp_sample_worker(queue, pio, sampler, format):
     while True:
         try:
             tile = queue.get(True, timeout=1)
-        except (OSError, ValueError, Empty):
-            # OSError or ValueError => queue closed. This signal seems not to
-            # cross multiprocess lines, though.
-            break
+        except Empty:
+            if done_event.is_set():
+                break
+            continue
 
         lon, lat = toast_tile_get_coords(tile)
         sampled_data = sampler(lon, lat)
@@ -752,12 +749,11 @@ def _mp_sample_filtered(queue, done_event, pio, sampler, format):
     from queue import Empty
 
     while True:
-        if done_event.is_set():
-            break
-
         try:
             tile = queue.get(True, timeout=1)
         except Empty:
+            if done_event.is_set():
+                break
             continue
 
         lon, lat = toast_tile_get_coords(tile)

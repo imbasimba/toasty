@@ -175,7 +175,8 @@ def _cascade_images_parallel(pio, start, merger, cli_progress, parallel):
 
     """
     import multiprocessing as mp
-    from .pyramid import Pos
+    from queue import Empty
+    from .pyramid import Pos, pos_parent
 
     # The dispatcher process keeps track of finished tiles (reported in
     # `done_queue`) and notifiers worker when new tiles are ready to process
@@ -185,25 +186,7 @@ def _cascade_images_parallel(pio, start, merger, cli_progress, parallel):
     n_todo = pyramid.depth2tiles(first_level_to_do)
     ready_queue = mp.Queue()
     done_queue = mp.Queue(maxsize = 2 * parallel)
-
-    dispatcher = mp.Process(
-        target=_mp_cascade_dispatcher,
-        args=(done_queue, ready_queue, n_todo, cli_progress)
-    )
-    dispatcher.start()
-
-    # The workers pick up tiles that are ready to process and do the merging.
-
-    workers = []
-
-    for _ in range(parallel):
-        w = mp.Process(
-            target=_mp_cascade_worker,
-            args=(done_queue, ready_queue, pio, merger),
-        )
-        w.daemon = True
-        w.start()
-        workers.append(w)
+    done_event = mp.Event()
 
     # Seed the queue of ready tiles. We use generate_pos to try to seed the
     # queue in an order that will get us to generate higher-level tiles as early
@@ -215,21 +198,20 @@ def _cascade_images_parallel(pio, start, merger, cli_progress, parallel):
         if pos.n == first_level_to_do:
             ready_queue.put(pos)
 
-    # Wait for the magic to happen.
+    # The workers pick up tiles that are ready to process and do the merging.
 
-    dispatcher.join()
+    workers = []
 
-    for w in workers:
-        w.join()
+    for _ in range(parallel):
+        w = mp.Process(
+            target=_mp_cascade_worker,
+            args=(done_queue, ready_queue, done_event, pio, merger),
+        )
+        w.daemon = True
+        w.start()
+        workers.append(w)
 
-
-def _mp_cascade_dispatcher(done_queue, ready_queue, n_todo, cli_progress):
-    """
-    Monitor for tiles that are finished processing and enqueue ones that
-    become ready for processing (= all of their children are processed).
-    """
-    from queue import Empty
-    from .pyramid import pos_parent
+    # Start dispatching tiles
 
     readiness = {}
 
@@ -264,13 +246,20 @@ def _mp_cascade_dispatcher(done_queue, ready_queue, n_todo, cli_progress):
             else:
                 readiness[ppos] = flags
 
+    # All done!
+
     ready_queue.close()
+    ready_queue.join_thread()
+    done_event.set()
+
+    for w in workers:
+        w.join()
 
     if cli_progress:
         print()
 
 
-def _mp_cascade_worker(done_queue, ready_queue, pio, merger):
+def _mp_cascade_worker(done_queue, ready_queue, done_event, pio, merger):
     """
     Process tiles that are ready.
     """
@@ -287,10 +276,10 @@ def _mp_cascade_worker(done_queue, ready_queue, pio, merger):
     while True:
         try:
             pos = ready_queue.get(True, timeout=1)
-        except (OSError, ValueError, Empty):
-            # OSError or ValueError => queue closed. This signal seems not to
-            # cross multiprocess lines, though.
-            break
+        except Empty:
+            if done_event.is_set():
+                break
+            continue
 
         # By construction, the children of this tile have all already been
         # processed.

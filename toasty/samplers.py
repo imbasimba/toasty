@@ -484,10 +484,15 @@ class ChunkedPlateCarreeSampler(object):
         A callable object, ``sampler(lon, lat) -> data``, suitable for use as a tile
         sampler function.
         """
+        from .image import Image
+
         chunk_lon_min, chunk_lon_max, chunk_lat_min, chunk_lat_max = self._chunk_bounds(ichunk)
         data = self._image.chunk_data(ichunk)
+        data_img = Image.from_array(data)
+        buffer = data_img.mode.make_maskable_buffer(256, 256)
+        biy, bix = np.indices((256, 256))
 
-        ny, nx = data.shape
+        ny, nx = data.shape[:2]
         dx = nx / (chunk_lon_max - chunk_lon_min)  # pixels per radian in the X direction
         dy = ny / (chunk_lat_max - chunk_lat_min)  # ditto, for the Y direction
         lon0 = chunk_lon_min + 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
@@ -497,18 +502,13 @@ class ChunkedPlateCarreeSampler(object):
             lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
             ix = (lon - lon0) * dx
             ix = np.round(ix).astype(int)
-            out_of_range = (ix < 0) | (ix >= nx)
+            ok = (ix >= 0) & (ix < nx)
 
             iy = (lat0 - lat) * dy  # *assume* in range [-pi/2, pi/2]
             iy = np.round(iy).astype(int)
-            out_of_range |= (iy < 0) | (iy >= ny)
+            ok &= (iy >= 0) & (iy < ny)
 
-            # XXX hardcoding zero!
-            ix[out_of_range] = 0
-            iy[out_of_range] = 0
-            sampled = data[iy, ix]
-            sampled[out_of_range] = 0
-
-            return sampled
+            data_img.fill_into_maskable_buffer(buffer, iy[ok], ix[ok], biy[ok], bix[ok])
+            return buffer.asarray()
 
         return plate_carree_planet_sampler

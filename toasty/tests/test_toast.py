@@ -1,11 +1,10 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2013-2020 Chris Beaumont and the AAS WorldWide Telescope project
+# Copyright 2013-2021 Chris Beaumont and the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 from __future__ import absolute_import, division, print_function
 
 import os
-from xml.dom.minidom import parseString
 from tempfile import mkstemp, mkdtemp
 from shutil import rmtree
 
@@ -28,8 +27,9 @@ except ImportError:
 from . import test_path
 from .. import cli, toast
 from ..image import ImageLoader
+from ..jpeg2000 import ChunkedJPEG2000Reader, HAS_JPEG2000
 from ..pyramid import Pos, PyramidIO
-from ..toast import sample_layer
+from ..toast import sample_layer, sample_layer_filtered
 from ..transform import f16x3_to_rgb
 
 
@@ -156,10 +156,30 @@ class TestSampleLayer(object):
     def teardown_method(self, method):
         rmtree(self.base)
 
-    def verify_level1(self, ref='earth_toasted_sky', format=None, expected_2d=False):
+    def verify_level1(
+        self,
+        ref='earth_toasted_sky',
+        format=None,
+        expected_2d=False,
+        drop_alpha=False,
+        planetary=False,
+    ):
         for n, x, y in [(1, 0, 0), (1, 0, 1), (1, 1, 0), (1, 1, 1)]:
-            ref_path = test_path(ref, str(n), str(y), "%i_%i.png" % (y, x))
+            if planetary:
+                # to transform sky to planetary, we need to mirror the global
+                # image horizontally. So here we mirror on a tile level, and
+                # below we mirror on a pixel level.
+                ref_x = 1 - x
+                warn = f'; this is mirrored from input position ({n},{x},{y}) for planetary mode'
+            else:
+                ref_x = x
+                warn = ''
+
+            ref_path = test_path(ref, str(n), str(y), "%i_%i.png" % (y, ref_x))
             expected = ImageLoader().load_path(ref_path).asarray()
+
+            if planetary:
+                expected = expected[:,::-1]
 
             pos = Pos(n=n, x=x, y=y)
             observed = self.pio.read_image(pos, format=format).asarray()
@@ -167,7 +187,11 @@ class TestSampleLayer(object):
             if expected_2d:
                 expected = expected.mean(axis=2)
 
-            image_test(expected, observed, 'Failed for %s' % ref_path)
+            if drop_alpha:
+                assert observed.shape[2] == 4
+                observed = observed[...,:3]
+
+            image_test(expected, observed, 'Failed for %s%s' % (ref_path, warn))
 
     def test_plate_carree(self):
         from ..samplers import plate_carree_sampler
@@ -185,14 +209,37 @@ class TestSampleLayer(object):
         self.verify_level1(ref='tess')
 
     @pytest.mark.skipif('not HAS_OPENEXR')
-    def test_earth_plate_caree_exr(self):
+    def test_earth_plate_carree_exr(self):
         from ..samplers import plate_carree_sampler
 
         img = ImageLoader().load_path(test_path('Equirectangular_projection_SW-tweaked.exr'))
         sampler = plate_carree_sampler(img.asarray())
         sample_layer(self.pio, sampler, 1, format='npy')
-        f16x3_to_rgb(self.pio, 1, parallel=1)
+        f16x3_to_rgb(self.pio, 1, parallel=1, out_format='png')
         self.verify_level1()
+
+    @pytest.mark.skipif('not HAS_JPEG2000')
+    def test_earth_plate_carree_jpeg2000_chunked_planetary(self):
+        from ..samplers import ChunkedPlateCarreeSampler
+        from ..toast import ToastCoordinateSystem
+
+        img = ChunkedJPEG2000Reader(test_path('Equirectangular_projection_SW-tweaked.jp2'))
+        # this currently (2021 Oct) only supports planetary coordinates:
+        chunker = ChunkedPlateCarreeSampler(img, planetary=True)
+
+        for ichunk in range(chunker.n_chunks):
+            tile_filter = chunker.filter(ichunk)
+            sampler = chunker.sampler(ichunk)
+            sample_layer_filtered(
+                self.pio,
+                tile_filter,
+                sampler,
+                1, # depth
+                coordsys=ToastCoordinateSystem.PLANETARY,
+                parallel=1,
+            )
+
+        self.verify_level1(drop_alpha=True, planetary=True)
 
     @pytest.mark.skipif('not HAS_ASTRO')
     def test_healpix_equ(self):

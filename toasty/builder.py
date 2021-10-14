@@ -85,8 +85,8 @@ class Builder(object):
         tiling : `toasty.study.StudyTiling`
             The prepared tiling information
 
-        Remarks
-        -------
+        Notes
+        -----
         After calling this method, you should set up the WCS for the tiled
         imagery, using :meth:`default_tiled_study_astrometry` as a backstop if
         no real information is available. Then use :meth:`execute_study_tiling`

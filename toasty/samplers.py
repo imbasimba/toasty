@@ -22,6 +22,7 @@ RGB colors.
 from __future__ import absolute_import, division, print_function
 
 __all__ = '''
+ChunkedPlateCarreeSampler
 plate_carree_sampler
 plate_carree_galactic_sampler
 plate_carree_ecliptic_sampler
@@ -323,3 +324,191 @@ def plate_carree_planet_sampler(data):
         return data[iy, ix]
 
     return vec2pix
+
+
+class ChunkedPlateCarreeSampler(object):
+    """
+    Setup for TOAST sampling of a chunked plate-carree image.
+
+    This only works with the ChunkedJPEG2000Reader image right now, but in
+    principle we could extend to accept other chunked formats.
+
+    Assume a typical image coordinate system, where (x,y) = (0,0) is the
+    top-left edge of the image. The "global" coordinate system refers to the
+    un-chunked image, which is probably too big to fit into memory.
+
+    In the planetary plate carree projection, (global) X and Y measure latitude
+    and longitude orthogonally. The left edge of the X=0 column has lon = -pi,
+    while the right edge of the X=(W-1) column has lon = +pi. The top edge of
+    the Y=0 row has lat = +pi/2, and the bottom edge of the Y=(H-1) row has lat
+    = -pi/2.
+    """
+
+    def __init__(self, chunked_image, planetary=False):
+        self._image = chunked_image
+
+        assert planetary, 'XXX non-planetary plate carree not implemented'
+
+        self.sx = 2 * np.pi / self._image.shape[1]  # radians per pixel, X direction
+        self.sy = np.pi / self._image.shape[0]  # ditto, for the X direction
+
+    @property
+    def n_chunks(self):
+        return self._image.n_chunks
+
+    def _chunk_bounds(self, ichunk):
+        cx, cy, cw, ch = self._image.chunk_spec(ichunk)
+
+        # Note that the following are all intended to be coordinates at
+        # pixel edges, in the appropriate direction, not pixel centers.
+        lon_l = self.sx * cx - np.pi
+        lon_r = self.sx * (cx + cw) - np.pi
+        lat_u = 0.5 * np.pi - self.sy * cy
+        lat_d = 0.5 * np.pi - self.sy * (cy + ch)  # note: lat_u > lat_d
+
+        return lon_l, lon_r, lat_d, lat_u
+
+    def filter(self, ichunk):
+        """
+        Get a TOAST tile-filter function for the specified chunk.
+
+        Parameters
+        ----------
+        ichunk : :class:`int`
+            The index of the chunk to query, between 0 and ``self.n_chunks - 1``
+            (inclusive).
+
+        Returns
+        -------
+        A callable object, ``filter(tile) -> bool``, suitable for use as a tile
+        filter function.
+        """
+        chunk_lon_min1, chunk_lon_max1, chunk_lat_min1, chunk_lat_max1 = self._chunk_bounds(ichunk)
+
+        def latlon_tile_filter(tile):
+            """
+            Return true if this tile might contain data from this chunk of the
+            source image.
+            """
+            # Need to copy the outer arguments since we're going to modify them.
+            chunk_lon_min = chunk_lon_min1
+            chunk_lon_max = chunk_lon_max1
+            chunk_lat_min = chunk_lat_min1
+            chunk_lat_max = chunk_lat_max1
+
+            corner_lonlats = np.asarray(tile.corners)  # shape (4, 2)
+
+            # Latitudes are easy -- no wrapping.
+
+            tile_lat_min = np.min(corner_lonlats[:,1])
+            tile_lat_max = np.max(corner_lonlats[:,1])
+
+            if chunk_lat_min > tile_lat_max:
+                return False
+            if chunk_lat_max < tile_lat_min:
+                return False
+
+            # Can't reject based on latitudes. Longitudes are trickier.
+            #
+            # Step 1: If we hit one of the poles, longitudes become
+            # ~meaningless, so all we can really do (in our simplistic approach
+            # here) is accept the tile. We compare to ~(pi - 1e-8) here to
+            # account for inevitable roundoff. Note that if we don't apply the
+            # lat-bounds filter first, every single chunk will accept tiles at
+            # the poles, even if it's right on the equator.
+
+            if tile_lat_max > 1.5707963 or tile_lat_min < -1.5707963:
+                return True
+
+            # Step 2: get good a coverage range for tile longitudes. Some tiles
+            # span a full pi in longitude, and sometimes the "corners"
+            # longitudes span all sorts of values from -2pi to 2pi. So just
+            # shuffle them around until we get a self-consistent min/max.
+
+            lons = corner_lonlats[:,0]
+            keep_going = True
+
+            while keep_going:
+                keep_going = False
+
+                imin = np.argmin(lons)
+                tile_lon_min = lons[imin]
+                tile_lon_max = np.max(lons)
+
+                if tile_lon_max - tile_lon_min > np.pi:
+                    keep_going = True
+                    lons[imin] += 2 * np.pi
+
+            # Step 3: Now, shuffle the chunk longitudes by +/-2pi so that they
+            # line up with the tile longitude bounds. We know that we'll
+            # ultimately be comparing the chunk_lon_min to tile_lon_max, and
+            # chunk/max to tile/min, so we can treat those pairs individually.
+
+            while chunk_lon_min - tile_lon_max > np.pi:
+                chunk_lon_min -= 2 * np.pi
+
+            while tile_lon_max - chunk_lon_min > np.pi:
+                chunk_lon_min += 2 * np.pi
+
+            while chunk_lon_max - tile_lon_min > np.pi:
+                chunk_lon_max -= 2 * np.pi
+
+            while tile_lon_min - chunk_lon_max > np.pi:
+                chunk_lon_max += 2 * np.pi
+
+            # Finally, we can reject this tile if it lies beyond the boundaries
+            # of the chunk we're considering.
+
+            if chunk_lon_min > tile_lon_max:
+                return False
+            if chunk_lon_max < tile_lon_min:
+                return False
+
+            # Well, we couldn't reject it, so we must accept:
+            return True
+
+        return latlon_tile_filter
+
+    def sampler(self, ichunk):
+        """
+        Get a TOAST sampler function for the specified chunk.
+
+        Parameters
+        ----------
+        ichunk : :class:`int`
+            The index of the chunk to query, between 0 and ``self.n_chunks - 1``
+            (inclusive).
+
+        Returns
+        -------
+        A callable object, ``sampler(lon, lat) -> data``, suitable for use as a tile
+        sampler function.
+        """
+        from .image import Image
+
+        chunk_lon_min, chunk_lon_max, chunk_lat_min, chunk_lat_max = self._chunk_bounds(ichunk)
+        data = self._image.chunk_data(ichunk)
+        data_img = Image.from_array(data)
+        buffer = data_img.mode.make_maskable_buffer(256, 256)
+        biy, bix = np.indices((256, 256))
+
+        ny, nx = data.shape[:2]
+        dx = nx / (chunk_lon_max - chunk_lon_min)  # pixels per radian in the X direction
+        dy = ny / (chunk_lat_max - chunk_lat_min)  # ditto, for the Y direction
+        lon0 = chunk_lon_min + 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
+        lat0 = chunk_lat_max - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
+
+        def plate_carree_planet_sampler(lon, lat):
+            lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
+            ix = (lon - lon0) * dx
+            ix = np.round(ix).astype(int)
+            ok = (ix >= 0) & (ix < nx)
+
+            iy = (lat0 - lat) * dy  # *assume* in range [-pi/2, pi/2]
+            iy = np.round(iy).astype(int)
+            ok &= (iy >= 0) & (iy < ny)
+
+            data_img.fill_into_maskable_buffer(buffer, iy[ok], ix[ok], biy[ok], bix[ok])
+            return buffer.asarray()
+
+        return plate_carree_planet_sampler

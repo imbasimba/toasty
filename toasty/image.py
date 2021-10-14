@@ -81,11 +81,13 @@ def get_format_vertical_parity_sign(format):
     return -1
 
 def _array_to_mode(array):
-    if array.ndim == 2 and array.dtype.kind == 'f':
-        if array.dtype.itemsize == 4:
+    if array.ndim == 2:
+        if array.dtype.kind == 'f' and array.dtype.itemsize == 4:
             return ImageMode.F32
-        elif array.dtype.itemsize == 8:
+        elif array.dtype.kind == 'f' and array.dtype.itemsize == 8:
             return ImageMode.F64
+        elif array.dtype.kind == 'u' and array.dtype.itemsize == 1:
+            return ImageMode.U8
     elif array.ndim == 3:
         if array.shape[2] == 3:
             if array.dtype.kind == 'f' and array.itemsize == 2:
@@ -128,13 +130,17 @@ class ImageMode(Enum):
     stored in the OpenEXR file format.
     """
 
+    U8 = 'U8'
+
     @classmethod
     def from_array_info(cls, shape, dtype):
-        if len(shape) == 2 and dtype.kind == 'f':
-            if dtype.itemsize == 4:
+        if len(shape) == 2:
+            if dtype.kind == 'f' and dtype.itemsize == 4:
                 return cls.F32
-            elif dtype.itemsize == 8:
+            elif dtype.kind == 'f' and dtype.itemsize == 8:
                 return cls.F64
+            elif dtype.kind == 'u' and dtype.itemsize == 1:
+                return cls.U8
         elif len(shape) == 3:
             if shape[2] == 3:
                 if dtype.kind == 'f' and dtype.itemsize == 2:
@@ -181,6 +187,8 @@ class ImageMode(Enum):
             arr = np.empty((buf_height, buf_width), dtype=np.float64)
         elif self == ImageMode.F16x3:
             arr = np.empty((buf_height, buf_width, 3), dtype=np.float16)
+        elif self == ImageMode.U8:
+            arr = np.empty((buf_height, buf_width), dtype=np.uint8)
         else:
             raise Exception('unhandled mode in make_maskable_buffer()')
 
@@ -805,7 +813,7 @@ class Image(object):
         if self._default_format is None:
             if self.mode in (ImageMode.RGB, ImageMode.RGBA):
                 return 'png'
-            elif self.mode in (ImageMode.F32, ImageMode.F16x3):
+            elif self.mode in (ImageMode.F32, ImageMode.F64, ImageMode.F16x3, ImageMode.U8):
                 return 'npy'
         else:
             return self._default_format
@@ -949,14 +957,18 @@ class Image(object):
         i = self.asarray()
         b = buffer.asarray()
 
+        # Ensure that we don't try to use the PIL representation of the buffer anymore,
+        # since it will be out-of-date.
+        buffer._pil = None
+
         if self.mode == ImageMode.RGB:
             b.fill(0)
             b[by_idx,bx_idx,:3] = i[iy_idx,ix_idx]
             b[by_idx,bx_idx,3] = 255
-        elif self.mode == ImageMode.RGBA:
+        elif self.mode in (ImageMode.RGBA, ImageMode.U8):
             b.fill(0)
             b[by_idx,bx_idx] = i[iy_idx,ix_idx]
-        elif self.mode in (ImageMode.F32, ImageMode.F16x3):
+        elif self.mode in (ImageMode.F32, ImageMode.F64, ImageMode.F16x3):
             b.fill(np.nan)
             b[by_idx,bx_idx] = i[iy_idx,ix_idx]
         else:
@@ -989,6 +1001,10 @@ class Image(object):
         i = self.asarray()
         b = buffer.asarray()
 
+        # Ensure that we don't try to use the PIL representation of the buffer anymore,
+        # since it will be out-of-date.
+        buffer._pil = None
+
         sub_b = b[by_idx,bx_idx]
         sub_i = i[iy_idx,ix_idx]
 
@@ -999,15 +1015,22 @@ class Image(object):
             valid = (sub_i[...,3] != 0)
             valid = np.broadcast_to(valid[...,None], sub_i.shape)
             np.putmask(sub_b, valid, sub_i)
-        elif self.mode == ImageMode.F32:
+        elif self.mode in (ImageMode.F32, ImageMode.F64):
             valid = ~np.isnan(sub_i)
             np.putmask(sub_b, valid, sub_i)
         elif self.mode == ImageMode.F16x3:
             valid = ~np.any(np.isnan(sub_i), axis=2)
             valid = np.broadcast_to(valid[...,None], sub_i.shape)
             np.putmask(sub_b, valid, sub_i)
+        elif self.mode == ImageMode.U8:
+            # zero is our maskval, so here's a convenient way to get pretty good
+            # update semantics. It will behave unusually if two buffers overlap
+            # and disagree on their non-zero pixel values: instead of the second
+            # buffer "winning", we'll effectively get a mix-and-match of which
+            # buffer "wins", biased towards the brighter values.
+            np.maximum(sub_b, sub_i, out=sub_b)
         else:
-            raise Exception('unhandled mode in update_into_maskable_buffer')
+            raise Exception(f'unhandled mode `{self.mode}` in update_into_maskable_buffer')
 
     def save(self, path_or_stream, format=None, mode=None):
         """
@@ -1116,7 +1139,7 @@ class Image(object):
         with NaNs.
 
         """
-        if self._mode in (ImageMode.RGB, ImageMode.RGBA):
+        if self._mode in (ImageMode.RGB, ImageMode.RGBA, ImageMode.U8):
             self.asarray().fill(0)
         elif self._mode in (ImageMode.F32, ImageMode.F64, ImageMode.F16x3):
             self.asarray().fill(np.nan)

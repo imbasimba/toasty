@@ -241,11 +241,12 @@ class MultiWcsProcessor(object):
 
         # Start up the workers
 
+        done_event = mp.Event()
         queue = mp.Queue(maxsize = 2 * parallel)
         workers = []
 
         for _ in range(parallel):
-            w = mp.Process(target=_mp_tile_worker, args=(queue, pio, reproject_function, kwargs))
+            w = mp.Process(target=_mp_tile_worker, args=(queue, done_event, pio, reproject_function, kwargs))
             w.daemon = True
             w.start()
             workers.append(w)
@@ -257,16 +258,20 @@ class MultiWcsProcessor(object):
                 queue.put((image, desc, self._combined_wcs))
                 progress.update(1)
 
-            queue.close()
+        # Wrap up
 
-            for w in workers:
-                w.join()
+        queue.close()
+        queue.join_thread()
+        done_event.set()
+
+        for w in workers:
+            w.join()
 
         if cli_progress:
             print()
 
 
-def _mp_tile_worker(queue, pio, reproject_function, kwargs):
+def _mp_tile_worker(queue, done_event, pio, reproject_function, kwargs):
     """
     Generate and enqueue the tiles that need to be processed.
     """
@@ -280,10 +285,10 @@ def _mp_tile_worker(queue, pio, reproject_function, kwargs):
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
                 image, desc, combined_wcs = queue.get(True, timeout=10)
-        except (OSError, ValueError, Empty) as e:
-            # OSError or ValueError => queue closed. This signal seems not to
-            # cross multiprocess lines, though.
-            break
+        except Empty:
+            if done_event.is_set():
+                break
+            continue
 
         input_array = image.asarray()
 

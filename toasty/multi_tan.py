@@ -99,18 +99,30 @@ class MultiTanProcessor(object):
                 for h in SAVE_HEADERS:
                     ref_headers[h] = header[h]
 
-                if ref_headers['CTYPE1'] != 'RA---TAN':
-                    raise Exception('all inputs must be in a TAN projection, but {} is not'.format(input_id))
-                if ref_headers['CTYPE2'] != 'DEC--TAN':
-                    raise Exception('all inputs must be in a TAN projection, but {} is not'.format(input_id))
+                if ref_headers["CTYPE1"] != "RA---TAN":
+                    raise Exception(
+                        "all inputs must be in a TAN projection, but {} is not".format(
+                            desc.collection_id
+                        )
+                    )
+                if ref_headers["CTYPE2"] != "DEC--TAN":
+                    raise Exception(
+                        "all inputs must be in a TAN projection, but {} is not".format(
+                            desc.collection_id
+                        )
+                    )
             else:
                 for h in MATCH_HEADERS:
                     expected = ref_headers[h]
                     observed = header[h]
 
                     if observed != expected:
-                        raise Exception('inputs are not on uniform WCS grid; in file {}, expected '
-                                        'value {} for header {} but observed {}'.format(input_id, expected, h, observed))
+                        raise Exception(
+                            "inputs are not on uniform WCS grid; in file {}, expected "
+                            "value {} for header {} but observed {}".format(
+                                desc.collection_id, expected, h, observed
+                            )
+                        )
 
             this_crpix1 = header["CRPIX1"] - 1
             this_crpix2 = header["CRPIX2"] - 1

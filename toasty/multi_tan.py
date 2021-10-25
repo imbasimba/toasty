@@ -6,9 +6,9 @@
 Generate tiles from a collection of images on a common TAN projection.
 """
 
-__all__ = '''
+__all__ = """
 MultiTanProcessor
-'''.split()
+""".split()
 
 from astropy.wcs import WCS
 import numpy as np
@@ -18,16 +18,20 @@ import warnings
 from .study import StudyTiling
 
 MATCH_HEADERS = [
-    'CTYPE1', 'CTYPE2',
-    'CRVAL1', 'CRVAL2',
-    'CDELT1', 'CDELT2',
+    "CTYPE1",
+    "CTYPE2",
+    "CRVAL1",
+    "CRVAL2",
+    "CDELT1",
+    "CDELT2",
 ]
 
 # In my sample set, some of these files vary minutely from one header to the
 # next, so we save them but don't demand exact matching. We should use
 # np.isclose() or whatever it is.
 SAVE_HEADERS = [
-    'PC1_1', 'PC2_2',
+    "PC1_1",
+    "PC2_2",
 ]
 
 
@@ -61,7 +65,6 @@ class MultiTanProcessor(object):
 
     def __init__(self, collection):
         self._collection = collection
-
 
     def compute_global_pixelization(self, builder):
         """
@@ -109,8 +112,8 @@ class MultiTanProcessor(object):
                         raise Exception('inputs are not on uniform WCS grid; in file {}, expected '
                                         'value {} for header {} but observed {}'.format(input_id, expected, h, observed))
 
-            this_crpix1 = header['CRPIX1'] - 1
-            this_crpix2 = header['CRPIX2'] - 1
+            this_crpix1 = header["CRPIX1"] - 1
+            this_crpix2 = header["CRPIX2"] - 1
 
             mtdesc = MultiTanDescriptor()
             mtdesc.ident = desc.collection_id
@@ -140,8 +143,8 @@ class MultiTanProcessor(object):
         height = int(global_crymax - global_crymin) + 1
         self._tiling = StudyTiling(width, height)
 
-        ref_headers['CRPIX1'] = this_crpix1 + 1 + (mtdesc.crxmin - global_crxmin)
-        ref_headers['CRPIX2'] = this_crpix2 + 1 + (mtdesc.crymin - global_crymin)
+        ref_headers["CRPIX1"] = this_crpix1 + 1 + (mtdesc.crxmin - global_crxmin)
+        ref_headers["CRPIX2"] = this_crpix2 + 1 + (mtdesc.crymin - global_crymin)
         wcs = WCS(ref_headers)
 
         self._tiling.apply_to_imageset(builder.imgset)
@@ -163,7 +166,9 @@ class MultiTanProcessor(object):
             # tiles we'll need to process.
 
             if desc.imax < desc.imin or desc.jmax < desc.jmin:
-                raise Exception(f'segment {desc.ident} maps to zero size in the global mosaic')
+                raise Exception(
+                    f"segment {desc.ident} maps to zero size in the global mosaic"
+                )
 
             desc.sub_tiling = self._tiling.compute_for_subimage(
                 desc.imin,
@@ -175,7 +180,6 @@ class MultiTanProcessor(object):
             self._n_todo += desc.sub_tiling.count_populated_positions()
 
         return self  # chaining convenience
-
 
     def tile(self, pio, parallel=None, cli_progress=False, **kwargs):
         """
@@ -196,6 +200,7 @@ class MultiTanProcessor(object):
         """
 
         from .par_util import resolve_parallelism
+
         parallel = resolve_parallelism(parallel)
 
         if parallel > 1:
@@ -207,7 +212,6 @@ class MultiTanProcessor(object):
         # that were generated.
         pio.clean_lockfiles(self._tiling._tile_levels)
 
-
     def _tile_serial(self, pio, cli_progress, **kwargs):
         tile_parity_sign = pio.get_default_vertical_parity_sign()
 
@@ -217,7 +221,15 @@ class MultiTanProcessor(object):
                 if image.get_parity_sign() != tile_parity_sign:
                     image.flip_parity()
 
-                for pos, width, height, image_x, image_y, tile_x, tile_y in desc.sub_tiling.generate_populated_positions():
+                for (
+                    pos,
+                    width,
+                    height,
+                    image_x,
+                    image_y,
+                    tile_x,
+                    tile_y,
+                ) in desc.sub_tiling.generate_populated_positions():
                     # Tiling coordinate systems are always negative (top-down)
                     # parity, with the Y=0 tile at the top. But the actual data
                     # buffers might be positive (bottoms-up) parity -- this is
@@ -235,14 +247,17 @@ class MultiTanProcessor(object):
                     iy_idx = slice(image_y, image_y + height)
                     by_idx = slice(tile_y, tile_y + height)
 
-                    with pio.update_image(pos, masked_mode=image.mode, default='masked') as basis:
-                        image.update_into_maskable_buffer(basis, iy_idx, ix_idx, by_idx, bx_idx)
+                    with pio.update_image(
+                        pos, masked_mode=image.mode, default="masked"
+                    ) as basis:
+                        image.update_into_maskable_buffer(
+                            basis, iy_idx, ix_idx, by_idx, bx_idx
+                        )
 
                     progress.update(1)
 
         if cli_progress:
             print()
-
 
     def _tile_parallel(self, pio, cli_progress, parallel, **kwargs):
         import multiprocessing as mp
@@ -250,11 +265,13 @@ class MultiTanProcessor(object):
         # Start up the workers
 
         done_event = mp.Event()
-        queue = mp.Queue(maxsize = 2 * parallel)
+        queue = mp.Queue(maxsize=2 * parallel)
         workers = []
 
         for _ in range(parallel):
-            w = mp.Process(target=_mp_tile_worker, args=(queue, done_event, pio, kwargs))
+            w = mp.Process(
+                target=_mp_tile_worker, args=(queue, done_event, pio, kwargs)
+            )
             w.daemon = True
             w.start()
             workers.append(w)
@@ -291,7 +308,7 @@ def _mp_tile_worker(queue, done_event, pio, _kwargs):
         try:
             # un-pickling WCS objects always triggers warnings right now
             with warnings.catch_warnings():
-                warnings.simplefilter('ignore')
+                warnings.simplefilter("ignore")
                 image, desc = queue.get(True, timeout=1)
         except Empty:
             if done_event.is_set():
@@ -301,7 +318,15 @@ def _mp_tile_worker(queue, done_event, pio, _kwargs):
         if image.get_parity_sign() != tile_parity_sign:
             image.flip_parity()
 
-        for pos, width, height, image_x, image_y, tile_x, tile_y in desc.sub_tiling.generate_populated_positions():
+        for (
+            pos,
+            width,
+            height,
+            image_x,
+            image_y,
+            tile_x,
+            tile_y,
+        ) in desc.sub_tiling.generate_populated_positions():
             if tile_parity_sign == 1:
                 image_y = image.height - (image_y + height)
                 tile_y = 256 - (tile_y + height)
@@ -311,5 +336,7 @@ def _mp_tile_worker(queue, done_event, pio, _kwargs):
             iy_idx = slice(image_y, image_y + height)
             by_idx = slice(tile_y, tile_y + height)
 
-            with pio.update_image(pos, masked_mode=image.mode, default='masked') as basis:
+            with pio.update_image(
+                pos, masked_mode=image.mode, default="masked"
+            ) as basis:
                 image.update_into_maskable_buffer(basis, iy_idx, ix_idx, by_idx, bx_idx)

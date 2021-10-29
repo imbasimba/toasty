@@ -6,10 +6,10 @@
 Support for loading images from a Djangoplicity database.
 """
 
-__all__ = '''
+__all__ = """
 DjangoplicityImageSource
 DjangoplicityCandidateInput
-'''.split()
+""".split()
 
 import codecs
 from contextlib import contextmanager
@@ -40,29 +40,32 @@ class DjangoplicityImageSource(ImageSource):
 
     @classmethod
     def get_config_key(cls):
-        return 'djangoplicity'
-
+        return "djangoplicity"
 
     @classmethod
     def deserialize(cls, data):
         inst = cls()
-        inst._base_url = data['base_url']
-        inst._channel_name = data['channel_name']
-        inst._search_page_name = data.get('search_page_name', 'page')
-        inst._force_insecure_tls = data.get('force_insecure_tls', True)  # TODO: migrate to false
+        inst._base_url = data["base_url"]
+        inst._channel_name = data["channel_name"]
+        inst._search_page_name = data.get("search_page_name", "page")
+        inst._force_insecure_tls = data.get(
+            "force_insecure_tls", True
+        )  # TODO: migrate to false
         return inst
 
     @contextmanager
     def make_request(self, url, stream=False, none404=False):
         """force_insecure_tls is for noirlab.edu"""
 
-        with requests.get(url, stream=stream, verify=not self._force_insecure_tls) as resp:
+        with requests.get(
+            url, stream=stream, verify=not self._force_insecure_tls
+        ) as resp:
             if none404 and resp.status_code == 404:
                 yield None
                 return
 
             if not resp.ok:
-                raise Exception(f'error fetching url `{url}`: {resp.status_code}')
+                raise Exception(f"error fetching url `{url}`: {resp.status_code}")
 
             if stream:
                 # By default, `resp.raw` does not perform content decoding.
@@ -82,14 +85,17 @@ class DjangoplicityImageSource(ImageSource):
         page_num = 1
 
         while True:
-            url = self._base_url + f'archive/search/{self._search_page_name}/{page_num}/?type=Observation'
-            print(f'requesting {url} ...')
+            url = (
+                self._base_url
+                + f"archive/search/{self._search_page_name}/{page_num}/?type=Observation"
+            )
+            print(f"requesting {url} ...")
 
             with self.make_request(url, stream=True, none404=True) as resp:
                 if resp is None:
                     break  # got a 404 -- all done
 
-                text_stream = codecs.getreader('utf8')(resp.raw)
+                text_stream = codecs.getreader("utf8")(resp.raw)
                 json_lines = []
 
                 # Cf. stream=True in make_request -- skip the zero-length result
@@ -100,29 +106,30 @@ class DjangoplicityImageSource(ImageSource):
 
                 for line in text_stream:
                     if not len(json_lines):
-                        if 'var images = [' in line:
-                            json_lines.append('[')
-                    elif '];' in line:
-                        json_lines.append(']')
+                        if "var images = [" in line:
+                            json_lines.append("[")
+                    elif "];" in line:
+                        json_lines.append("]")
                         break
                     else:
                         json_lines.append(line)
 
             if not len(json_lines):
-                raise Exception(f'error processing url {url}: no "var images" data found')
+                raise Exception(
+                    f'error processing url {url}: no "var images" data found'
+                )
 
             # This is really a JS literal, but YAML is compatible enough.
             # JSON does *not* work because the dict keys here aren't quoted.
-            data = yaml.safe_load(''.join(json_lines))
+            data = yaml.safe_load("".join(json_lines))
 
             for item in data:
                 yield DjangoplicityCandidateInput(item)
 
             page_num += 1
 
-
     def fetch_candidate(self, unique_id, cand_data_stream, cachedir):
-        url = self._base_url + urlquote(unique_id) + '/api/json/'
+        url = self._base_url + urlquote(unique_id) + "/api/json/"
 
         with self.make_request(url) as resp:
             info = json.loads(resp.content)
@@ -131,39 +138,40 @@ class DjangoplicityImageSource(ImageSource):
 
         fullsize_url = None
 
-        for resource in info['Resources']:
-            if resource.get('ResourceType') == 'Original':
-                fullsize_url = resource['URL']
+        for resource in info["Resources"]:
+            if resource.get("ResourceType") == "Original":
+                fullsize_url = resource["URL"]
                 break
 
         if fullsize_url is None:
-            raise Exception(f'error processing {unique_id}: can\'t identify \"fullsize original\" image URL')
+            raise Exception(
+                f'error processing {unique_id}: can\'t identify "fullsize original" image URL'
+            )
 
-        ext = fullsize_url.rsplit('.', 1)[-1].lower()
-        info['toasty_image_extension'] = ext
+        ext = fullsize_url.rsplit(".", 1)[-1].lower()
+        info["toasty_image_extension"] = ext
 
         # Validate that there's actually WCS we can use
 
-        if not isinstance(info.get('Spatial.CoordsystemProjection', None), str):
-            raise NotActionableError('image does not have full WCS')
+        if not isinstance(info.get("Spatial.CoordsystemProjection", None), str):
+            raise NotActionableError("image does not have full WCS")
 
         # Download it
 
         with self.make_request(fullsize_url, stream=True) as resp:
-            with open(os.path.join(cachedir, 'image.' + ext), 'wb') as f:
+            with open(os.path.join(cachedir, "image." + ext), "wb") as f:
                 shutil.copyfileobj(resp.raw, f)
 
-        with open(os.path.join(cachedir, 'metadata.json'), 'wt', encoding='utf8') as f:
+        with open(os.path.join(cachedir, "metadata.json"), "wt", encoding="utf8") as f:
             json.dump(info, f, ensure_ascii=False, indent=2)
-
 
     def process(self, unique_id, cand_data_stream, cachedir, builder):
         # Set up the metadata.
 
-        with open(os.path.join(cachedir, 'metadata.json'), 'rt', encoding='utf8') as f:
+        with open(os.path.join(cachedir, "metadata.json"), "rt", encoding="utf8") as f:
             info = json.load(f)
 
-        img_path = os.path.join(cachedir, 'image.' + info['toasty_image_extension'])
+        img_path = os.path.join(cachedir, "image." + info["toasty_image_extension"])
         md = DjangoplicityMetadata(info)
 
         # Load up the image.
@@ -179,24 +187,24 @@ class DjangoplicityImageSource(ImageSource):
             md.as_wcs_headers(img.width, img.height),
             img.width,
             img.height,
-            place = builder.place,
+            place=builder.place,
         )
 
-        builder.set_name(info['Title'])
-        builder.imgset.credits_url = info['ReferenceURL']
-        builder.imgset.credits = html.escape(info['Credit'])
-        builder.place.description = html.escape(info['Description'])
+        builder.set_name(info["Title"])
+        builder.imgset.credits_url = info["ReferenceURL"]
+        builder.imgset.credits = html.escape(info["Credit"])
+        builder.place.description = html.escape(info["Description"])
 
         # Annotation metadata
 
-        pub_dt = datetime.fromisoformat(info['Date'])
+        pub_dt = datetime.fromisoformat(info["Date"])
         if pub_dt.tzinfo is None:
             pub_dt = pub_dt.replace(tzinfo=timezone.utc)
 
         amd = {
-            'channel': self._channel_name,
-            'itemid': unique_id,
-            'publishedUTCISO8601': pub_dt.isoformat(),
+            "channel": self._channel_name,
+            "itemid": unique_id,
+            "publishedUTCISO8601": pub_dt.isoformat(),
         }
         builder.place.annotation = json.dumps(amd)
 
@@ -214,10 +222,10 @@ class DjangoplicityCandidateInput(CandidateInput):
         self._info = info
 
     def get_unique_id(self):
-        return self._info['id']
+        return self._info["id"]
 
     def save(self, stream):
-        with codecs.getwriter('utf8')(stream) as text_stream:
+        with codecs.getwriter("utf8")(stream) as text_stream:
             json.dump(self._info, text_stream, ensure_ascii=False, indent=2)
 
 

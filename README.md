@@ -80,7 +80,7 @@ and [PyPI](https://pypi.org/project/toasty/#history).
 - [pytest] to run the test suite
 - [PyYAML]
 - [tqdm]
-- [wwt_data_formats] >= 0.7
+- [wwt_data_formats] >= 0.10.2
 
 [Astronomy Visualization Metadata]: https://virtualastronomy.org/avm_metadata.php
 [astropy]: https://www.astropy.org/

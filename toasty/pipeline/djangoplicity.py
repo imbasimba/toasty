@@ -236,31 +236,38 @@ class DjangoplicityMetadata(object):
         self.metadata = metadata
 
     def as_wcs_headers(self, width, height):
+        """
+        The metadata here are essentially AVM headers. As described in
+        `Builder.apply_avm_info()`, the data that we've seen in the wild are a
+        bit wonky with regards to parity: the metadata essentially correspond to
+        FITS-like parity, and we need to flip them to JPEG-like parity. See also
+        very similar code in `astropix.py`.
+        """
         headers = {}
 
-        #headers['RADECSYS'] = self.wcs_coordinate_frame  # causes Astropy warnings
-        headers['CTYPE1'] = 'RA---' + self.metadata['Spatial.CoordsystemProjection']
-        headers['CTYPE2'] = 'DEC--' + self.metadata['Spatial.CoordsystemProjection']
-        headers['CRVAL1'] = float(self.metadata['Spatial.ReferenceValue'][0])
-        headers['CRVAL2'] = float(self.metadata['Spatial.ReferenceValue'][1])
+        # headers['RADECSYS'] = self.wcs_coordinate_frame  # causes Astropy warnings
+        headers["CTYPE1"] = "RA---" + self.metadata["Spatial.CoordsystemProjection"]
+        headers["CTYPE2"] = "DEC--" + self.metadata["Spatial.CoordsystemProjection"]
+        headers["CRVAL1"] = float(self.metadata["Spatial.ReferenceValue"][0])
+        headers["CRVAL2"] = float(self.metadata["Spatial.ReferenceValue"][1])
 
         # See Calabretta & Greisen (2002; DOI:10.1051/0004-6361:20021327), eqn 186
-        crot = np.cos(float(self.metadata['Spatial.Rotation']) * np.pi / 180)
-        srot = np.sin(float(self.metadata['Spatial.Rotation']) * np.pi / 180)
-        scale0 = float(self.metadata['Spatial.Scale'][0])
+        crot = np.cos(float(self.metadata["Spatial.Rotation"]) * np.pi / 180)
+        srot = np.sin(float(self.metadata["Spatial.Rotation"]) * np.pi / 180)
+        scale0 = float(self.metadata["Spatial.Scale"][0])
 
         # Seen in noao-02274; guessing how to handle this
-        if not self.metadata['Spatial.Scale'][1]:
+        if not self.metadata["Spatial.Scale"][1]:
             scale1 = np.abs(scale0)
         else:
-            scale1 = float(self.metadata['Spatial.Scale'][1])
+            scale1 = float(self.metadata["Spatial.Scale"][1])
 
         lam = scale1 / scale0
 
-        headers['PC1_1'] = crot
-        headers['PC1_2'] = -lam * srot
-        headers['PC2_1'] = srot / lam
-        headers['PC2_2'] = crot
+        pc1_1 = crot
+        pc1_2 = -lam * srot
+        pc2_1 = srot / lam
+        pc2_2 = crot
 
         # If we couldn't get the original image, the pixel density used for
         # the WCS parameters may not match the image resolution that we have
@@ -273,15 +280,24 @@ class DjangoplicityMetadata(object):
         # should map to [W' + 0.5, H' + 0.5] (where the primed quantities are
         # the new width and height).
 
-        factor0 = width / float(self.metadata['Spatial.ReferenceDimension'][0])
-        factor1 = height / float(self.metadata['Spatial.ReferenceDimension'][1])
+        factor0 = width / float(self.metadata["Spatial.ReferenceDimension"][0])
+        factor1 = height / float(self.metadata["Spatial.ReferenceDimension"][1])
 
-        headers['CRPIX1'] = (float(self.metadata['Spatial.ReferencePixel'][0]) - 0.5) * factor0 + 0.5
-        headers['CRPIX2'] = (float(self.metadata['Spatial.ReferencePixel'][1]) - 0.5) * factor1 + 0.5
-        headers['CDELT1'] = scale0 / factor0
+        headers["CRPIX1"] = (
+            float(self.metadata["Spatial.ReferencePixel"][0]) - 0.5
+        ) * factor0 + 0.5
+        headers["CRPIX2"] = (
+            float(self.metadata["Spatial.ReferencePixel"][1]) - 0.5
+        ) * factor1 + 0.5
 
-        # We need the negation here to properly express the parity of this
-        # JPEG-type image in WCS:
-        headers['CDELT2'] = -scale1 / factor1
+        # Now finalize and apply the parity flip.
+
+        cdelt1 = scale0 / factor0
+        cdelt2 = scale1 / factor1
+        headers["CD1_1"] = cdelt1 * pc1_1
+        headers["CD1_2"] = -cdelt1 * pc1_2
+        headers["CD2_1"] = cdelt2 * pc2_1
+        headers["CD2_2"] = -cdelt2 * pc2_2
+        headers["CRPIX2"] = height + 1 - headers["CRPIX2"]
 
         return headers

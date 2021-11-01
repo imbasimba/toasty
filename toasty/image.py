@@ -740,8 +740,8 @@ class Image(object):
         # file data is ok.
         if os.name == 'nt':
             array = np.copy(array)
-        else:
-            array = np.atleast_2d(array)
+
+        array = np.atleast_2d(array)
 
         inst = cls()
         inst._mode = _array_to_mode(array)

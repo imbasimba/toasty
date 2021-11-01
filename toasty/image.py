@@ -26,6 +26,7 @@ from PIL import Image as pil_image
 import numpy as np
 import warnings
 import sys
+import os
 
 try:
     from astropy.io import fits
@@ -599,15 +600,16 @@ class ImageLoader(object):
             # TODO: decide how to handle multiple HDUs
             # TODO: decide how to handle non-TAN projections
 
-            hdu = fits.open(path)[0]
-            arr = hdu.data
-            if ASTROPY_INSTALLED:
-                from astropy.wcs import WCS
-                wcs = WCS(hdu.header)
-            else:
-                wcs = None
+            with fits.open(path) as hdul:
+                arr = hdul[0].data
+                if ASTROPY_INSTALLED:
+                    from astropy.wcs import WCS
+                    wcs = WCS(hdul[0].header)
+                else:
+                    wcs = None
 
-            return Image.from_array(arr, wcs=wcs, default_format='fits')
+                img = Image.from_array(arr, wcs=wcs, default_format='fits')
+            return img
 
         # Special handling for Photoshop files, used for some very large mosaics
         # with transparency (e.g. the PHAT M31/M33 images).
@@ -731,6 +733,13 @@ class Image(object):
         """
 
         _validate_format('default_format', default_format)
+
+        # Windows systems ('nt') cannot close a file while there are any variables pointing
+        # to data within the opened file. Therefore we have to copy the entire array from
+        # the opened file. In other, more permissive operating systems, pointing to the
+        # file data is ok.
+        if os.name == 'nt':
+            array = np.copy(array)
 
         array = np.atleast_2d(array)
 

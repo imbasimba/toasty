@@ -2,8 +2,26 @@ from toasty import builder, collection, pyramid, multi_tan, multi_wcs
 import reproject
 
 
-def toast(fits_list, **kwargs):
-    # TODO docs
+def toast_fits_list(fits_list, **kwargs):
+    """
+    Process a file or a list of FITS files into a tile pyramid with
+    a common tangential projection.
+
+    Parameters
+    ----------
+    fits_list : str or list of str
+        A single path or a list of paths to FITS files to be processed.
+    kwargs
+        Settings for the `toasty` tiling process. Common
+        settings include 'hdu_index' and 'blankval'.
+
+    Returns
+    -------
+    out_dir : :class:`str`
+        The relative path to the base directory where the tiled files are located
+    image_set_pattern : :class:`str`
+        The pattern to be used to access specific tiles
+    """
 
     if not isinstance(fits_list, list):
         fits_list = [fits_list]
@@ -28,7 +46,6 @@ def toast(fits_list, **kwargs):
 
     # Using the file name of the first FITS file as the image collection name
     bld.set_name(out_dir.split('/')[-1])
-
     bld.write_index_rel_wtml()
 
     return out_dir, bld.imgset.url

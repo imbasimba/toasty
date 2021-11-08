@@ -15,7 +15,7 @@ except ImportError:
     HAS_ASTRO = False
 
 
-class TestMultiTan(object):
+class TestCollection(object):
 
     @pytest.mark.skipif('not HAS_ASTRO')
     def test_is_multi_tan(self):

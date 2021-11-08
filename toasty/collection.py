@@ -29,6 +29,14 @@ import warnings
 from .image import Image, ImageDescription, ImageMode
 from .study import StudyTiling
 
+MATCH_HEADERS = [
+    "CTYPE1",
+    "CTYPE2",
+    "CRVAL1",
+    "CRVAL2",
+    "CDELT1",
+    "CDELT2",
+]
 
 class ImageCollection(ABC):
     def descriptions(self):
@@ -53,6 +61,34 @@ class ImageCollection(ABC):
         gives a unique textual identifer for the item in the collection.
         """
         raise NotImplementedError()
+
+    def is_multi_tan(self):
+        ref_headers = None
+
+        for desc in self.descriptions():
+            # For figuring out the tiling properties, we need to ensure that
+            # we're working in top-down mode everywhere.
+            desc.ensure_negative_parity()
+
+            header = desc.wcs.to_header()
+
+            if ref_headers is None:
+                ref_headers = {}
+
+                for h in MATCH_HEADERS:
+                    ref_headers[h] = header[h]
+
+                if ref_headers["CTYPE1"] != "RA---TAN" or ref_headers["CTYPE2"] != "DEC--TAN":
+                    return False
+            else:
+                for h in MATCH_HEADERS:
+                    expected = ref_headers[h]
+                    observed = header[h]
+
+                    if observed != expected:
+                        return False
+
+        return True
 
 
 class SimpleFitsCollection(ImageCollection):

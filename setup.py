@@ -77,6 +77,8 @@ setup_args = dict(
         "PyYAML>=5.0",
         "tqdm>=4.0",
         "wwt_data_formats>=0.10.2",
+        "shapely",
+        "reproject",
     ],
     extras_require={
         "test": [

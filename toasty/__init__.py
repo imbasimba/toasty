@@ -41,7 +41,7 @@ def tile_fits(fits, out_dir=None, cli_progress=False, **kwargs):
     fits = list(fits)
 
     if out_dir is None:
-        first_file_name = fits[0]
+        first_file_name = fits[0].split('.gz')[0]
         out_dir = first_file_name[:first_file_name.rfind('.')] + '_tiled'
 
     pio = pyramid.PyramidIO(out_dir, default_format='fits')

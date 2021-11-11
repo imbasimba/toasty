@@ -20,12 +20,12 @@ class TestCollection(object):
     @pytest.mark.skipif('not HAS_ASTRO')
     def test_is_multi_tan(self):
         coll = collection.SimpleFitsCollection([test_path('wcs512.fits.gz')])
-        assert coll.is_multi_tan()
+        assert coll._is_multi_tan()
 
         coll = collection.SimpleFitsCollection([test_path('herschel_spire.fits.gz'),
                                                 test_path('herschel_spire.fits.gz')])
-        assert coll.is_multi_tan()
+        assert coll._is_multi_tan()
 
         coll = collection.SimpleFitsCollection([test_path('wcs512.fits.gz'),
                                                 test_path('herschel_spire.fits.gz')])
-        assert not coll.is_multi_tan()
+        assert not coll._is_multi_tan()

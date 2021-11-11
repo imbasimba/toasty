@@ -62,7 +62,7 @@ class ImageCollection(ABC):
         """
         raise NotImplementedError()
 
-    def is_multi_tan(self):
+    def _is_multi_tan(self):
         ref_headers = None
 
         for desc in self.descriptions():

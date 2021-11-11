@@ -6,7 +6,7 @@ from __future__ import absolute_import, division, print_function
 
 import pytest
 from . import test_path
-import toasty
+from ..__init__ import tile_fits
 from shutil import rmtree
 from pathlib import Path
 
@@ -22,7 +22,7 @@ class TestToasty(object):
     @pytest.mark.skipif('not HAS_ASTRO')
     def test_tile_fits(self):
         out_dir_input = 'test_tiled'
-        out_dir, bld = toasty.tile_fits(
+        out_dir, bld = tile_fits(
             fits=test_path('herschel_spire.fits.gz'),
             out_dir=out_dir_input,
             cli_progress=True)
@@ -33,7 +33,7 @@ class TestToasty(object):
 
         # Only testing with a multi tan collection, since multi WCS
         # collections take a significant time to process
-        out_dir, bld = toasty.tile_fits(
+        out_dir, bld = tile_fits(
             fits=[test_path('wcs512.fits.gz'), test_path('wcs512.fits.gz')]
         )
         assert out_dir == test_path('wcs512_tiled')

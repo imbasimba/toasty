@@ -103,6 +103,9 @@ def cascade_images(pio, start, merger, parallel=None, cli_progress=False):
     from .par_util import resolve_parallelism
     parallel = resolve_parallelism(parallel)
 
+    if start < 1:
+        return  # Nothing to do.
+
     if parallel > 1:
         _cascade_images_parallel(pio, start, merger, cli_progress, parallel)
     else:

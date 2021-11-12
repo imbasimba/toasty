@@ -52,15 +52,15 @@ def tile_fits(fits, out_dir=None, cli_progress=False, **kwargs):
     if coll._is_multi_tan():
         tile_processor = multi_tan.MultiTanProcessor(coll)
         tile_processor.compute_global_pixelization(bld)
-        tile_processor.tile(pio, cli_progress=cli_progress)
+        tile_processor.tile(pio, cli_progress=cli_progress, **kwargs)
     else:
         tile_processor = multi_wcs.MultiWcsProcessor(coll)
         tile_processor.compute_global_pixelization(bld)
-        tile_processor.tile(pio, reproject.reproject_interp, cli_progress=cli_progress)
+        tile_processor.tile(pio, reproject.reproject_interp, cli_progress=cli_progress, **kwargs)
 
     if cli_progress:
         print('Downsampling (Step 2 of 2)')
-    bld.cascade(cli_progress=True)
+    bld.cascade(cli_progress=cli_progress, **kwargs)
 
     # Using the file name of the first FITS file as the image collection name
     bld.set_name(out_dir.split('/')[-1])

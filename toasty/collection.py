@@ -92,7 +92,7 @@ class ImageCollection(ABC):
 
 
 class SimpleFitsCollection(ImageCollection):
-    def __init__(self, paths, hdu_index=None, blankval=None):
+    def __init__(self, paths, hdu_index=None, blankval=None, **kwargs):
         self._paths = list(paths)
         self._hdu_index = hdu_index
         self._blankval = blankval

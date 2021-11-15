@@ -80,21 +80,17 @@ jobs:
     parameters:
       setupBuild: true
 
+  # For most build variations we try to install all deps via `pip` to make sure
+  # that the setuptools metadata are good. But for the coverage run, we want to
+  # install every esoteric dependency we can get our hands on, and it's faster
+  # and more reliable do to that with conda. Since mixing-and-matching can cause
+  # crashes, as seen in #68 with shapely, here we aim to do *everything* with
+  # conda.
   - bash: |
       set -euo pipefail
       source activate-conda.sh
       set -x
-      \conda create -y -n build setuptools pip python=3.8
-      conda activate build
-      pip install $BASH_WORKSPACE/sdist/*.tar.gz
-    displayName: Install from sdist
-
-  - bash: |
-      set -euo pipefail
-      source activate-conda.sh
-      conda activate build
-      set -x
-      \conda install -y \
+      \conda create -y -n build \
         cython \
         filelock \
         glymur \
@@ -102,14 +98,31 @@ jobs:
         numpy \
         openexr-python \
         pillow \
+        pip \
         pyavm \
         pytest-cov \
+        python=3.9 \
         pyyaml \
         reproject \
+        setuptools \
         shapely \
-        tqdm
-      pip install wwt_data_formats
+        tqdm \
+        wwt_data_formats
+    displayName: Install dependencies with conda
+
+  - bash: |
+      set -euo pipefail
+      source activate-conda.sh
+      set -x
+      conda activate build
       pip install -e .
+    displayName: Install in developer mode
+
+  - bash: |
+      set -euo pipefail
+      source activate-conda.sh
+      conda activate build
+      set -x
       pytest --cov-report=xml --cov=toasty toasty
     displayName: Test with coverage
 

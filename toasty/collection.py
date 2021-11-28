@@ -103,8 +103,10 @@ class SimpleFitsCollection(ImageCollection):
 
         for fits_path in self._paths:
             with fits.open(fits_path) as hdul:
-                if self._hdu_index is not None:
+                if isinstance(self._hdu_index, int):
                     hdu = hdul[self._hdu_index]
+                elif self._hdu_index is not None:
+                    hdu = hdul[self._hdu_index[self._paths.index(fits_path)]]
                 else:
                     for hdu in hdul:
                         if (hasattr(hdu, 'shape') and len(hdu.shape) > 1

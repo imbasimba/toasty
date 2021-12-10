@@ -65,13 +65,17 @@ class FitsTiler:
                 arg = "hdu=" + ",".join(str(i) for i in hdu_index)
             hdu_index_args = [arg]
 
+        # If we give hipsgen a relative output directory it will end up
+        # inside `in_dir`
+        abs_out_dir = os.path.abspath(out_dir)
+
         with self._create_hipsgen_input_dir(fits) as in_dir_path:
             argv = [
                 "java",
                 "-jar",
                 "{0}".format(hipsgen_path),
                 "in={0}".format(in_dir_path),
-                "out={0}".format(out_dir),
+                "out={0}".format(abs_out_dir),
                 "creator_did=ivo://aas.wwt.toasty/{0}".format(out_dir),
             ]
             argv += hdu_index_args

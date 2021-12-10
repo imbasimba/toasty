@@ -14,11 +14,11 @@ initial pass over the collection to gather some global information, then a
 second pass with the actual data processing.
 """
 
-__all__ = '''
+__all__ = """
 ImageCollection
 RubinDirectoryCollection
 SimpleFitsCollection
-'''.split()
+""".split()
 
 from abc import ABC
 from glob import glob
@@ -37,6 +37,7 @@ MATCH_HEADERS = [
     "CDELT1",
     "CDELT2",
 ]
+
 
 class ImageCollection(ABC):
     def descriptions(self):
@@ -78,7 +79,10 @@ class ImageCollection(ABC):
                 for h in MATCH_HEADERS:
                     ref_headers[h] = header[h]
 
-                if ref_headers["CTYPE1"] != "RA---TAN" or ref_headers["CTYPE2"] != "DEC--TAN":
+                if (
+                    ref_headers["CTYPE1"] != "RA---TAN"
+                    or ref_headers["CTYPE2"] != "DEC--TAN"
+                ):
                     return False
             else:
                 for h in MATCH_HEADERS:
@@ -109,12 +113,18 @@ class SimpleFitsCollection(ImageCollection):
                     hdu = hdul[self._hdu_index[self._paths.index(fits_path)]]
                 else:
                     for hdu in hdul:
-                        if (hasattr(hdu, 'shape') and len(hdu.shape) > 1
-                                and type(hdu) is not fits.hdu.table.BinTableHDU):
+                        if (
+                            hasattr(hdu, "shape")
+                            and len(hdu.shape) > 1
+                            and type(hdu) is not fits.hdu.table.BinTableHDU
+                        ):
                             break
 
                 if type(hdu) is fits.hdu.table.BinTableHDU:
-                    raise Exception(f'cannot process input `{fits_path}`: Did not find any HDU with image data')
+                    raise Exception(
+                        f"cannot process input `{fits_path}`: Did not find any HDU with image data"
+                    )
+
                 wcs = WCS(hdu.header)
                 shape = hdu.shape
 
@@ -126,17 +136,24 @@ class SimpleFitsCollection(ImageCollection):
 
                 if wcs.naxis != 2:
                     if not wcs.has_celestial:
-                        raise Exception(f'cannot process input `{fits_path}`: WCS cannot be reduced to 2D celestial')
+                        raise Exception(
+                            f"cannot process input `{fits_path}`: WCS cannot be reduced to 2D celestial"
+                        )
 
                     full_wcs = wcs
                     wcs = full_wcs.celestial
 
                     # note: get_axis_types returns axes in FITS order, innermost first
-                    keep_axes = [t.get('coordinate_type') == 'celestial' for t in full_wcs.get_axis_types()[::-1]]
+                    keep_axes = [
+                        t.get("coordinate_type") == "celestial"
+                        for t in full_wcs.get_axis_types()[::-1]
+                    ]
 
                     for keep, axlen in zip(keep_axes, shape):
                         if not keep and axlen != 1:
-                            raise Exception(f'cannot process input `{fits_path}`: found a non-celestial axis with size other than 1')
+                            raise Exception(
+                                f"cannot process input `{fits_path}`: found a non-celestial axis with size other than 1"
+                            )
 
                 # OK, almost there. Are we loading data or just the descriptor?
 
@@ -149,12 +166,12 @@ class SimpleFitsCollection(ImageCollection):
                     if self._blankval is not None:
                         data[data == self._blankval] = np.nan
 
-                    result = Image.from_array(data, wcs=wcs, default_format='fits')
+                    result = Image.from_array(data, wcs=wcs, default_format="fits")
                 else:
                     if full_wcs is not None:  # need to subset?
                         shape = tuple(t[1] for t in zip(keep_axes, shape) if t[0])
 
-                    if hasattr(hdu, 'dtype'):
+                    if hasattr(hdu, "dtype"):
                         mode = ImageMode.from_array_info(shape, hdu.dtype)
                     else:
                         mode = None  # CompImageHDU doesn't have dtype
@@ -193,7 +210,7 @@ class RubinDirectoryCollection(ImageCollection):
         from astropy.nddata import ccddata
         import ccdproc
 
-        for fits_path in glob(join(self._dirname, '*.fits')):
+        for fits_path in glob(join(self._dirname, "*.fits")):
             # `astropy.nddata.ccddata.fits_ccddata_reader` only opens FITS from
             # filenames, not from an open HDUList, which means that creating
             # multiple CCDDatas from the same FITS file rapidly becomes
@@ -209,7 +226,7 @@ class RubinDirectoryCollection(ImageCollection):
 
                         # This ccddata function often generates annoying warnings
                         with warnings.catch_warnings():
-                            warnings.simplefilter('ignore')
+                            warnings.simplefilter("ignore")
                             hdr, wcs = ccddata._generate_wcs_and_update_header(hdr)
 
                         # We can't use `ccdproc.trim_image()` without having a
@@ -223,30 +240,34 @@ class RubinDirectoryCollection(ImageCollection):
                         if actually_load_data:
                             data = hdu.data
 
-                            if data.dtype.kind == 'i':
+                            if data.dtype.kind == "i":
                                 data = data.astype(np.float32)
                         else:
                             data = np.empty(hdu.shape, dtype=np.void)
 
                         ccd = ccddata.CCDData(data, meta=hdr, unit=self._unit, wcs=wcs)
-                        ccd = ccdproc.trim_image(ccd, fits_section=ccd.header['DATASEC'])
+                        ccd = ccdproc.trim_image(
+                            ccd, fits_section=ccd.header["DATASEC"]
+                        )
                         data = ccd.data
                         shape = data.shape
                         wcs = ccd.wcs
 
                         if actually_load_data:
                             mode = ImageMode.from_array_info(shape, data.dtype)
-                        elif hasattr(hdu, 'dtype'):
+                        elif hasattr(hdu, "dtype"):
                             mode = ImageMode.from_array_info(shape, hdu.dtype)
                         else:
                             mode = None  # CompImageHDU doesn't have dtype
 
                         if actually_load_data:
-                            result = Image.from_array(data, wcs=wcs, default_format='fits')
+                            result = Image.from_array(
+                                data, wcs=wcs, default_format="fits"
+                            )
                         else:
                             result = ImageDescription(mode=mode, shape=shape, wcs=wcs)
 
-                        result.collection_id = f'{fits_path}:{idx}'
+                        result.collection_id = f"{fits_path}:{idx}"
                         yield result
 
     def descriptions(self):

@@ -6,8 +6,7 @@ from astropy.coordinates import Angle
 from astropy.io import fits
 from astropy.utils.data import download_file
 from astropy.wcs import WCS
-import ntpath
-import os
+import os.path
 import reproject
 from shutil import copyfile
 from subprocess import Popen, PIPE, STDOUT, run
@@ -154,12 +153,12 @@ class FitsTiler:
 
     def _create_hipsgen_input_dir(self, fits_list):
         dir = tempfile.TemporaryDirectory()
+
         for fits_file in fits_list:
-            link_name = ntpath.basename(fits_file)
-            absolute_path = os.path.join(os.getcwd(), fits_file)
+            link_name = os.path.basename(fits_file)
+            absolute_path = os.path.abspath(fits_file)
             link_path = os.path.join(dir.name, link_name)
-            if not os.path.exists(link_path):
-                os.symlink(src=absolute_path, dst=link_path)
+            os.symlink(src=absolute_path, dst=link_path)
 
         return dir
 

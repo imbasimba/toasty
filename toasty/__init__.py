@@ -18,24 +18,24 @@ def tile_fits(fits, out_dir=None, hdu_index=None, override=False, cli_progress=F
         A path to the output directory where all the tiled fits will be located. If not set, the output directory will
         be at the location of the first FITS file.
     hdu_index : optional int or list of int, defaults to None
-        Use this parameter to specify which HDU to tile. If the `fits` input is a list of FITS, you can specify the
+        Use this parameter to specify which HDU to tile. If the *fits* input is a list of FITS, you can specify the
         hdu_index of each FITS by using a list of integers like this: [0, 2, 1]. If hdu_index is not set, toasty will
         use the first HDU with tilable content in each FITS.
     override : optional boolean, defaults to False
-        If there is already a tiled FITS in `out_dir`, the tiling process is skipped and the content in `out_dir` is
-        served. To override the content in `out_dir`, set `override` to True.
+        If there is already a tiled FITS in *out_dir*, the tiling process is skipped and the content in *out_dir* is
+        served. To override the content in *out_dir*, set *override* to True.
     cli_progress : optional boolean, defaults to False
         If true, progress messages will be printed as the FITS files are being processed.
     force_hipsgen : optional boolean, defaults to False
-        Force usage of HiPSgen tiling over tangential projection. If this and `force_tan` is set to False, this method
+        Force usage of HiPSgen tiling over tangential projection. If this and *force_tan* are set to False, this method
         will figure out when to use the different projections. Tangential projection for smaller angular areas and
         HiPSgen larger regions of the sky.
     force_tan : optional boolean, defaults to False
-        Force usage of tangential projection tiling over HiPSgen. If this and `force_hipsgen` is set to False, this
+        Force usage of tangential projection tiling over HiPSgen. If this and *force_hipsgen* are set to False, this
         method will figure out when to use the different projections. Tangential projection for smaller angular areas
         and HiPSgen larger regions of the sky.
     kwargs
-        Settings for the `toasty` tiling process. For example, 'blankval'.
+        Settings for the tiling process. For example, ``blankval``.
 
     Returns
     -------

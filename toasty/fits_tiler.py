@@ -81,7 +81,7 @@ class FitsTiler:
                 argv,
                 stdout=PIPE,
                 stderr=STDOUT,
-                shell=True,
+                shell=False,
             )
 
             # Even if we don't want to print the output, this loop is still useful since it waits until the HiPSgen process
@@ -89,6 +89,13 @@ class FitsTiler:
             for line in p.stdout:
                 if cli_progress:
                     print(line.decode("UTF-8"))
+
+            if p.wait() != 0:
+                if cli_progress:
+                    m = "see its output printed above"
+                else:
+                    m = "set `cli_progress=True` to see its output"
+                raise Exception(f"an error occurred running hipsgen; {m}")
 
         pio = pyramid.PyramidIO(out_dir, default_format="fits")
         bld = builder.Builder(pio)

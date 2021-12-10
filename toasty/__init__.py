@@ -5,6 +5,11 @@
 from __future__ import absolute_import, division, print_function
 
 
+__all__ = [
+    "tile_fits",
+]
+
+
 def tile_fits(
     fits,
     out_dir=None,
@@ -13,6 +18,7 @@ def tile_fits(
     cli_progress=False,
     force_hipsgen=False,
     force_tan=False,
+    blankval=None,
     **kwargs
 ):
     """
@@ -42,6 +48,8 @@ def tile_fits(
         Force usage of tangential projection tiling over HiPSgen. If this and *force_hipsgen* are set to False, this
         method will figure out when to use the different projections. Tangential projection for smaller angular areas
         and HiPSgen larger regions of the sky.
+    blankval : optional number, default None
+        An image value to treat as undefined in all FITS inputs.
     kwargs
         Settings for the tiling process. For example, ``blankval``.
 
@@ -52,48 +60,15 @@ def tile_fits(
     bld : :class:`~toasty.builder.Builder`
         State for the imagery data set that's been assembled.
     """
+    # Importing here to keep toasty namespace clean:
+    from toasty import collection, fits_tiler
 
-    # Importing here to keep toasty namespace clean
-    from toasty import fits_tiler, pyramid, builder
-    import os
-
-    if isinstance(fits, str):
-        fits = [fits]
-
-    fits = list(fits)
-
-    tiler = fits_tiler.FitsTiler()
-
-    use_hipsgen = force_hipsgen or (
-        tiler.fits_covers_large_area(fits, hdu_index)
-        and tiler.is_java_installed()
-        and not force_tan
+    coll = collection.load(fits, hdu_index=hdu_index, blankval=blankval)
+    tiler = fits_tiler.FitsTiler(
+        coll,
+        out_dir=out_dir,
+        force_hipsgen=force_hipsgen,
+        force_tan=force_tan,
     )
-
-    if out_dir is None:
-        first_file_name = fits[0].split(".gz")[0]
-        out_dir = first_file_name[: first_file_name.rfind(".")] + "_tiled"
-        if use_hipsgen:
-            out_dir += "_HiPS"
-
-    if os.path.isdir(out_dir):
-        if cli_progress:
-            print("Folder already exist")
-        if override:
-            import shutil
-
-            shutil.rmtree(out_dir)
-        else:
-            if cli_progress:
-                print("Using existing tiles")
-            pio = pyramid.PyramidIO(out_dir, default_format="fits")
-            bld = builder.Builder(pio)
-            bld.set_name(out_dir.split("/")[-1])
-            if os.path.exists("{0}/properties".format(out_dir)):
-                bld = tiler.copy_hips_properties_to_builder(bld, out_dir)
-            return out_dir, bld
-
-    if use_hipsgen:
-        return tiler.tile_hips(fits, out_dir, hdu_index, cli_progress)
-
-    return tiler.tile_tan(fits, out_dir, hdu_index, cli_progress, **kwargs)
+    tiler.tile(cli_progress=cli_progress, override=override, **kwargs)
+    return tiler.out_dir, tiler.builder

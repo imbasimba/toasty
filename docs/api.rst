@@ -18,6 +18,10 @@ Python API Reference
    :no-inheritance-diagram:
    :no-inherited-members:
 
+.. automodapi:: toasty.fits_tiler
+   :no-inheritance-diagram:
+   :no-inherited-members:
+
 .. automodapi:: toasty.image
    :no-inheritance-diagram:
    :no-inherited-members:

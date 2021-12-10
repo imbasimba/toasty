@@ -19,3 +19,4 @@ CLI Reference
    cli/tile-study
    cli/tile-wwtl
    cli/transform-fx3-to-rgb
+   cli/view

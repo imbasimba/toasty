@@ -67,7 +67,6 @@ def cascade_getparser(parser):
 
 
 def cascade_impl(settings):
-    from .image import ImageMode
     from .merge import averaging_merger, cascade_images
     from .pyramid import PyramidIO
 
@@ -333,7 +332,6 @@ def tile_healpix_getparser(parser):
 
 def tile_healpix_impl(settings):
     from .builder import Builder
-    from .image import ImageMode
     from .pyramid import PyramidIO
     from .samplers import healpix_fits_file_sampler
 
@@ -387,7 +385,6 @@ def tile_multi_tan_getparser(parser):
 def tile_multi_tan_impl(settings):
     from .builder import Builder
     from .collection import SimpleFitsCollection
-    from .image import ImageMode
     from .multi_tan import MultiTanProcessor
     from .pyramid import PyramidIO
 
@@ -547,7 +544,6 @@ def tile_wwtl_getparser(parser):
 
 def tile_wwtl_impl(settings):
     from .builder import Builder
-    from .image import ImageLoader
     from .pyramid import PyramidIO
 
     pio = PyramidIO(settings.outdir)
@@ -678,6 +674,66 @@ def transform_impl(settings):
         )
     else:
         die('unrecognized "transform" subcommand ' + settings.transform_command)
+
+
+# "view" subcommand
+#
+# This largely duplicates `wwtdatatool preview` in the `wwt_data_formats`
+# package. The difference is that we automagically tile and output the
+# `index_rel.wtml`, while `wwtdatatool` requires it to be preexisting.
+
+
+def view_getparser(parser):
+    from .collection import CollectionLoader
+
+    CollectionLoader.add_arguments(parser)
+
+    parser.add_argument(
+        "--parallelism",
+        "-j",
+        metavar="COUNT",
+        type=int,
+        help="The parallelization level (default: use all CPUs; specify `1` to force serial processing)",
+    )
+    parser.add_argument(
+        "--browser",
+        "-b",
+        metavar="BROWSER-TYPE",
+        help="The type of browser to use for the viewer (as per Python webbrowser)",
+    )
+    parser.add_argument(
+        "--appurl",
+        metavar="URL",
+        help="The URL of the app to use (intended for developers)",
+    )
+    parser.add_argument(
+        "paths",
+        metavar="PATHS",
+        action=EnsureGlobsExpandedAction,
+        nargs="+",
+        help="The FITS file(s) with image data",
+    )
+
+
+def view_impl(settings):
+    from wwt_data_formats.server import preview_wtml
+    from .collection import CollectionLoader
+    from .fits_tiler import FitsTiler
+
+    coll = CollectionLoader.create_from_args(settings).load_paths(settings.paths)
+
+    # Ignore any astropy WCS/FITS warnings, which can spew a lot of annoying output.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        tiler = FitsTiler(coll)
+        tiler.tile(cli_progress=True)
+
+    preview_wtml(
+        os.path.join(tiler.out_dir, "index_rel.wtml"),
+        browser=settings.browser,
+        app_type="research",
+        app_url=settings.appurl,
+    )
 
 
 # The CLI driver:

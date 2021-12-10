@@ -125,6 +125,22 @@ class SimpleFitsCollection(ImageCollection):
                         f"cannot process input `{fits_path}`: Did not find any HDU with image data"
                     )
 
+                # Hack for DASCH files, and potentially others. These have TPV
+                # polynomial distortions but do not use the magic projection
+                # keyword that causes Astropy to accept them. We don't try to be
+                # very flexible in how we activate the hack since we don't want
+                # to futz with things unnecessarily.
+
+                if (
+                    "PV1_5" in hdu.header
+                    and hdu.header["CTYPE1"] == "RA---TAN"
+                    and hdu.header["CTYPE2"] == "DEC--TAN"
+                ):
+                    hdu.header["CTYPE1"] = "RA---TPV"
+                    hdu.header["CTYPE2"] = "DEC--TPV"
+
+                # End hack(s).
+
                 wcs = WCS(hdu.header)
                 shape = hdu.shape
 

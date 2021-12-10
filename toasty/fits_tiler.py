@@ -58,30 +58,28 @@ class FitsTiler:
 
         in_dir = self._create_hipsgen_input_dir(fits)
 
-        hdu_index_parameter = ""
-        if hdu_index is not None:
-            hdu_index_parameter = "hdu="
+        if hdu_index is None:
+            hdu_index_args = []
+        else:
             if isinstance(hdu_index, int):
-                for i in range(len(fits)):
-                    hdu_index_parameter += "{0},".format(hdu_index)
+                arg = "hdu=" + ",".join([str(hdu_index)] * len(fits))
             else:
-                for i in range(len(hdu_index)):
-                    hdu_index_parameter += "{0},".format(hdu_index[i])
+                arg = "hdu=" + ",".join(str(i) for i in hdu_index)
+            hdu_index_args = [arg]
 
-            hdu_index_parameter = hdu_index_parameter[:-1]
+        argv = [
+            "java",
+            "-jar",
+            "{0}".format(hipsgen_path),
+            "in={0}".format(in_dir.name),
+            "out={0}".format(out_dir),
+            "creator_did=ivo://aas.wwt.toasty/{0}".format(out_dir),
+        ]
+        argv += hdu_index_args
+        argv += ["INDEX", "TILES"]
 
         p = Popen(
-            [
-                "java",
-                "-jar",
-                "{0}".format(hipsgen_path),
-                "in={0}".format(in_dir.name),
-                "out={0}".format(out_dir),
-                "creator_did=ivo://aas.wwt.toasty/{0}".format(out_dir),
-                hdu_index_parameter,
-                "INDEX",
-                "TILES",
-            ],
+            argv,
             stdout=PIPE,
             stderr=STDOUT,
             shell=True,

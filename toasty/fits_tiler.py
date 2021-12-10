@@ -10,6 +10,7 @@ all-in-one function :func:`toasty.tile_fits`.
 """
 
 import os.path
+from shutil import copyfile
 from subprocess import Popen, PIPE, STDOUT, run
 import tempfile
 
@@ -198,7 +199,7 @@ class FitsTiler(object):
         self.builder.cascade(cli_progress=cli_progress, **kwargs)
 
     def _tile_hips(self, cli_progress):
-        hipsgen_path = download_file(
+        cached_hipsgen_path = download_file(
             "https://aladin.unistra.fr/java/Hipsgen.jar",
             show_progress=cli_progress,
             cache=True,
@@ -228,6 +229,12 @@ class FitsTiler(object):
         out_base = os.path.basename(self.out_dir)
 
         with self._create_hipsgen_input_dir(fits_paths) as in_dir_path:
+            # Some antivirus programs (at least Avast) disallow "java -jar"
+            # invocation of files lacking ".jar" file extensions. Since we
+            # cannot set the file extension of the file in the astropy cache,
+            # we have to create a temporary copy with a ".jar" extension.
+            hipsgen_path = os.path.join(in_dir_path, "hipsgen.jar")
+            copyfile(cached_hipsgen_path, hipsgen_path)
             argv = [
                 "java",
                 "-jar",

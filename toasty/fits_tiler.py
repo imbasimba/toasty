@@ -24,13 +24,13 @@ class FitsTiler:
 
         if coll._is_multi_tan():
             if cli_progress:
-                print("Tiling base layer (Step 1 of 2)")
+                print("Tiling base layer in multi-TAN mode (step 1 of 2)")
             tile_processor = multi_tan.MultiTanProcessor(coll)
             tile_processor.compute_global_pixelization(bld)
             tile_processor.tile(pio, cli_progress=cli_progress, **kwargs)
         else:
             if cli_progress:
-                print("Tiling base layer (Step 1 of 2)")
+                print("Tiling base layer in multi-WCS mode (step 1 of 2)")
 
             tile_processor = multi_wcs.MultiWcsProcessor(coll)
             tile_processor.compute_global_pixelization(bld)
@@ -39,7 +39,7 @@ class FitsTiler:
             )
 
         if cli_progress:
-            print("Downsampling (Step 2 of 2)")
+            print("Downsampling (step 2 of 2)")
         bld.cascade(cli_progress=cli_progress, **kwargs)
 
         # Using the file name of the first FITS file as the image collection name

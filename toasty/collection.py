@@ -12,9 +12,15 @@ scanning over image "descriptions" without reading in the complete image data.
 This can be useful because many collection-related operations want to do an
 initial pass over the collection to gather some global information, then a
 second pass with the actual data processing.
+
+For interactive usage or in basic scripts, use :func:`load` for maximum
+convenience. For command-line interfaces, use the :class:`CollectionLoader`
+helper to provide a uniform collection-loading interface.
 """
 
 __all__ = """
+load
+CollectionLoader
 ImageCollection
 RubinDirectoryCollection
 SimpleFitsCollection
@@ -328,3 +334,166 @@ class RubinDirectoryCollection(ImageCollection):
 
     def images(self):
         return self._load(True)
+
+
+class CollectionLoader(object):
+    """
+    A class defining how to load a collection of images.
+
+    This is implemented as its own class since there can be some options
+    involved, and we want to provide a centralized place for handling them all.
+
+    For interactive usage, use :func:`load`, which is optimized for easy
+    invocation. This class is best used in command-line interfaces that interact
+    with collections of FITS files.
+    """
+
+    blankval = None
+    hdu_index = None
+
+    @classmethod
+    def add_arguments(cls, parser):
+        """
+        Add standard collection-loading options to an argparse parser object.
+
+        Parameters
+        ----------
+        parser : :class:`argparse.ArgumentParser`
+            The argument parser to modify
+
+        Returns
+        -------
+        The :class:`CollectionLoader` class (for chainability).
+
+        Notes
+        -----
+        If you are writing a command-line interface that takes an image
+        collection as an input, use this function to wire in to standardized
+        image-loading infrastructure and options.
+        """
+
+        parser.add_argument(
+            "--hdu-index",
+            metavar="INDEX[,INDEX...]",
+            help="Which HDU to load in each input FITS file",
+        )
+        parser.add_argument(
+            "--blankval",
+            metavar="NUMBER",
+            help="An image value to treat as undefined in all FITS inputs",
+        )
+        return cls
+
+    @classmethod
+    def create_from_args(cls, settings):
+        """
+        Process standard collection-loading options to create a
+        :class:`CollectionLoader`.
+
+        Parameters
+        ----------
+        settings : :class:`argparse.Namespace`
+            Settings from processing command-line arguments
+
+        Returns
+        -------
+        A new :class:`CollectionLoader` initialized with the settings.
+        """
+        loader = cls()
+
+        if settings.hdu_index is not None:
+            # Note: semantically we treat `hdu_index = 2` differently than
+            # `hdu_index = [2]`: the first means use HDU 2 in all files, the
+            # second means use HDU 2 in the first file. But we don't have a way
+            # to distinguish between the two when parsing the CLI argument.
+            try:
+                index = int(settings.hdu_index)
+            except ValueError:
+                try:
+                    index = list(map(int, settings.hdu_index.split(",")))
+                except Exception:
+                    raise Exception(
+                        "cannot parse `--hdu-index` setting `{settings.hdu_index!r}`: should "
+                        "be a comma-separated list of one or more integers"
+                    )
+
+            loader.hdu_index = index
+
+        if settings.blankval is not None:
+            try:
+                # If integer input image, want to avoid roundoff/precision issues
+                v = int(settings.blankval)
+            except ValueError:
+                try:
+                    v = float(settings.blankval)
+                except ValueError:
+                    raise Exception(
+                        "cannot parse `--blankval` setting `{settings.blankval!r}`: should "
+                        "be a number"
+                    )
+
+            loader.blankval = v
+
+        return loader
+
+    def load_paths(self, paths):
+        """
+        Set up an `ImageCollection` based on a list of input filesystem paths.
+
+        Parameters
+        ----------
+        paths : iterable of str
+            The filesystem paths to load.
+
+        Returns
+        -------
+        A new :class:`ImageCollection`.
+        """
+        paths = list(str(p) for p in paths)
+
+        # This is where more cleverness will go if/when needed.
+
+        return SimpleFitsCollection(
+            paths,
+            hdu_index=self.hdu_index,
+            blankval=self.blankval,
+        )
+
+
+def load(input, hdu_index=None, blankval=None):
+    """
+    Set up a collection of FITS files as sensibly as possible.
+
+    Parameters
+    ----------
+    input : str or iterable of str
+        The filesystem path(s) of the FITS file(s) to load.
+    hdu_index : optional int or list of int, default None
+        Which HDU to load. If a scalar, the same index will be
+        used in every input file; if a list, corresponding values
+        will be used for each input path. If unspecified, Toasty
+        will guess.
+    blankval : optional number, default None
+        An image value to treat as undefined in all FITS inputs.
+
+    Returns
+    -------
+    A new :class:`ImageCollection`.
+
+    Notes
+    -----
+    This function is meant to be called interactively from environments like
+    Jupyter. Its goal is to "do the right thing" as reliably as possible,
+    requiring as little user guidance as needed.
+    """
+    # One day this function might add more custom logic? But right now we're just
+    # providing a streamlined way to access the CollectionLoader.
+
+    if isinstance(input, str):
+        input = [input]
+
+    input = list(input)
+    loader = CollectionLoader()
+    loader.hdu_index = hdu_index
+    loader.blankval = blankval
+    return loader.load_paths(input)

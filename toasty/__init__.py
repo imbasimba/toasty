@@ -5,8 +5,16 @@
 from __future__ import absolute_import, division, print_function
 
 
-def tile_fits(fits, out_dir=None, hdu_index=None, override=False, cli_progress=False, force_hipsgen=False,
-              force_tan=False, **kwargs):
+def tile_fits(
+    fits,
+    out_dir=None,
+    hdu_index=None,
+    override=False,
+    cli_progress=False,
+    force_hipsgen=False,
+    force_tan=False,
+    **kwargs
+):
     """
     Process a file or a list of FITS files into a tile pyramid using either a common tangential projection or HiPSgen.
 
@@ -56,28 +64,32 @@ def tile_fits(fits, out_dir=None, hdu_index=None, override=False, cli_progress=F
 
     tiler = fits_tiler.FitsTiler()
 
-    use_hipsgen = force_hipsgen or (tiler.fits_covers_large_area(fits, hdu_index) and
-                                    tiler.is_java_installed() and not force_tan)
+    use_hipsgen = force_hipsgen or (
+        tiler.fits_covers_large_area(fits, hdu_index)
+        and tiler.is_java_installed()
+        and not force_tan
+    )
 
     if out_dir is None:
-        first_file_name = fits[0].split('.gz')[0]
-        out_dir = first_file_name[:first_file_name.rfind('.')] + '_tiled'
+        first_file_name = fits[0].split(".gz")[0]
+        out_dir = first_file_name[: first_file_name.rfind(".")] + "_tiled"
         if use_hipsgen:
-            out_dir += '_HiPS'
+            out_dir += "_HiPS"
 
     if os.path.isdir(out_dir):
         if cli_progress:
-            print('Folder already exist')
+            print("Folder already exist")
         if override:
             import shutil
+
             shutil.rmtree(out_dir)
         else:
             if cli_progress:
-                print('Using existing tiles')
-            pio = pyramid.PyramidIO(out_dir, default_format='fits')
+                print("Using existing tiles")
+            pio = pyramid.PyramidIO(out_dir, default_format="fits")
             bld = builder.Builder(pio)
-            bld.set_name(out_dir.split('/')[-1])
-            if os.path.exists('{0}/properties'.format(out_dir)):
+            bld.set_name(out_dir.split("/")[-1])
+            if os.path.exists("{0}/properties".format(out_dir)):
                 bld = tiler.copy_hips_properties_to_builder(bld, out_dir)
             return out_dir, bld
 

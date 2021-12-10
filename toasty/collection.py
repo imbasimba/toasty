@@ -27,7 +27,6 @@ from os.path import join
 import warnings
 
 from .image import Image, ImageDescription, ImageMode
-from .study import StudyTiling
 
 MATCH_HEADERS = [
     "CTYPE1",
@@ -62,6 +61,32 @@ class ImageCollection(ABC):
         gives a unique textual identifer for the item in the collection.
         """
         raise NotImplementedError()
+
+    def export_simple(self):
+        """
+        Export information about the paths in this collection, if possible.
+
+        Returns
+        -------
+        A list of tuples ``(fits_file_path, hdu_index)``.
+
+        Raises
+        ------
+        Raises an exception if it is not possible to meaningfully export this
+        particular collection in the "simple" format. This could be the case,
+        for instance, if the inputs live in memory and do not have filesystem
+        paths.
+
+        Notes
+        -----
+        Sometimes, you need to expose information about a FITS collection to a
+        tool outside of Toasty: for instance, to invoke ``hipsgen`` to generate
+        a HiPS tiling. This function gives the information needed to invoke the
+        tool, or raises an error if it can't be done correctly. This method
+        makes it possible to handle image collections using Toasty's framework,
+        but "drop down" to a simpler representation when needed.
+        """
+        raise Exception("this ImageCollection cannot be exported in the simple format")
 
     def _is_multi_tan(self):
         ref_headers = None
@@ -101,18 +126,19 @@ class SimpleFitsCollection(ImageCollection):
         self._hdu_index = hdu_index
         self._blankval = blankval
 
-    def _load(self, actually_load_data):
+    def _scan_hdus(self):
         from astropy.io import fits
-        from astropy.wcs import WCS
 
-        for fits_path in self._paths:
+        for path_index, fits_path in enumerate(self._paths):
             with fits.open(fits_path) as hdul:
                 if isinstance(self._hdu_index, int):
+                    hdu_index = self._hdu_index
                     hdu = hdul[self._hdu_index]
                 elif self._hdu_index is not None:
-                    hdu = hdul[self._hdu_index[self._paths.index(fits_path)]]
+                    hdu_index = self._hdu_index[path_index]
+                    hdu = hdul[self._hdu_index]
                 else:
-                    for hdu in hdul:
+                    for hdu_index, hdu in enumerate(hdul):
                         if (
                             hasattr(hdu, "shape")
                             and len(hdu.shape) > 1
@@ -125,77 +151,88 @@ class SimpleFitsCollection(ImageCollection):
                         f"cannot process input `{fits_path}`: Did not find any HDU with image data"
                     )
 
-                # Hack for DASCH files, and potentially others. These have TPV
-                # polynomial distortions but do not use the magic projection
-                # keyword that causes Astropy to accept them. We don't try to be
-                # very flexible in how we activate the hack since we don't want
-                # to futz with things unnecessarily.
+                yield fits_path, hdu_index, hdu
 
-                if (
-                    "PV1_5" in hdu.header
-                    and hdu.header["CTYPE1"] == "RA---TAN"
-                    and hdu.header["CTYPE2"] == "DEC--TAN"
-                ):
-                    hdu.header["CTYPE1"] = "RA---TPV"
-                    hdu.header["CTYPE2"] = "DEC--TPV"
+    def export_simple(self):
+        # We're allowed to return a generator, but we listify this so that the
+        # FITS files are all closed promptly.
+        return [(t[0], t[1]) for t in self._scan_hdus()]
 
-                # End hack(s).
+    def _load(self, actually_load_data):
+        from astropy.wcs import WCS
 
-                wcs = WCS(hdu.header)
-                shape = hdu.shape
+        for fits_path, _hdu_index, hdu in self._scan_hdus():
+            # Hack for DASCH files, and potentially others. These have TPV
+            # polynomial distortions but do not use the magic projection
+            # keyword that causes Astropy to accept them. We don't try to be
+            # very flexible in how we activate the hack since we don't want
+            # to futz with things unnecessarily.
 
-                # We need to make sure the data are 2D celestial, since that's
-                # what our image code and `reproject` (if it's being used) expect.
+            if (
+                "PV1_5" in hdu.header
+                and hdu.header["CTYPE1"] == "RA---TAN"
+                and hdu.header["CTYPE2"] == "DEC--TAN"
+            ):
+                hdu.header["CTYPE1"] = "RA---TPV"
+                hdu.header["CTYPE2"] = "DEC--TPV"
 
-                full_wcs = None
-                keep_axes = None
+            # End hack(s).
 
-                if wcs.naxis != 2:
-                    if not wcs.has_celestial:
+            wcs = WCS(hdu.header, fix=False)
+            shape = hdu.shape
+
+            # We need to make sure the data are 2D celestial, since that's
+            # what our image code and `reproject` (if it's being used) expect.
+
+            full_wcs = None
+            keep_axes = None
+
+            if wcs.naxis != 2:
+                if not wcs.has_celestial:
+                    raise Exception(
+                        f"cannot process input `{fits_path}`: WCS cannot be reduced to 2D celestial"
+                    )
+
+                full_wcs = wcs
+                wcs = full_wcs.celestial
+
+                # note: get_axis_types returns axes in FITS order, innermost first
+                keep_axes = [
+                    t.get("coordinate_type") == "celestial"
+                    for t in full_wcs.get_axis_types()[::-1]
+                ]
+
+                for keep, axlen in zip(keep_axes, shape):
+                    if not keep and axlen != 1:
                         raise Exception(
-                            f"cannot process input `{fits_path}`: WCS cannot be reduced to 2D celestial"
+                            f"cannot process input `{fits_path}`: found a non-celestial axis with size other than 1"
                         )
 
-                    full_wcs = wcs
-                    wcs = full_wcs.celestial
+            # OK, almost there. Are we loading data or just the descriptor?
 
-                    # note: get_axis_types returns axes in FITS order, innermost first
-                    keep_axes = [
-                        t.get("coordinate_type") == "celestial"
-                        for t in full_wcs.get_axis_types()[::-1]
-                    ]
+            if actually_load_data:
+                data = hdu.data
 
-                    for keep, axlen in zip(keep_axes, shape):
-                        if not keep and axlen != 1:
-                            raise Exception(
-                                f"cannot process input `{fits_path}`: found a non-celestial axis with size other than 1"
-                            )
+                if full_wcs is not None:  # need to subset?
+                    data = data[tuple(slice(None) if k else 0 for k in keep_axes)]
 
-                # OK, almost there. Are we loading data or just the descriptor?
+                if self._blankval is not None:
+                    data[data == self._blankval] = np.nan
 
-                if actually_load_data:
-                    data = hdu.data
+                result = Image.from_array(data, wcs=wcs, default_format="fits")
+            else:
+                if full_wcs is not None:  # need to subset?
+                    shape = tuple(t[1] for t in zip(keep_axes, shape) if t[0])
 
-                    if full_wcs is not None:  # need to subset?
-                        data = data[tuple(slice(None) if k else 0 for k in keep_axes)]
-
-                    if self._blankval is not None:
-                        data[data == self._blankval] = np.nan
-
-                    result = Image.from_array(data, wcs=wcs, default_format="fits")
+                if hasattr(hdu, "dtype"):
+                    mode = ImageMode.from_array_info(shape, hdu.dtype)
                 else:
-                    if full_wcs is not None:  # need to subset?
-                        shape = tuple(t[1] for t in zip(keep_axes, shape) if t[0])
+                    mode = None  # CompImageHDU doesn't have dtype
 
-                    if hasattr(hdu, "dtype"):
-                        mode = ImageMode.from_array_info(shape, hdu.dtype)
-                    else:
-                        mode = None  # CompImageHDU doesn't have dtype
+                result = ImageDescription(mode=mode, shape=shape, wcs=wcs)
 
-                    result = ImageDescription(mode=mode, shape=shape, wcs=wcs)
-
-                result.collection_id = fits_path
-                yield result
+            result.collection_id = fits_path
+            yield result
 
     def descriptions(self):
         return self._load(False)

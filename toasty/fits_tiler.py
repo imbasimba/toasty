@@ -49,23 +49,14 @@ class FitsTiler:
         return out_dir, bld
 
     def tile_hips(self, fits, out_dir, hdu_index, cli_progress):
+        hipsgen_path = download_file(
+            "https://aladin.unistra.fr/java/Hipsgen.jar",
+            show_progress=cli_progress,
+            cache=True,
+            package="toasty",
+        )
+
         in_dir = self._create_hipsgen_input_dir(fits)
-
-        hipsgen_path = "lib/Hipsgen.jar"
-        if not os.path.exists(hipsgen_path):
-            if cli_progress:
-                print("Downloading HiPSgen")
-            cache_path = download_file(
-                "http://aladin.unistra.fr/java/Hipsgen.jar",
-                show_progress=cli_progress,
-                cache=True,
-            )
-            # Copying the cached file to local directory because of repeated issues with the hipsgen.jar file being
-            # deleted inside the cache.
-            if not os.path.isdir("lib"):
-                os.mkdir("lib")
-
-            copyfile(cache_path, "lib/Hipsgen.jar")
 
         hdu_index_parameter = ""
         if hdu_index is not None:

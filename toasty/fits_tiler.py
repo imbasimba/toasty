@@ -56,8 +56,6 @@ class FitsTiler:
             package="toasty",
         )
 
-        in_dir = self._create_hipsgen_input_dir(fits)
-
         if hdu_index is None:
             hdu_index_args = []
         else:
@@ -67,29 +65,30 @@ class FitsTiler:
                 arg = "hdu=" + ",".join(str(i) for i in hdu_index)
             hdu_index_args = [arg]
 
-        argv = [
-            "java",
-            "-jar",
-            "{0}".format(hipsgen_path),
-            "in={0}".format(in_dir.name),
-            "out={0}".format(out_dir),
-            "creator_did=ivo://aas.wwt.toasty/{0}".format(out_dir),
-        ]
-        argv += hdu_index_args
-        argv += ["INDEX", "TILES"]
+        with self._create_hipsgen_input_dir(fits) as in_dir_path:
+            argv = [
+                "java",
+                "-jar",
+                "{0}".format(hipsgen_path),
+                "in={0}".format(in_dir_path),
+                "out={0}".format(out_dir),
+                "creator_did=ivo://aas.wwt.toasty/{0}".format(out_dir),
+            ]
+            argv += hdu_index_args
+            argv += ["INDEX", "TILES"]
 
-        p = Popen(
-            argv,
-            stdout=PIPE,
-            stderr=STDOUT,
-            shell=True,
-        )
+            p = Popen(
+                argv,
+                stdout=PIPE,
+                stderr=STDOUT,
+                shell=True,
+            )
 
-        # Even if we don't want to print the output, this loop is still useful since it waits until the HiPSgen process
-        # is completed.
-        for line in p.stdout:
-            if cli_progress:
-                print(line.decode("UTF-8"))
+            # Even if we don't want to print the output, this loop is still useful since it waits until the HiPSgen process
+            # is completed.
+            for line in p.stdout:
+                if cli_progress:
+                    print(line.decode("UTF-8"))
 
         pio = pyramid.PyramidIO(out_dir, default_format="fits")
         bld = builder.Builder(pio)

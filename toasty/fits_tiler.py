@@ -144,11 +144,12 @@ class FitsTiler:
         return max_distance > Angle("20d")
 
     def is_java_installed(self):
-        java_version = run(["java", "-version"], capture_output=True, text=True)
-        # For some unknown reason, this output is captured on stderr
+        java_version = run(
+            ["java", "-version"], capture_output=True, text=True, check=True
+        )
         return (
-            "java version" in java_version.stdout.lower()
-            or "java version" in java_version.stderr.lower()
+            "version" in java_version.stdout.lower()
+            or "version" in java_version.stderr.lower()
         )
 
     def _create_hipsgen_input_dir(self, fits_list):

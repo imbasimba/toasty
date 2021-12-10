@@ -101,6 +101,15 @@ class FitsTiler:
                     m = "set `cli_progress=True` to see its output"
                 raise Exception(f"an error occurred running hipsgen; {m}")
 
+        if not os.path.isdir(out_dir):
+            if cli_progress:
+                m = "see its output printed above"
+            else:
+                m = "set `cli_progress=True` to see its output"
+            raise Exception(
+                f"output directory `{out_dir}` does not exist, meaning `hipsgen` probably failed; {m}"
+            )
+
         pio = pyramid.PyramidIO(out_dir, default_format="fits")
         bld = builder.Builder(pio)
         bld = self.copy_hips_properties_to_builder(bld, out_dir)

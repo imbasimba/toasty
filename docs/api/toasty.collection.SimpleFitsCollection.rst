@@ -11,9 +11,11 @@ SimpleFitsCollection
    .. autosummary::
 
       ~SimpleFitsCollection.descriptions
+      ~SimpleFitsCollection.export_simple
       ~SimpleFitsCollection.images
 
    .. rubric:: Methods Documentation
 
    .. automethod:: descriptions
+   .. automethod:: export_simple
    .. automethod:: images

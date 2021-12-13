@@ -65,3 +65,4 @@ See Also
 ========
 
 - :ref:`cli-check-avm`
+- :ref:`cli-view`

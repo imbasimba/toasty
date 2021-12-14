@@ -31,6 +31,8 @@ MATCH_HEADERS = [
 # np.isclose() or whatever it is.
 SAVE_HEADERS = [
     "PC1_1",
+    "PC1_2",
+    "PC2_1",
     "PC2_2",
 ]
 
@@ -97,7 +99,8 @@ class MultiTanProcessor(object):
                     ref_headers[h] = header[h]
 
                 for h in SAVE_HEADERS:
-                    ref_headers[h] = header[h]
+                    if h in header.keys():
+                        ref_headers[h] = header[h]
 
                 if ref_headers["CTYPE1"] != "RA---TAN":
                     raise Exception(
@@ -155,13 +158,6 @@ class MultiTanProcessor(object):
         height = int(global_crymax - global_crymin) + 1
         self._tiling = StudyTiling(width, height)
 
-        ref_headers["CRPIX1"] = this_crpix1 + 1 + (mtdesc.crxmin - global_crxmin)
-        ref_headers["CRPIX2"] = this_crpix2 + 1 + (mtdesc.crymin - global_crymin)
-        wcs = WCS(ref_headers)
-
-        self._tiling.apply_to_imageset(builder.imgset)
-        builder.apply_wcs_info(wcs, width, height)
-
         # While we're here, figure out how each input will map onto the global
         # tiling. This makes sure that nothing funky happened during the
         # computation and allows us to know how many tiles we'll have to visit.
@@ -191,6 +187,23 @@ class MultiTanProcessor(object):
 
             self._n_todo += desc.sub_tiling.count_populated_positions()
 
+
+        # If there is only one tile we will move refpix with the inner image offset
+        if self._n_todo == 1:
+            x_offset = self._descs[0].sub_tiling._img_gx0
+            y_offset = self._descs[0].sub_tiling._img_gy0
+            width = 256
+            height = 256
+            ref_headers["CRPIX1"] = this_crpix1 + 1 + (mtdesc.crxmin - global_crxmin) + x_offset
+            ref_headers["CRPIX2"] = this_crpix2 + 1 + (mtdesc.crymin - global_crymin) + y_offset
+        else:
+            ref_headers["CRPIX1"] = this_crpix1 + 1 + (mtdesc.crxmin - global_crxmin)
+            ref_headers["CRPIX2"] = this_crpix2 + 1 + (mtdesc.crymin - global_crymin)
+
+        wcs = WCS(ref_headers)
+
+        self._tiling.apply_to_imageset(builder.imgset)
+        builder.apply_wcs_info(wcs, width, height)
         return self  # chaining convenience
 
     def tile(self, pio, parallel=None, cli_progress=False, **kwargs):

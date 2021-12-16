@@ -345,4 +345,11 @@ class FitsTiler(object):
         self.builder.imgset.base_degrees_per_tile = float(
             hips_properties["hips_initial_fov"]
         )
+        pixel_cut = hips_properties["hips_pixel_cut"].split(" ")
+        self.builder.imgset.pixel_cut_low = float(pixel_cut[0])
+        self.builder.imgset.pixel_cut_high = float(pixel_cut[1])
+        data_range = hips_properties["hips_data_range"].split(" ")
+        self.builder.imgset.data_min = float(data_range[0])
+        self.builder.imgset.data_max = float(data_range[1])
+
         self.builder.imgset.url = "Norder{0}/Dir{1}/Npix{2}"

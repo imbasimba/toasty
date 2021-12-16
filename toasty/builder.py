@@ -15,9 +15,9 @@ and abstract.
 """
 from __future__ import absolute_import, division, print_function
 
-__all__ = '''
+__all__ = """
 Builder
-'''.split()
+""".split()
 
 from wwt_data_formats.enums import DataSetType, ProjectionType
 from wwt_data_formats.imageset import ImageSet
@@ -49,14 +49,13 @@ class Builder(object):
         self.pio = pio
 
         self.imgset = ImageSet()
-        self.imgset.name = 'Toasty'
-        self.imgset.file_type = '.' + pio.get_default_format()
+        self.imgset.name = "Toasty"
+        self.imgset.file_type = "." + pio.get_default_format()
         self.imgset.url = pio.get_path_scheme() + self.imgset.file_type
 
         self.place = Place()
         self.place.foreground_image_set = self.imgset
-        self.place.name = 'Toasty'
-
+        self.place.name = "Toasty"
 
     def _check_no_wcs_yet(self):
         """
@@ -68,8 +67,9 @@ class Builder(object):
         backwards.
         """
         if self.imgset.center_x != 0 or self.imgset.center_y != 0:
-            raise Exception('order-of-operations error: you must apply WCS after applying tiling settings')
-
+            raise Exception(
+                "order-of-operations error: you must apply WCS after applying tiling settings"
+            )
 
     def prepare_study_tiling(self, image):
         """
@@ -99,7 +99,6 @@ class Builder(object):
         tiling.apply_to_imageset(self.imgset)
         return tiling
 
-
     def execute_study_tiling(self, image, tiling, **kwargs):
         """
         Tile the specified image as a WWT "study".
@@ -121,7 +120,6 @@ class Builder(object):
 
         tiling.tile_image(image, self.pio, **kwargs)
         return self
-
 
     def tile_base_as_study(self, image, **kwargs):
         """
@@ -147,7 +145,6 @@ class Builder(object):
 
         return self
 
-
     def default_tiled_study_astrometry(self):
         self._check_no_wcs_yet()
         self.imgset.data_set_type = DataSetType.SKY
@@ -156,7 +153,6 @@ class Builder(object):
         self.place.zoom_level = 1.0
         return self
 
-
     def load_from_wwtl(self, cli_settings, wwtl_path, cli_progress=False):
         from contextlib import closing
         from io import BytesIO
@@ -164,15 +160,17 @@ class Builder(object):
         # Load WWTL and see if it matches expectations
         with closing(LayerContainerReader.from_file(wwtl_path)) as lc:
             if len(lc.layers) != 1:
-                raise Exception('WWTL file must contain exactly one layer')
+                raise Exception("WWTL file must contain exactly one layer")
 
             layer = lc.layers[0]
             if not isinstance(layer, ImageSetLayer):
-                raise Exception('WWTL file must contain an imageset layer')
+                raise Exception("WWTL file must contain an imageset layer")
 
             imgset = layer.image_set
             if imgset.projection != ProjectionType.SKY_IMAGE:
-                raise Exception('WWTL imageset layer must have "SkyImage" projection type')
+                raise Exception(
+                    'WWTL imageset layer must have "SkyImage" projection type'
+                )
 
             # Looks OK. Read and parse the image.
             loader = ImageLoader.create_from_args(cli_settings)
@@ -184,7 +182,7 @@ class Builder(object):
         self.imgset = imgset
         self.place.foreground_image_set = self.imgset
 
-        self.imgset.file_type = '.' + self.pio.get_default_format()
+        self.imgset.file_type = "." + self.pio.get_default_format()
         self.imgset.url = self.pio.get_path_scheme() + self.imgset.file_type
         self.place.name = self.imgset.name
 
@@ -193,12 +191,15 @@ class Builder(object):
         # change in the tiling process.
 
         wcs_keywords = self.imgset.wcs_headers_from_position()
-        self.imgset.center_x = self.imgset.center_y = 0  # hack to satisfy _check_no_wcs_yet()
+        self.imgset.center_x = (
+            self.imgset.center_y
+        ) = 0  # hack to satisfy _check_no_wcs_yet()
         self.tile_base_as_study(img, cli_progress=cli_progress)
-        self.imgset.set_position_from_wcs(wcs_keywords, img.width, img.height, place=self.place)
+        self.imgset.set_position_from_wcs(
+            wcs_keywords, img.width, img.height, place=self.place
+        )
 
         return img
-
 
     def toast_base(self, sampler, depth, is_planet=False, is_pano=False, **kwargs):
         from .toast import sample_layer
@@ -220,21 +221,19 @@ class Builder(object):
 
         return self
 
-
     def cascade(self, **kwargs):
         from .merge import averaging_merger, cascade_images
+
         cascade_images(self.pio, self.imgset.tile_levels, averaging_merger, **kwargs)
         return self
 
-
     def make_thumbnail_from_other(self, thumbnail_image):
         thumb = thumbnail_image.make_thumbnail_bitmap()
-        with self.pio.open_metadata_for_write('thumb.jpg') as f:
-            thumb.save(f, format='JPEG')
-        self.imgset.thumbnail_url = 'thumb.jpg'
+        with self.pio.open_metadata_for_write("thumb.jpg") as f:
+            thumb.save(f, format="JPEG")
+        self.imgset.thumbnail_url = "thumb.jpg"
 
         return self
-
 
     def make_placeholder_thumbnail(self):
         import numpy as np
@@ -243,22 +242,21 @@ class Builder(object):
         arr = np.zeros((45, 96, 3), dtype=np.uint8)
         img = Image.from_array(arr)
 
-        with self.pio.open_metadata_for_write('thumb.jpg') as f:
-            img.aspil().save(f, format='JPEG')
+        with self.pio.open_metadata_for_write("thumb.jpg") as f:
+            img.aspil().save(f, format="JPEG")
 
-        self.imgset.thumbnail_url = 'thumb.jpg'
+        self.imgset.thumbnail_url = "thumb.jpg"
         return self
-
 
     def apply_wcs_info(self, wcs, width, height):
         self.imgset.set_position_from_wcs(
             wcs.to_header(),
-            width, height,
-            place = self.place,
+            width,
+            height,
+            place=self.place,
         )
 
         return self
-
 
     def apply_avm_info(self, avm, width, height):
         # So. The AVM standard discusses how parity should be expressed and how
@@ -274,6 +272,7 @@ class Builder(object):
 
         wcs = avm.to_wcs(target_shape=(width, height))
         from .image import _flip_wcs_parity
+
         wcs = _flip_wcs_parity(wcs, height)
 
         self.apply_wcs_info(wcs, width, height)
@@ -292,12 +291,10 @@ class Builder(object):
 
         return self
 
-
     def set_name(self, name):
         self.imgset.name = name
         self.place.name = name
         return self
-
 
     def create_wtml_folder(self):
         """
@@ -325,13 +322,12 @@ class Builder(object):
 
         return folder
 
-
     def write_index_rel_wtml(self):
         from wwt_data_formats import write_xml_doc
 
         folder = self.create_wtml_folder()
 
-        with self.pio.open_metadata_for_write('index_rel.wtml') as f:
+        with self.pio.open_metadata_for_write("index_rel.wtml") as f:
             write_xml_doc(folder.to_xml(), dest_stream=f, dest_wants_bytes=True)
 
         return self

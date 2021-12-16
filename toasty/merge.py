@@ -22,10 +22,10 @@ the operation over sets of four adjacent pixels.
 """
 from __future__ import absolute_import, division, print_function
 
-__all__ = '''
+__all__ = """
 averaging_merger
 cascade_images
-'''.split()
+""".split()
 
 import numpy as np
 import os
@@ -70,7 +70,7 @@ def averaging_merger(data):
     # nanmean will raise a RuntimeWarning if there are all-NaN quartets. This
     # gets annoying, so we silence them.
     with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
+        warnings.simplefilter("ignore")
         return np.nanmean(data.reshape(s), axis=(1, 3)).astype(data.dtype)
 
 
@@ -101,6 +101,7 @@ def cascade_images(pio, start, merger, parallel=None, cli_progress=False):
 
     """
     from .par_util import resolve_parallelism
+
     parallel = resolve_parallelism(parallel)
 
     if start < 1:
@@ -127,7 +128,9 @@ def _cascade_images_serial(pio, start, merger, cli_progress):
     else:
         slices = SLICES_MATCHING_PARITY
 
-    with tqdm(total=pyramid.depth2tiles(start - 1), disable=not cli_progress) as progress:
+    with tqdm(
+        total=pyramid.depth2tiles(start - 1), disable=not cli_progress
+    ) as progress:
         for pos in pyramid.generate_pos(start):
             if pos.n == start:
                 continue  # start layer is already there; we're cascading up
@@ -136,10 +139,10 @@ def _cascade_images_serial(pio, start, merger, cli_progress):
             # processed.
             children = pyramid.pos_children(pos)
 
-            img0 = pio.read_image(children[0], default='none')
-            img1 = pio.read_image(children[1], default='none')
-            img2 = pio.read_image(children[2], default='none')
-            img3 = pio.read_image(children[3], default='none')
+            img0 = pio.read_image(children[0], default="none")
+            img1 = pio.read_image(children[1], default="none")
+            img2 = pio.read_image(children[2], default="none")
+            img3 = pio.read_image(children[3], default="none")
 
             if img0 is None and img1 is None and img2 is None and img3 is None:
                 progress.update(1)
@@ -156,7 +159,8 @@ def _cascade_images_serial(pio, start, merger, cli_progress):
 
                     subimg.update_into_maskable_buffer(
                         buf,
-                        slice(None), slice(None),  # subimage indexer: nothing
+                        slice(None),
+                        slice(None),  # subimage indexer: nothing
                         *slidx,  # buffer indexer: appropriate sub-quadrant
                     )
 
@@ -188,7 +192,7 @@ def _cascade_images_parallel(pio, start, merger, cli_progress, parallel):
     first_level_to_do = start - 1
     n_todo = pyramid.depth2tiles(first_level_to_do)
     ready_queue = mp.Queue()
-    done_queue = mp.Queue(maxsize = 2 * parallel)
+    done_queue = mp.Queue(maxsize=2 * parallel)
     done_event = mp.Event()
 
     # Seed the queue of ready tiles. We use generate_pos to try to seed the
@@ -239,7 +243,7 @@ def _cascade_images_parallel(pio, start, merger, cli_progress, parallel):
             ppos, x_index, y_index = pos_parent(pos)
             bit_num = 2 * y_index + x_index
             flags = readiness.get(ppos, 0)
-            flags |= (1 << bit_num)
+            flags |= 1 << bit_num
 
             # If this tile was the last of its siblings to be finished,
             # the parent is now ready for processing.
@@ -288,10 +292,10 @@ def _mp_cascade_worker(done_queue, ready_queue, done_event, pio, merger):
         # processed.
         children = pyramid.pos_children(pos)
 
-        img0 = pio.read_image(children[0], default='none')
-        img1 = pio.read_image(children[1], default='none')
-        img2 = pio.read_image(children[2], default='none')
-        img3 = pio.read_image(children[3], default='none')
+        img0 = pio.read_image(children[0], default="none")
+        img1 = pio.read_image(children[1], default="none")
+        img2 = pio.read_image(children[2], default="none")
+        img3 = pio.read_image(children[3], default="none")
 
         if img0 is None and img1 is None and img2 is None and img3 is None:
             pass  # No data here; ignore
@@ -307,7 +311,8 @@ def _mp_cascade_worker(done_queue, ready_queue, done_event, pio, merger):
 
                     subimg.update_into_maskable_buffer(
                         buf,
-                        slice(None), slice(None),  # subimage indexer: nothing
+                        slice(None),
+                        slice(None),  # subimage indexer: nothing
                         *slidx,  # buffer indexer: appropriate sub-quadrant
                     )
 

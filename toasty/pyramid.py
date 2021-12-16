@@ -13,7 +13,7 @@ overlapping functionality.
 """
 from __future__ import absolute_import, division, print_function
 
-__all__ = '''
+__all__ = """
 depth2tiles
 generate_pos
 is_subtile
@@ -23,7 +23,7 @@ pos_children
 pos_parent
 PyramidIO
 tiles_at_depth
-'''.split()
+""".split()
 
 import glob
 from collections import namedtuple
@@ -33,7 +33,7 @@ import os.path
 
 from .image import ImageLoader, SUPPORTED_FORMATS, get_format_vertical_parity_sign
 
-Pos = namedtuple('Pos', 'n x y')
+Pos = namedtuple("Pos", "n x y")
 
 
 def next_highest_power_of_2(n):
@@ -59,7 +59,7 @@ def tiles_at_depth(depth):
     """
     Return the number of tiles in the WWT tile pyramid layer at depth *depth*.
     """
-    return 4**depth
+    return 4 ** depth
 
 
 def is_subtile(deeper_pos, shallower_pos):
@@ -78,7 +78,7 @@ def is_subtile(deeper_pos, shallower_pos):
 
     """
     if deeper_pos.n < shallower_pos.n:
-        raise ValueError('deeper_pos has a lower depth than shallower_pos')
+        raise ValueError("deeper_pos has a lower depth than shallower_pos")
 
     if deeper_pos.n == shallower_pos.n:
         return deeper_pos.x == shallower_pos.x and deeper_pos.y == shallower_pos.y
@@ -105,13 +105,9 @@ def pos_parent(pos):
 
     """
     if pos.n < 1:
-        raise ValueError('cannot take the parent of a tile position with depth < 1')
+        raise ValueError("cannot take the parent of a tile position with depth < 1")
 
-    parent = Pos(
-        n = pos.n - 1,
-        x = pos.x // 2,
-        y = pos.y // 2
-    )
+    parent = Pos(n=pos.n - 1, x=pos.x // 2, y=pos.y // 2)
     return parent, pos.x % 2, pos.y % 2
 
 
@@ -136,9 +132,9 @@ def pos_children(pos):
     y *= 2
 
     return [
-        Pos(n=n, x=x,     y=y    ),
-        Pos(n=n, x=x + 1, y=y    ),
-        Pos(n=n, x=x,     y=y + 1),
+        Pos(n=n, x=x, y=y),
+        Pos(n=n, x=x + 1, y=y),
+        Pos(n=n, x=x, y=y + 1),
         Pos(n=n, x=x + 1, y=y + 1),
     ]
 
@@ -193,23 +189,23 @@ class PyramidIO(object):
         defaults to 'png'.
     """
 
-    def __init__(self, base_dir, scheme='L/Y/YX', default_format=None):
+    def __init__(self, base_dir, scheme="L/Y/YX", default_format=None):
 
         self._base_dir = base_dir
 
-        if scheme == 'L/Y/YX':
+        if scheme == "L/Y/YX":
             self._tile_path = self._tile_path_LsYsYX
-            self._scheme = '{1}/{3}/{3}_{2}'
+            self._scheme = "{1}/{3}/{3}_{2}"
             tile_pattern = "*/*/*_*.*"
-        elif scheme == 'LXY':
+        elif scheme == "LXY":
             self._tile_path = self._tile_path_LXY
-            self._scheme = 'L{1}X{2}Y{3}'
+            self._scheme = "L{1}X{2}Y{3}"
             tile_pattern = "L*X*Y*.*"
         else:
             raise ValueError(f'unsupported "scheme" option for PyramidIO: {scheme}')
 
         if default_format is None:
-            default_format = 'png'
+            default_format = "png"
 
             if os.path.exists(base_dir) and os.path.isdir(base_dir):
                 for filename in glob.iglob(os.path.join(base_dir, tile_pattern)):
@@ -250,7 +246,9 @@ class PyramidIO(object):
         d = os.path.join(self._base_dir, level, iy)
         if makedirs:
             os.makedirs(d, exist_ok=True)
-        return os.path.join(d, '{}_{}.{}'.format(iy, ix, format or self._default_format))
+        return os.path.join(
+            d, "{}_{}.{}".format(iy, ix, format or self._default_format)
+        )
 
     def _tile_path_LXY(self, level, ix, iy, format=None, makedirs=True):
         if makedirs:
@@ -258,7 +256,7 @@ class PyramidIO(object):
 
         return os.path.join(
             self._base_dir,
-            'L{}X{}Y{}.{}'.format(level, ix, iy, format or self._default_format)
+            "L{}X{}Y{}.{}".format(level, ix, iy, format or self._default_format),
         )
 
     def get_path_scheme(self):
@@ -297,10 +295,10 @@ class PyramidIO(object):
         """
 
         if self._default_format is None:
-            raise Exception('cannot get default parity sign without a default format')
+            raise Exception("cannot get default parity sign without a default format")
         return get_format_vertical_parity_sign(self._default_format)
 
-    def read_image(self, pos, default='none', masked_mode=None, format=None):
+    def read_image(self, pos, default="none", masked_mode=None, format=None):
         """
         Read an Image for the specified tile position.
 
@@ -327,9 +325,9 @@ class PyramidIO(object):
             if e.errno != 2:
                 raise  # not EEXIST
 
-            if default == 'none':
+            if default == "none":
                 return None
-            elif default == 'masked':
+            elif default == "masked":
                 if masked_mode is None:
                     raise ValueError('masked_mode should be set if default="masked"')
                 buf = masked_mode.make_maskable_buffer(256, 256)
@@ -355,7 +353,7 @@ class PyramidIO(object):
         image.save(p, format=format or self._default_format, mode=mode)
 
     @contextmanager
-    def update_image(self, pos, default='none', masked_mode=None, format=None):
+    def update_image(self, pos, default="none", masked_mode=None, format=None):
         # Plain FileLock doesn't work in HPC contexts, where we might be running
         # multiple processes on different hosts simultaneously. But it might be
         # more efficient in the non-HPC context? Should maybe choose the right
@@ -364,12 +362,12 @@ class PyramidIO(object):
 
         p = self.tile_path(pos)
 
-        with SoftFileLock(p + '.lock'):
+        with SoftFileLock(p + ".lock"):
             img = self.read_image(
                 pos,
                 default=default,
                 masked_mode=masked_mode,
-                format=format or self._default_format
+                format=format or self._default_format,
             )
 
             yield img
@@ -391,10 +389,10 @@ class PyramidIO(object):
         work. The "cascade" stage doesn't need locking, so in general only the
         deepest level of the pyramid will need to be cleaned.
         """
-        for x in range(0, 2**level):
-            for y in range(0, 2**level):
+        for x in range(0, 2 ** level):
+            for y in range(0, 2 ** level):
                 pos = Pos(level, x, y)
-                p = self.tile_path(pos, makedirs=False) + '.lock'
+                p = self.tile_path(pos, makedirs=False) + ".lock"
 
                 try:
                     os.unlink(p)
@@ -415,7 +413,7 @@ class PyramidIO(object):
         A readable and closeable file-like object returning bytes.
 
         """
-        return open(os.path.join(self._base_dir, basename), 'rb')
+        return open(os.path.join(self._base_dir, basename), "rb")
 
     def open_metadata_for_write(self, basename):
         """
@@ -437,4 +435,4 @@ class PyramidIO(object):
         except OSError as e:
             if e.errno != 17:
                 raise  # not EEXIST
-        return open(os.path.join(self._base_dir, basename), 'wb')
+        return open(os.path.join(self._base_dir, basename), "wb")

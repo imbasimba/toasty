@@ -165,11 +165,44 @@ def _cascade_images_serial(pio, start, merger, cli_progress):
                     )
 
             merged = Image.from_array(merger(buf.asarray()))
-            pio.write_image(pos, merged)
+            min_value, max_value = _get_min_max_of_children(
+                pio, [img0, img1, img2, img3]
+            )
+
+            pio.write_image(pos, merged, min_value=min_value, max_value=max_value)
             progress.update(1)
 
     if cli_progress:
         print()
+
+
+def _get_min_max_of_children(pio, children):
+    min_value = None
+    max_value = None
+    if "fits" in pio.get_default_format():
+        min_values = _get_existing_min_values(children)
+        if min_values:  # Check there are any valid min values
+            min_value = min(min_values)
+        max_values = _get_existing_max_values(children)
+        if max_values:  # Check there are any valid max values
+            max_value = max(max_values)
+    return min_value, max_value
+
+
+def _get_existing_min_values(images):
+    values = []
+    for image in images:
+        if image is not None and image.data_min is not None:
+            values.append(image.data_min)
+    return values
+
+
+def _get_existing_max_values(images):
+    values = []
+    for image in images:
+        if image is not None and image.data_max is not None:
+            values.append(image.data_max)
+    return values
 
 
 def _cascade_images_parallel(pio, start, merger, cli_progress, parallel):
@@ -317,6 +350,9 @@ def _mp_cascade_worker(done_queue, ready_queue, done_event, pio, merger):
                     )
 
             merged = Image.from_array(merger(buf.asarray()))
-            pio.write_image(pos, merged)
+            min_value, max_value = _get_min_max_of_children(
+                pio, [img0, img1, img2, img3]
+            )
+            pio.write_image(pos, merged, min_value=min_value, max_value=max_value)
 
         done_queue.put(pos)

@@ -338,7 +338,9 @@ class PyramidIO(object):
 
         return img
 
-    def write_image(self, pos, image, format=None, mode=None):
+    def write_image(
+        self, pos, image, format=None, mode=None, min_value=None, max_value=None
+    ):
         """Write an Image for the specified tile position.
 
         Parameters
@@ -347,10 +349,28 @@ class PyramidIO(object):
             The tile position to write.
         image : :class:`toasty.image.Image`
             The image to write.
+        format : :class:`str` or ``None`` (the default)
+            The format name; one of ``SUPPORTED_FORMATS``
+        mode : :class:`toasty.image.ImageMode` or ``None`` (the default)
+            The image data mode to use if ``format`` is a ``PIL_FORMATS``
+        min_value : number or ``None`` (the default)
+            An optional number only used for FITS images.
+            The value represents to the lowest data value in this image and its children.
+            If not set, the minimum value will be extracted from this image.
+        max_value : number or ``None`` (the default)
+            An optional number only used for FITS images.
+            The value represents to the highest data value in this image and its children.
+            If not set, the maximum value will be extracted from this image.
 
         """
         p = self.tile_path(pos, format=format or self._default_format)
-        image.save(p, format=format or self._default_format, mode=mode)
+        image.save(
+            p,
+            format=format or self._default_format,
+            mode=mode,
+            min_value=min_value,
+            max_value=max_value,
+        )
 
     @contextmanager
     def update_image(self, pos, default="none", masked_mode=None, format=None):

@@ -156,7 +156,7 @@ class ImageMode(Enum):
                 return cls.F64
             elif dtype.kind == "u" and dtype.itemsize == 1:
                 return cls.U8
-            elif dtype.kind == "i" and dtype.itemsize == 8:
+            elif dtype.kind == "i" and dtype.itemsize == 4:
                 return cls.I32
         elif len(shape) == 3:
             if shape[2] == 3:
@@ -1143,7 +1143,7 @@ class Image(object):
         be saved in JPEG format.
 
         """
-        if self.mode in (ImageMode.F32, ImageMode.F64, ImageMode.F16x3):
+        if self.mode in (ImageMode.I32, ImageMode.F32, ImageMode.F64, ImageMode.F16x3):
             raise Exception("cannot thumbnail-ify non-RGB Image")
 
         THUMB_SHAPE = (96, 45)

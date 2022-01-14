@@ -29,10 +29,12 @@ class TestStudy(object):
 
     def setup_method(self, method):
         from tempfile import mkdtemp
+
         self.work_dir = mkdtemp()
 
     def teardown_method(self, method):
         from shutil import rmtree
+
         rmtree(self.work_dir)
 
     def work_path(self, *pieces):
@@ -48,7 +50,6 @@ class TestStudy(object):
         assert tiling._img_gx0 == 0
         assert tiling._img_gy0 == 0
 
-
     def test_preconditions(self):
         with pytest.raises(ValueError):
             study.StudyTiling(0, 1)
@@ -59,7 +60,6 @@ class TestStudy(object):
         with pytest.raises(ValueError):
             study.StudyTiling(1, np.nan)
 
-
     def test_image_to_tile(self):
         tiling = study.StudyTiling(514, 514)
         assert tiling._p2n == 1024
@@ -68,25 +68,21 @@ class TestStudy(object):
         assert tiling.image_to_tile(513, 0) == (3, 0, 0, 255)
         assert tiling.image_to_tile(513, 513) == (3, 3, 0, 0)
 
-
     def test_sample_cli(self):
         from xml.etree import ElementTree as etree
+
         expected = etree.fromstring(self.WTML)
 
-        for variants in ([], ['--placeholder-thumbnail']):
-            args = ['tile-study']
+        for variants in ([], ["--placeholder-thumbnail"]):
+            args = ["tile-study"]
             args += variants
-            args += [
-                '--outdir', self.work_path(),
-                test_path('NGC253ALMA.jpg')
-            ]
+            args += ["--outdir", self.work_path(), test_path("NGC253ALMA.jpg")]
             cli.entrypoint(args)
 
-        with open(self.work_path('index_rel.wtml'), 'rt', encoding='utf8') as f:
+        with open(self.work_path("index_rel.wtml"), "rt", encoding="utf8") as f:
             observed = etree.fromstring(f.read())
 
         assert_xml_elements_equal(observed, expected)
-
 
     AVM_WTML = """<?xml version='1.0' encoding='UTF-8'?>
 <Folder Browseable="True" Group="Explorer" MSRCommunityId="0" MSRComponentId="0" Name="Toasty"
@@ -114,7 +110,7 @@ Permission="0" Searchable="True" Type="Sky">
     </Place>
 </Folder>"""
 
-    @pytest.mark.skipif('not HAS_AVM')
+    @pytest.mark.skipif("not HAS_AVM")
     def test_avm(self):
         from xml.etree import ElementTree as etree
 
@@ -122,19 +118,22 @@ Permission="0" Searchable="True" Type="Sky">
 
         wtml = self.AVM_WTML
 
-        if sys.platform == 'darwin':
+        if sys.platform == "darwin":
             wtml = wtml.replace('Dec="-42.58752472831171"', 'Dec="-42.587524728311706"')
 
         expected = etree.fromstring(wtml)
 
-        cli.entrypoint([
-            'tile-study',
-            '--avm',
-            '--outdir', self.work_path(),
-            test_path('geminiann11015a.jpg'),
-        ])
+        cli.entrypoint(
+            [
+                "tile-study",
+                "--avm",
+                "--outdir",
+                self.work_path(),
+                test_path("geminiann11015a.jpg"),
+            ]
+        )
 
-        with open(self.work_path('index_rel.wtml'), 'rt', encoding='utf8') as f:
+        with open(self.work_path("index_rel.wtml"), "rt", encoding="utf8") as f:
             observed = etree.fromstring(f.read())
 
         assert_xml_elements_equal(observed, expected)

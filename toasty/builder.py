@@ -190,7 +190,7 @@ class Builder(object):
         # existing imageset as much as possible, but update the parameters that
         # change in the tiling process.
 
-        wcs_keywords = self.imgset.wcs_headers_from_position()
+        wcs_keywords = self.imgset.wcs_headers_from_position(height=img.height)
         self.imgset.center_x = (
             self.imgset.center_y
         ) = 0  # hack to satisfy _check_no_wcs_yet()

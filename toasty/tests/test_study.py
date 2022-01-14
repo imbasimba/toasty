@@ -194,3 +194,77 @@ class TestStudy(object):
             observed = etree.fromstring(f.read())
 
         assert_xml_elements_equal(observed, expected)
+
+    # Blah: this is the same as AVM_WTML, minus the metadata fields that aren't
+    # preserved in the FITS export.
+    FITS_WCS_WTML = """<?xml version='1.0' encoding='UTF-8'?>
+<Folder Browseable="True" Group="Explorer" Name="Toasty" Searchable="True">
+    <Place
+        Angle="0"
+        AngularSize="0"
+        DataSetType="Sky"
+        Dec="-42.58752472831171"
+        Magnitude="0"
+        Name="Toasty"
+        Opacity="100"
+        RA="23.269985215493794"
+        Rotation="0"
+        Thumbnail="thumb.jpg"
+        ZoomLevel="0.3370990847923382"
+    >
+        <ForegroundImageSet>
+            <ImageSet
+                BandPass="Visible"
+                BaseDegreesPerTile="0.07726507807936124"
+                BaseTileLevel="0"
+                BottomsUp="False"
+                CenterX="349.049780614"
+                CenterY="-42.5874939584"
+                DataSetType="Sky"
+                ElevationModel="False"
+                FileType=".png"
+                Generic="False"
+                Name="Toasty"
+                OffsetX="1.886354445296938e-05"
+                OffsetY="2.4372703865669735e-05"
+                Projection="Tan"
+                Rotation="-138.99999999999943"
+                Sparse="True"
+                StockSet="False"
+                TileLevels="3"
+                Url="{1}/{3}/{3}_{2}.png"
+                WidthFactor="2"
+            >
+                <ThumbnailUrl>thumb.jpg</ThumbnailUrl>
+            </ImageSet>
+        </ForegroundImageSet>
+    </Place>
+</Folder>"""
+
+    def test_fits_wcs(self):
+        from xml.etree import ElementTree as etree
+
+        # Hack for macOS: XML textualization is ever-so-slightly different.
+
+        wtml = self.FITS_WCS_WTML
+
+        if sys.platform == "darwin":
+            wtml = wtml.replace('Dec="-42.58752472831171"', 'Dec="-42.587524728311706"')
+
+        expected = etree.fromstring(wtml)
+
+        cli.entrypoint(
+            [
+                "tile-study",
+                "--fits-wcs",
+                test_path("geminiann11015a_wcs.fits"),
+                "--outdir",
+                self.work_path(),
+                test_path("geminiann11015a.jpg"),
+            ]
+        )
+
+        with open(self.work_path("index_rel.wtml"), "rt", encoding="utf8") as f:
+            observed = etree.fromstring(f.read())
+
+        assert_xml_elements_equal(observed, expected)

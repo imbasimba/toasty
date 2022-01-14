@@ -178,11 +178,6 @@ def make_thumbnail_impl(settings):
         thumb.save(f, format="JPEG")
 
 
-# "pipeline" subcommands
-
-from .pipeline.cli import pipeline_getparser, pipeline_impl
-
-
 # "tile_allsky" subcommand
 
 
@@ -792,13 +787,19 @@ def entrypoint(args=None):
       parameter.
 
     """
-    # Set up the subcommands from globals()
+    # Set up the subcommands. We use locals() and globals() in a fairly gross
+    # way to avoid circular import issues in Sphinx.
+
+    from .pipeline.cli import pipeline_getparser, pipeline_impl
+
+    names = dict(locals())
+    names.update(globals())
 
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="subcommand")
     commands = set()
 
-    for py_name, value in globals().items():
+    for py_name, value in names.items():
         if py_name.endswith("_getparser"):
             cmd_name = py_name[:-10].replace("_", "-")
             subparser = subparsers.add_parser(cmd_name)
@@ -818,7 +819,7 @@ def entrypoint(args=None):
 
     py_name = settings.subcommand.replace("-", "_")
 
-    impl = globals().get(py_name + "_impl")
+    impl = names.get(py_name + "_impl")
     if impl is None:
         die('no such subcommand "{}"'.format(settings.subcommand))
 

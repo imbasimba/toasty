@@ -93,6 +93,8 @@ def _array_to_mode(array):
             return ImageMode.F64
         elif array.dtype.kind == "u" and array.dtype.itemsize == 1:
             return ImageMode.U8
+        elif array.dtype.kind == "i" and array.dtype.itemsize == 4:
+            return ImageMode.I32
     elif array.ndim == 3:
         if array.shape[2] == 3:
             if array.dtype.kind == "f" and array.itemsize == 2:
@@ -142,8 +144,14 @@ class ImageMode(Enum):
 
     U8 = "U8"
 
+    I32 = "I32"
+    "32-bit integer data."
+
     @classmethod
     def from_array_info(cls, shape, dtype):
+        # Make sure we have an actual dtype instance to work with:
+        dtype = np.dtype(dtype)
+
         if len(shape) == 2:
             if dtype.kind == "f" and dtype.itemsize == 4:
                 return cls.F32
@@ -151,6 +159,8 @@ class ImageMode(Enum):
                 return cls.F64
             elif dtype.kind == "u" and dtype.itemsize == 1:
                 return cls.U8
+            elif dtype.kind == "i" and dtype.itemsize == 4:
+                return cls.I32
         elif len(shape) == 3:
             if shape[2] == 3:
                 if dtype.kind == "f" and dtype.itemsize == 2:
@@ -202,6 +212,8 @@ class ImageMode(Enum):
             arr = np.empty((buf_height, buf_width, 3), dtype=np.float16)
         elif self == ImageMode.U8:
             arr = np.empty((buf_height, buf_width), dtype=np.uint8)
+        elif self == ImageMode.I32:
+            arr = np.empty((buf_height, buf_width), dtype=np.int32)
         else:
             raise Exception("unhandled mode in make_maskable_buffer()")
 
@@ -634,8 +646,19 @@ class ImageLoader(object):
                     wcs = WCS(hdul[0].header)
                 else:
                     wcs = None
-
-                img = Image.from_array(arr, wcs=wcs, default_format="fits")
+                max_value = self._get_header_value_or_none(
+                    header=hdul[0].header, keyword="DATAMAX"
+                )
+                min_value = self._get_header_value_or_none(
+                    header=hdul[0].header, keyword="DATAMIN"
+                )
+                img = Image.from_array(
+                    arr,
+                    wcs=wcs,
+                    default_format="fits",
+                    min_value=min_value,
+                    max_value=max_value,
+                )
             return img
 
         # Special handling for Photoshop files, used for some very large mosaics
@@ -680,6 +703,12 @@ class ImageLoader(object):
         with open(path, "rb") as f:
             return self.load_stream(f)
 
+    def _get_header_value_or_none(self, header, keyword):
+        value = None
+        if keyword in header:
+            value = header[keyword]
+        return value
+
 
 class Image(object):
     """
@@ -694,6 +723,8 @@ class Image(object):
     _mode = None
     _default_format = "png"
     _wcs = None
+    _data_min = None
+    _data_max = None
 
     @classmethod
     def from_pil(cls, pil_img, wcs=None, default_format=None):
@@ -736,7 +767,9 @@ class Image(object):
         return inst
 
     @classmethod
-    def from_array(cls, array, wcs=None, default_format=None):
+    def from_array(
+        cls, array, wcs=None, default_format=None, min_value=None, max_value=None
+    ):
         """Create a new Image from an array-like data variable.
 
         Parameters
@@ -751,6 +784,12 @@ class Image(object):
             The default format to use when writing the image if none is
             specified explicitly. If not specified, this is automatically
             chosen at write time based on the array type.
+        min_value : number or ``None`` (the default)
+            An optional number only used for FITS images.
+            The value represents to the lowest data value in this image and its children.
+        max_value : number or ``None`` (the default)
+            An optional number only used for FITS images.
+            The value represents to the highest data value in this image and its children.
 
         Returns
         -------
@@ -778,6 +817,11 @@ class Image(object):
         inst._default_format = default_format or cls._default_format
         inst._array = array
         inst._wcs = wcs
+        if "fits" in inst._default_format:
+            if min_value is not None:
+                inst._data_min = min_value
+            if max_value is not None:
+                inst._data_max = max_value
         return inst
 
     def asarray(self):
@@ -859,6 +903,7 @@ class Image(object):
                 ImageMode.F64,
                 ImageMode.F16x3,
                 ImageMode.U8,
+                ImageMode.I32,
             ):
                 return "npy"
         else:
@@ -870,6 +915,14 @@ class Image(object):
             self._default_format = value
         else:
             raise ValueError("Unrecognized format: {0}".format(value))
+
+    @property
+    def data_min(self):
+        return self._data_min
+
+    @property
+    def data_max(self):
+        return self._data_max
 
     def has_wcs(self):
         """
@@ -1006,7 +1059,7 @@ class Image(object):
             b.fill(0)
             b[by_idx, bx_idx, :3] = i[iy_idx, ix_idx]
             b[by_idx, bx_idx, 3] = 255
-        elif self.mode in (ImageMode.RGBA, ImageMode.U8):
+        elif self.mode in (ImageMode.RGBA, ImageMode.U8, ImageMode.I32):
             b.fill(0)
             b[by_idx, bx_idx] = i[iy_idx, ix_idx]
         elif self.mode in (ImageMode.F32, ImageMode.F64, ImageMode.F16x3):
@@ -1063,7 +1116,7 @@ class Image(object):
             valid = ~np.any(np.isnan(sub_i), axis=2)
             valid = np.broadcast_to(valid[..., None], sub_i.shape)
             np.putmask(sub_b, valid, sub_i)
-        elif self.mode == ImageMode.U8:
+        elif self.mode in (ImageMode.U8, ImageMode.I32):
             # zero is our maskval, so here's a convenient way to get pretty good
             # update semantics. It will behave unusually if two buffers overlap
             # and disagree on their non-zero pixel values: instead of the second
@@ -1075,7 +1128,9 @@ class Image(object):
                 f"unhandled mode `{self.mode}` in update_into_maskable_buffer"
             )
 
-    def save(self, path_or_stream, format=None, mode=None):
+    def save(
+        self, path_or_stream, format=None, mode=None, min_value=None, max_value=None
+    ):
         """
         Save this image to a filesystem path or stream
 
@@ -1084,6 +1139,18 @@ class Image(object):
         path_or_stream : path-like object or file-like object
             The destination into which the data should be written. If file-like,
             the stream should accept bytes.
+        format : :class:`str` or ``None`` (the default)
+            The format name; one of ``SUPPORTED_FORMATS``
+        mode : :class:`toasty.image.ImageMode` or ``None`` (the default)
+            The image data mode to use if ``format`` is a ``PIL_FORMATS``
+        min_value : number or ``None`` (the default)
+            An optional number only used for FITS images.
+            The value represents to the lowest data value in this image and its children.
+            If not set, the minimum value will be extracted from this image.
+        max_value : number or ``None`` (the default)
+            An optional number only used for FITS images.
+            The value represents to the highest data value in this image and its children.
+            If not set, the maximum value will be extracted from this image.
         """
 
         _validate_format("format", format)
@@ -1107,14 +1174,20 @@ class Image(object):
             # Avoid annoying RuntimeWarnings on all-NaN data
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-
-                m = np.nanmin(arr)
-                if np.isfinite(m):  # Astropy will raise an error if we don't NaN-guard
-                    header["DATAMIN"] = m
-
-                m = np.nanmax(arr)
-                if np.isfinite(m):
-                    header["DATAMAX"] = m
+                if min_value is not None:
+                    header["DATAMIN"] = min_value
+                else:
+                    m = np.nanmin(arr)
+                    if np.isfinite(
+                        m
+                    ):  # Astropy will raise an error if we don't NaN-guard
+                        header["DATAMIN"] = m
+                if max_value is not None:
+                    header["DATAMAX"] = max_value
+                else:
+                    m = np.nanmax(arr)
+                    if np.isfinite(m):
+                        header["DATAMAX"] = m
 
             fits.writeto(
                 path_or_stream,
@@ -1133,7 +1206,7 @@ class Image(object):
         be saved in JPEG format.
 
         """
-        if self.mode in (ImageMode.F32, ImageMode.F64, ImageMode.F16x3):
+        if self.mode in (ImageMode.I32, ImageMode.F32, ImageMode.F64, ImageMode.F16x3):
             raise Exception("cannot thumbnail-ify non-RGB Image")
 
         THUMB_SHAPE = (96, 45)
@@ -1182,7 +1255,7 @@ class Image(object):
         with NaNs.
 
         """
-        if self._mode in (ImageMode.RGB, ImageMode.RGBA, ImageMode.U8):
+        if self._mode in (ImageMode.RGB, ImageMode.RGBA, ImageMode.U8, ImageMode.I32):
             self.asarray().fill(0)
         elif self._mode in (ImageMode.F32, ImageMode.F64, ImageMode.F16x3):
             self.asarray().fill(np.nan)

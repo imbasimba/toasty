@@ -634,8 +634,19 @@ class ImageLoader(object):
                     wcs = WCS(hdul[0].header)
                 else:
                     wcs = None
-
-                img = Image.from_array(arr, wcs=wcs, default_format="fits")
+                max_value = self._get_header_value_or_none(
+                    header=hdul[0].header, keyword="DATAMAX"
+                )
+                min_value = self._get_header_value_or_none(
+                    header=hdul[0].header, keyword="DATAMIN"
+                )
+                img = Image.from_array(
+                    arr,
+                    wcs=wcs,
+                    default_format="fits",
+                    min_value=min_value,
+                    max_value=max_value,
+                )
             return img
 
         # Special handling for Photoshop files, used for some very large mosaics
@@ -680,6 +691,12 @@ class ImageLoader(object):
         with open(path, "rb") as f:
             return self.load_stream(f)
 
+    def _get_header_value_or_none(self, header, keyword):
+        value = None
+        if keyword in header:
+            value = header[keyword]
+        return value
+
 
 class Image(object):
     """
@@ -694,6 +711,8 @@ class Image(object):
     _mode = None
     _default_format = "png"
     _wcs = None
+    _data_min = None
+    _data_max = None
 
     @classmethod
     def from_pil(cls, pil_img, wcs=None, default_format=None):
@@ -736,7 +755,9 @@ class Image(object):
         return inst
 
     @classmethod
-    def from_array(cls, array, wcs=None, default_format=None):
+    def from_array(
+        cls, array, wcs=None, default_format=None, min_value=None, max_value=None
+    ):
         """Create a new Image from an array-like data variable.
 
         Parameters
@@ -751,6 +772,12 @@ class Image(object):
             The default format to use when writing the image if none is
             specified explicitly. If not specified, this is automatically
             chosen at write time based on the array type.
+        min_value : number or ``None`` (the default)
+            An optional number only used for FITS images.
+            The value represents to the lowest data value in this image and its children.
+        max_value : number or ``None`` (the default)
+            An optional number only used for FITS images.
+            The value represents to the highest data value in this image and its children.
 
         Returns
         -------
@@ -778,6 +805,11 @@ class Image(object):
         inst._default_format = default_format or cls._default_format
         inst._array = array
         inst._wcs = wcs
+        if "fits" in inst._default_format:
+            if min_value is not None:
+                inst._data_min = min_value
+            if max_value is not None:
+                inst._data_max = max_value
         return inst
 
     def asarray(self):
@@ -870,6 +902,14 @@ class Image(object):
             self._default_format = value
         else:
             raise ValueError("Unrecognized format: {0}".format(value))
+
+    @property
+    def data_min(self):
+        return self._data_min
+
+    @property
+    def data_max(self):
+        return self._data_max
 
     def has_wcs(self):
         """
@@ -1075,7 +1115,9 @@ class Image(object):
                 f"unhandled mode `{self.mode}` in update_into_maskable_buffer"
             )
 
-    def save(self, path_or_stream, format=None, mode=None):
+    def save(
+        self, path_or_stream, format=None, mode=None, min_value=None, max_value=None
+    ):
         """
         Save this image to a filesystem path or stream
 
@@ -1084,6 +1126,18 @@ class Image(object):
         path_or_stream : path-like object or file-like object
             The destination into which the data should be written. If file-like,
             the stream should accept bytes.
+        format : :class:`str` or ``None`` (the default)
+            The format name; one of ``SUPPORTED_FORMATS``
+        mode : :class:`toasty.image.ImageMode` or ``None`` (the default)
+            The image data mode to use if ``format`` is a ``PIL_FORMATS``
+        min_value : number or ``None`` (the default)
+            An optional number only used for FITS images.
+            The value represents to the lowest data value in this image and its children.
+            If not set, the minimum value will be extracted from this image.
+        max_value : number or ``None`` (the default)
+            An optional number only used for FITS images.
+            The value represents to the highest data value in this image and its children.
+            If not set, the maximum value will be extracted from this image.
         """
 
         _validate_format("format", format)
@@ -1107,14 +1161,20 @@ class Image(object):
             # Avoid annoying RuntimeWarnings on all-NaN data
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-
-                m = np.nanmin(arr)
-                if np.isfinite(m):  # Astropy will raise an error if we don't NaN-guard
-                    header["DATAMIN"] = m
-
-                m = np.nanmax(arr)
-                if np.isfinite(m):
-                    header["DATAMAX"] = m
+                if min_value is not None:
+                    header["DATAMIN"] = min_value
+                else:
+                    m = np.nanmin(arr)
+                    if np.isfinite(
+                        m
+                    ):  # Astropy will raise an error if we don't NaN-guard
+                        header["DATAMIN"] = m
+                if max_value is not None:
+                    header["DATAMAX"] = max_value
+                else:
+                    m = np.nanmax(arr)
+                    if np.isfinite(m):
+                        header["DATAMAX"] = m
 
             fits.writeto(
                 path_or_stream,

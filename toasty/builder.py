@@ -190,7 +190,7 @@ class Builder(object):
         # existing imageset as much as possible, but update the parameters that
         # change in the tiling process.
 
-        wcs_keywords = self.imgset.wcs_headers_from_position()
+        wcs_keywords = self.imgset.wcs_headers_from_position(height=img.height)
         self.imgset.center_x = (
             self.imgset.center_y
         ) = 0  # hack to satisfy _check_no_wcs_yet()
@@ -225,6 +225,23 @@ class Builder(object):
         from .merge import averaging_merger, cascade_images
 
         cascade_images(self.pio, self.imgset.tile_levels, averaging_merger, **kwargs)
+        if "fits" in self.imgset.file_type:
+            from .pyramid import Pos
+            from astropy.io import fits
+            import numpy as np
+
+            with fits.open(
+                self.pio.tile_path(
+                    pos=Pos(n=0, x=0, y=0), format="fits", makedirs=False
+                )
+            ) as top_tile:
+                self.imgset.data_min = top_tile[0].header["DATAMIN"]
+                self.imgset.data_max = top_tile[0].header["DATAMAX"]
+                (
+                    self.imgset.pixel_cut_low,
+                    self.imgset.pixel_cut_high,
+                ) = np.nanpercentile(top_tile[0].data, [0.5, 99.5])
+
         return self
 
     def make_thumbnail_from_other(self, thumbnail_image):

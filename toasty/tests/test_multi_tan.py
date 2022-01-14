@@ -36,26 +36,47 @@ except ImportError:
 
 class TestMultiTan(object):
     WTML = """
-<Folder Browseable="True" Group="Explorer" Name="Toasty" MSRCommunityId="0"
-        MSRComponentId="0" Permission="0" Searchable="True" Type="Sky">
-  <Place Angle="0.0" AngularSize="0.0" DataSetType="Sky" Dec="0.7438249862258411"
-         Distance="0.0" DomeAlt="0.0" DomeAz="0.0" Lat="0.0" Lng="0.0"
-         Magnitude="0.0" MSRCommunityId="0" MSRComponentId="0" Name="Toasty"
-         Opacity="100.0" Permission="0" RA="14.41975153073335" Rotation="0.0"
-         Thumbnail="thumb.jpg" ZoomLevel="0.2437119999998555" >
-    <ForegroundImageSet>
-      <ImageSet BandPass="Visible" BaseDegreesPerTile="0.023893333333319167"
-                BaseTileLevel="0" BottomsUp="False" CenterX="216.2962962963"
-                CenterY="0.74380165289257" DataSetType="Sky" ElevationModel="False"
-                FileType=".fits" Generic="False" MeanRadius="0.0" MSRCommunityId="0"
-                MSRComponentId="0" Name="Toasty" OffsetX="2.33333333333195e-05"
-                OffsetY="2.33333333333195e-05" Permission="0" Projection="Tan"
-                Rotation="-0.0" Sparse="True" StockSet="False" TileLevels="1"
-                Url="{1}/{3}/{3}_{2}.fits" WidthFactor="2">
-        <ThumbnailUrl>thumb.jpg</ThumbnailUrl>
-      </ImageSet>
-    </ForegroundImageSet>
-  </Place>
+<Folder Browseable="True" Group="Explorer" Name="Toasty" Searchable="True">
+    <Place
+        Angle="0"
+        AngularSize="0"
+        DataSetType="Sky"
+        Dec="0.7438249862258411"
+        Magnitude="0"
+        Name="Toasty"
+        Opacity="100"
+        RA="14.41975153073335"
+        Rotation="0"
+        Thumbnail="thumb.jpg"
+        ZoomLevel="0.2437119999998555"
+    >
+        <ForegroundImageSet>
+            <ImageSet
+                BandPass="Visible"
+                BaseDegreesPerTile="0.023893333333319167"
+                BaseTileLevel="0"
+                BottomsUp="False"
+                CenterX="216.2962962963"
+                CenterY="0.74380165289257"
+                DataSetType="Sky"
+                ElevationModel="False"
+                FileType=".fits"
+                Generic="False"
+                Name="Toasty"
+                OffsetX="2.33333333333195e-05"
+                OffsetY="2.33333333333195e-05"
+                Projection="Tan"
+                Rotation="-0"
+                Sparse="True"
+                StockSet="False"
+                TileLevels="1"
+                Url="{1}/{3}/{3}_{2}.fits"
+                WidthFactor="2"
+            >
+                <ThumbnailUrl>thumb.jpg</ThumbnailUrl>
+            </ImageSet>
+        </ForegroundImageSet>
+    </Place>
 </Folder>"""
 
     # Gross workaround for platform differences in the XML output.

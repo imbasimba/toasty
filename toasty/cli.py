@@ -178,11 +178,6 @@ def make_thumbnail_impl(settings):
         thumb.save(f, format="JPEG")
 
 
-# "pipeline" subcommands
-
-from .pipeline.cli import pipeline_getparser, pipeline_impl
-
-
 # "tile_allsky" subcommand
 
 
@@ -428,6 +423,11 @@ def tile_study_getparser(parser):
         help="Expect the input image to have AVM positioning tags",
     )
     parser.add_argument(
+        "--fits-wcs",
+        metavar="PATH",
+        help="Get WCS information from this FITS file",
+    )
+    parser.add_argument(
         "--placeholder-thumbnail",
         action="store_true",
         help="Do not attempt to thumbnail the input image -- saves memory for large inputs",
@@ -481,6 +481,43 @@ def tile_study_impl(settings):
             raise
 
         builder.apply_avm_info(avm, img.width, img.height)
+    elif settings.fits_wcs:
+        try:
+            from astropy.io import fits
+            from astropy.wcs import WCS
+        except ImportError:
+            die("cannot use FITS WCS: you must install the `astropy` package")
+
+        try:
+            with fits.open(settings.fits_wcs) as hdul:
+                # TODO: more flexibility in HDU choice:
+                hdu = hdul[0]
+                wcs = WCS(hdu, fobj=hdul)
+        except Exception as e:
+            die(f"cannot read WCS from FITS file `{settings.fits_wcs}`: {e}")
+
+        wcs_width = hdu.header.get("IMAGEW")  # Astrometry.net
+        wcs_height = hdu.header.get("IMAGEH")
+
+        if wcs_width is None and len(hdu.shape) > 1:
+            wcs_width = hdu.shape[-1]
+            wcs_height = hdu.shape[-2]
+
+        if wcs_width is None:
+            warn(
+                f"cannot infer image dimensions from WCS FITS file `{settings.fits_wcs}`; "
+                f"unable to check consistency with input image"
+            )
+        elif img.shape[:2] != (wcs_height, wcs_width):
+            warn(
+                f"image `{settings.imgpath}` has shape {img.shape}, but "
+                f"WCS reference file `{settings.fits_wcs}` has shape ({wcs_height}, {wcs_width}); "
+                f"astrometry may not transfer correctly"
+            )
+
+        img._wcs = wcs  # <= hack alert, but I think this is OK
+        img.ensure_negative_parity()
+        builder.apply_wcs_info(img.wcs, img.width, img.height)
     elif img.wcs is not None:
         # Study images must have negative parity.
         img.ensure_negative_parity()
@@ -750,13 +787,19 @@ def entrypoint(args=None):
       parameter.
 
     """
-    # Set up the subcommands from globals()
+    # Set up the subcommands. We use locals() and globals() in a fairly gross
+    # way to avoid circular import issues in Sphinx.
+
+    from .pipeline.cli import pipeline_getparser, pipeline_impl
+
+    names = dict(locals())
+    names.update(globals())
 
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="subcommand")
     commands = set()
 
-    for py_name, value in globals().items():
+    for py_name, value in names.items():
         if py_name.endswith("_getparser"):
             cmd_name = py_name[:-10].replace("_", "-")
             subparser = subparsers.add_parser(cmd_name)
@@ -776,7 +819,7 @@ def entrypoint(args=None):
 
     py_name = settings.subcommand.replace("-", "_")
 
-    impl = globals().get(py_name + "_impl")
+    impl = names.get(py_name + "_impl")
     if impl is None:
         die('no such subcommand "{}"'.format(settings.subcommand))
 

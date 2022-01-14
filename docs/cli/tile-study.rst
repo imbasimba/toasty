@@ -18,6 +18,7 @@ Usage
       [--outdir DIR]
       [--name NAME]
       [--avm]
+      [--fits-wcs PATH]
       IMAGE-PATH
 
 See the :ref:`cli-std-image-options` section for documentation on those options.
@@ -48,6 +49,14 @@ requires the `pyavm`_ package to be installed on your system.
 
 .. _pyavm: https://astrofrog.github.io/pyavm/
 
+If the ``--fits-wcs`` argument is given, Toasty will attempt to load
+world-coordinate information from the headers of the named `FITS`_ file. It is
+up to you to ensure that information contained in that file corresponds to the
+main input image. This argument can be useful with the output from
+`Astrometry.Net`_, which generates WCS FITS files for the images it solves.
+
+.. _FITS: https://en.wikipedia.org/wiki/FITS
+.. _Astrometry.Net: https://astrometry.net/
 
 Notes
 =====

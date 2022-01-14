@@ -16,7 +16,34 @@ maps can be viewed in software such as the AAS_ `WorldWide Telescope`_.
 
    manual
    cli
-   api
+
+
+Python API Reference
+====================
+
+.. toctree::
+   :maxdepth: 1
+
+   api/toasty
+   api/toasty.builder
+   api/toasty.cli
+   api/toasty.collection
+   api/toasty.fits_tiler
+   api/toasty.image
+   api/toasty.merge
+   api/toasty.multi_tan
+   api/toasty.openexr
+   api/toasty.par_util
+   api/toasty.pipeline
+   api/toasty.pipeline.astropix
+   api/toasty.pipeline.azure_io
+   api/toasty.pipeline.cli
+   api/toasty.pipeline.djangoplicity
+   api/toasty.pipeline.local_io
+   api/toasty.pyramid
+   api/toasty.samplers
+   api/toasty.study
+   api/toasty.toast
 
 
 Getting help

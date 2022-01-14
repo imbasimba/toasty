@@ -149,6 +149,9 @@ class ImageMode(Enum):
 
     @classmethod
     def from_array_info(cls, shape, dtype):
+        # Make sure we have an actual dtype instance to work with:
+        dtype = np.dtype(dtype)
+
         if len(shape) == 2:
             if dtype.kind == "f" and dtype.itemsize == 4:
                 return cls.F32

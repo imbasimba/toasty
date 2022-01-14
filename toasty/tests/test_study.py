@@ -244,11 +244,11 @@ class TestStudy(object):
     def test_fits_wcs(self):
         from xml.etree import ElementTree as etree
 
-        # Hack for macOS: XML textualization is ever-so-slightly different.
+        # Platform hack: XML textualization is ever-so-slightly different.
 
         wtml = self.FITS_WCS_WTML
 
-        if sys.platform == "darwin":
+        if sys.platform in ("darwin", "win32"):
             wtml = wtml.replace('Dec="-42.58752472831171"', 'Dec="-42.587524728311706"')
 
         expected = etree.fromstring(wtml)

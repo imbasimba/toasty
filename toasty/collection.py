@@ -184,7 +184,7 @@ class SimpleFitsCollection(ImageCollection):
 
             # End hack(s).
 
-            wcs = WCS(hdu.header, fix=False)
+            wcs = WCS(hdu.header)
             shape = hdu.shape
 
             # We need to make sure the data are 2D celestial, since that's

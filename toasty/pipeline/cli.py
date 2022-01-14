@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2019-2020 the AAS WorldWide Telescope project.
+# Copyright 2019-2022 the AAS WorldWide Telescope project.
 # Licensed under the MIT License.
 
 """
@@ -11,14 +11,13 @@ pipeline_getparser
 pipeline_impl
 """.split()
 
-import argparse
 from fnmatch import fnmatch
 import glob
 import os.path
 import sys
 from wwt_data_formats.cli import EnsureGlobsExpandedAction
 
-from ..cli import die, warn
+from ..cli import die
 from . import NotActionableError
 
 

@@ -21,20 +21,21 @@ RGB colors.
 """
 from __future__ import absolute_import, division, print_function
 
-__all__ = '''
+__all__ = """
 ChunkedPlateCarreeSampler
 plate_carree_sampler
 plate_carree_galactic_sampler
 plate_carree_ecliptic_sampler
 plate_carree_planet_sampler
+plate_carree_planet_zeroleft_sampler
 healpix_fits_file_sampler
 healpix_sampler
-'''.split()
+""".split()
 
 import numpy as np
 
 
-def healpix_sampler(data, nest=False, coord='C', interpolation='nearest'):
+def healpix_sampler(data, nest=False, coord="C", interpolation="nearest"):
     """Create a sampler for HEALPix image data.
 
     Parameters
@@ -61,15 +62,16 @@ def healpix_sampler(data, nest=False, coord='C', interpolation='nearest'):
     from astropy.coordinates import Galactic, ICRS
     import astropy.units as u
 
-    interp_opts = ['nearest', 'bilinear']
+    interp_opts = ["nearest", "bilinear"]
     if interpolation not in interp_opts:
-        raise ValueError("Invalid interpolation %s. Must be one of %s" %
-                         (interpolation, interp_opts))
-    if coord.upper() not in 'CG':
+        raise ValueError(
+            "Invalid interpolation %s. Must be one of %s" % (interpolation, interp_opts)
+        )
+    if coord.upper() not in "CG":
         raise ValueError("Invalid coord %s. Must be 'C' or 'G'" % coord)
 
-    galactic = coord.upper() == 'G'
-    interp = interpolation == 'bilinear'
+    galactic = coord.upper() == "G"
+    interp = interpolation == "bilinear"
     nside = npix2nside(data.size)
 
     def vec2pix(l, b):
@@ -95,13 +97,13 @@ def _find_healpix_extension_index(pth):
 
     """
     for i, hdu in enumerate(pth):
-        if hdu.header.get('PIXTYPE') == 'HEALPIX':
+        if hdu.header.get("PIXTYPE") == "HEALPIX":
             return i
     else:
         raise IndexError("No HEALPIX extensions found in %s" % pth.filename())
 
 
-def healpix_fits_file_sampler(path, extension=None, interpolation='nearest'):
+def healpix_fits_file_sampler(path, extension=None, interpolation="nearest"):
     """Create a sampler for HEALPix data read from a FITS file.
 
     Parameters
@@ -134,11 +136,11 @@ def healpix_fits_file_sampler(path, extension=None, interpolation='nearest'):
         # grab the first healpix parameter and convert to native endianness if
         # needed.
         data = data[data.dtype.names[0]]
-        if data.dtype.byteorder not in '=|':
+        if data.dtype.byteorder not in "=|":
             data = data.byteswap().newbyteorder()
 
-        nest = hdr.get('ORDERING') == 'NESTED'
-        coord = hdr.get('COORDSYS', 'C')
+        nest = hdr.get("ORDERING") == "NESTED"
+        coord = hdr.get("COORDSYS", "C")
 
     return healpix_sampler(data, nest, coord, interpolation)
 
@@ -347,7 +349,7 @@ class ChunkedPlateCarreeSampler(object):
     def __init__(self, chunked_image, planetary=False):
         self._image = chunked_image
 
-        assert planetary, 'XXX non-planetary plate carree not implemented'
+        assert planetary, "XXX non-planetary plate carree not implemented"
 
         self.sx = 2 * np.pi / self._image.shape[1]  # radians per pixel, X direction
         self.sy = np.pi / self._image.shape[0]  # ditto, for the X direction
@@ -383,7 +385,12 @@ class ChunkedPlateCarreeSampler(object):
         A callable object, ``filter(tile) -> bool``, suitable for use as a tile
         filter function.
         """
-        chunk_lon_min1, chunk_lon_max1, chunk_lat_min1, chunk_lat_max1 = self._chunk_bounds(ichunk)
+        (
+            chunk_lon_min1,
+            chunk_lon_max1,
+            chunk_lat_min1,
+            chunk_lat_max1,
+        ) = self._chunk_bounds(ichunk)
 
         def latlon_tile_filter(tile):
             """
@@ -400,8 +407,8 @@ class ChunkedPlateCarreeSampler(object):
 
             # Latitudes are easy -- no wrapping.
 
-            tile_lat_min = np.min(corner_lonlats[:,1])
-            tile_lat_max = np.max(corner_lonlats[:,1])
+            tile_lat_min = np.min(corner_lonlats[:, 1])
+            tile_lat_max = np.max(corner_lonlats[:, 1])
 
             if chunk_lat_min > tile_lat_max:
                 return False
@@ -425,7 +432,7 @@ class ChunkedPlateCarreeSampler(object):
             # longitudes span all sorts of values from -2pi to 2pi. So just
             # shuffle them around until we get a self-consistent min/max.
 
-            lons = corner_lonlats[:,0]
+            lons = corner_lonlats[:, 0]
             keep_going = True
 
             while keep_going:
@@ -486,17 +493,25 @@ class ChunkedPlateCarreeSampler(object):
         """
         from .image import Image
 
-        chunk_lon_min, chunk_lon_max, chunk_lat_min, chunk_lat_max = self._chunk_bounds(ichunk)
+        chunk_lon_min, chunk_lon_max, chunk_lat_min, chunk_lat_max = self._chunk_bounds(
+            ichunk
+        )
         data = self._image.chunk_data(ichunk)
         data_img = Image.from_array(data)
         buffer = data_img.mode.make_maskable_buffer(256, 256)
         biy, bix = np.indices((256, 256))
 
         ny, nx = data.shape[:2]
-        dx = nx / (chunk_lon_max - chunk_lon_min)  # pixels per radian in the X direction
+        dx = nx / (
+            chunk_lon_max - chunk_lon_min
+        )  # pixels per radian in the X direction
         dy = ny / (chunk_lat_max - chunk_lat_min)  # ditto, for the Y direction
-        lon0 = chunk_lon_min + 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
-        lat0 = chunk_lat_max - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
+        lon0 = (
+            chunk_lon_min + 0.5 / dx
+        )  # longitudes of the centers of the pixels with ix = 0
+        lat0 = (
+            chunk_lat_max - 0.5 / dy
+        )  # latitudes of the centers of the pixels with iy = 0
 
         def plate_carree_planet_sampler(lon, lat):
             lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]

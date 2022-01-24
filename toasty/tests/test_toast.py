@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2013-2021 Chris Beaumont and the AAS WorldWide Telescope project
+# Copyright 2013-2022 Chris Beaumont and the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 from __future__ import absolute_import, division, print_function
@@ -148,13 +148,16 @@ def image_test(expected, actual, err_msg):
     pytest.fail("%s. Saved to %s" % (err_msg, pth))
 
 
-class TestSampleLayer(object):
-    def setup_method(self, method):
-        self.base = mkdtemp()
-        self.pio = PyramidIO(self.base)
+class PyramidTester(object):
+    def setup_method(self, _method):
+        self.work_dir = mkdtemp()
+        self.pio = PyramidIO(self.work_dir)
 
-    def teardown_method(self, method):
-        rmtree(self.base)
+    def teardown_method(self, _method):
+        rmtree(self.work_dir)
+
+    def work_path(self, *pieces):
+        return os.path.join(self.work_dir, *pieces)
 
     def verify_level1(
         self,
@@ -193,6 +196,8 @@ class TestSampleLayer(object):
 
             image_test(expected, observed, "Failed for %s%s" % (ref_path, warn))
 
+
+class TestSampleLayer(PyramidTester):
     def test_plate_carree(self):
         from ..samplers import plate_carree_sampler
 
@@ -265,22 +270,10 @@ class TestSampleLayer(object):
         self.verify_level1(format="fits", expected_2d=True)
 
 
-class TestCliBasic(object):
+class TestCliBasic(PyramidTester):
     """
-    Basic smoketests for the CLI. The more library-focused routines validate
-    detailed outputs.
+    CLI tests.
     """
-
-    def setup_method(self, method):
-        self.work_dir = mkdtemp()
-
-    def teardown_method(self, method):
-        from shutil import rmtree
-
-        rmtree(self.work_dir)
-
-    def work_path(self, *pieces):
-        return os.path.join(self.work_dir, *pieces)
 
     def test_planet(self):
         args = [

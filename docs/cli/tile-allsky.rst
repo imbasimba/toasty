@@ -59,11 +59,25 @@ mapped on to the image. Allowed types are:
   true ecliptic coordinates rather than (celestial) equatorial.
 
 - ``plate-carree-planet`` — like the above, but the image is that of a planet
-  and so the sense of the longitude/RA axis is inverted. Longitude increases to
-  the right. This is the format in which planetary maps are typically
-  represented. If you use this option when you should have used
+  and so the sense of the longitude/RA axis is inverted. The line of zero
+  longitude is in the middle of the image, but longitude increases to the right.
+  The zero-longitude line in the output TOAST map is rotated 180 degrees from
+  the sky-like case as well. This is the format in which planetary maps are
+  typically represented. If you use this option when you should have used
   ``plate-carree``, or vice versa, your map come out flipped horizontally.
-- ``plate-carree-panorama`` — like the default “plate carrée” projection, but 
+
+- ``plate-carree-planet-zeroleft`` — like the above, but the line of zero
+  longitude in the input image is at the left edge, rather than the middle.
+  Longitude still increases to the right.
+
+- ``plate-carree-planet-zeroright`` — like the above, but longitudes increase to
+  the left rather than to the right. (So you can think of this as having the
+  line of zero longitude on the right edge of the image, but that's also true
+  for the above case as well, since 0 = 360 here.) The output map will still be
+  in the TOAST planetary format even though the input data are in a format more
+  typically used for sky data.
+
+- ``plate-carree-panorama`` — like the default “plate carrée” projection, but
   the image is interpreted as a 360 degree panoramic image
 
 .. _equirectangular: https://en.wikipedia.org/wiki/Equirectangular_projection

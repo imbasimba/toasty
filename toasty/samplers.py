@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2013-2021 Chris Beaumont and the AAS WorldWide Telescope project
+# Copyright 2013-2022 Chris Beaumont and the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 """
@@ -28,6 +28,7 @@ plate_carree_galactic_sampler
 plate_carree_ecliptic_sampler
 plate_carree_planet_sampler
 plate_carree_planet_zeroleft_sampler
+plate_carree_zeroright_sampler
 healpix_fits_file_sampler
 healpix_sampler
 """.split()
@@ -303,8 +304,8 @@ def plate_carree_planet_sampler(data):
     A function that samples the image; the call signature is
     ``vec2pix(lon, lat) -> data``, where the inputs and output are 2D arrays
     and *lon* and *lat* are in radians.
-
     """
+
     data = np.asarray(data)
     ny, nx = data.shape[:2]
 
@@ -316,6 +317,95 @@ def plate_carree_planet_sampler(data):
     def vec2pix(lon, lat):
         lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
         ix = (lon - lon0) * dx
+        ix = np.round(ix).astype(int)
+        ix = np.clip(ix, 0, nx - 1)
+
+        iy = (lat0 - lat) * dy  # *assume* in range [-pi/2, pi/2]
+        iy = np.round(iy).astype(int)
+        iy = np.clip(iy, 0, ny - 1)
+
+        return data[iy, ix]
+
+    return vec2pix
+
+
+def plate_carree_planet_zeroleft_sampler(data):
+    """
+    Create a sampler function for planetary data in a “plate carrée” projection
+    where the ``longitude=0`` line is on the left edge of the image.
+
+    This is the same as :func:`plate_carree_planet_sampler`, except that line of
+    zero longitude is at the left edge of the image, not its center. Longitude
+    still increases to the right, unlike :func:`plate_carree_sampler` or
+    :func:`plate_carree_zeroright_sampler`. Some planetary maps use this
+    convention.
+
+    Parameters
+    ----------
+    data : array-like, at least 2D
+        The map to sample in plate carrée projection.
+
+    Returns
+    -------
+    A function that samples the image; the call signature is
+    ``vec2pix(lon, lat) -> data``, where the inputs and output are 2D arrays
+    and *lon* and *lat* are in radians.
+    """
+
+    data = np.asarray(data)
+    ny, nx = data.shape[:2]
+
+    dx = nx / (2 * np.pi)  # pixels per radian in the X direction
+    dy = ny / np.pi  # ditto, for the Y direction
+    lon0 = 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
+    lat0 = 0.5 * np.pi - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
+
+    def vec2pix(lon, lat):
+        lon = lon % (2 * np.pi)  # ensure in range [0, 2pi]
+        ix = (lon - lon0) * dx
+        ix = np.round(ix).astype(int)
+        ix = np.clip(ix, 0, nx - 1)
+
+        iy = (lat0 - lat) * dy  # *assume* in range [-pi/2, pi/2]
+        iy = np.round(iy).astype(int)
+        iy = np.clip(iy, 0, ny - 1)
+
+        return data[iy, ix]
+
+    return vec2pix
+
+
+def plate_carree_zeroright_sampler(data):
+    """
+    Create a sampler function for data in a “plate carrée” projection where the
+    ``longitude=0`` line is on the right edge of the image.
+
+    This is the same as :func:`plate_carree_sampler`, except that line of zero
+    longitude is at the right edge of the image, not its center.
+
+    Parameters
+    ----------
+    data : array-like, at least 2D
+        The map to sample in plate carrée projection.
+
+    Returns
+    -------
+    A function that samples the image; the call signature is
+    ``vec2pix(lon, lat) -> data``, where the inputs and output are 2D arrays
+    and *lon* and *lat* are in radians.
+    """
+
+    data = np.asarray(data)
+    ny, nx = data.shape[:2]
+
+    dx = nx / (2 * np.pi)  # pixels per radian in the X direction
+    dy = ny / np.pi  # ditto, for the Y direction
+    lon0 = 2 * np.pi - 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
+    lat0 = 0.5 * np.pi - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
+
+    def vec2pix(lon, lat):
+        lon = lon % (2 * np.pi)  # ensure in range [0, 2pi]
+        ix = (lon0 - lon) * dx
         ix = np.round(ix).astype(int)
         ix = np.clip(ix, 0, nx - 1)
 

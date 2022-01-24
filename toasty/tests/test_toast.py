@@ -138,14 +138,14 @@ def test_pixel_for_point():
 
 def image_test(expected, actual, err_msg):
     resid = np.abs(1.0 * actual - expected)
-    if np.median(resid) < 15:
+    if np.median(resid) < 10:
         return
 
     _, pth = mkstemp(suffix=".png")
     import PIL.Image
 
     PIL.Image.fromarray(np.hstack((expected, actual))).save(pth)
-    pytest.fail("%s. Saved to %s" % (err_msg, pth))
+    pytest.fail("%s. MedResid=%f. Saved to %s" % (err_msg, np.median(resid), pth))
 
 
 class PyramidTester(object):
@@ -275,14 +275,67 @@ class TestCliBasic(PyramidTester):
     CLI tests.
     """
 
-    def test_planet(self):
+    def inner_test(self, image_path, projection):
         args = [
             "tile-allsky",
             "--name=Earth",
-            "--projection=plate-carree-planet",
+            f"--projection={projection}",
             "--outdir",
-            self.work_path("basic_cli"),
-            test_path("Equirectangular_projection_SW-tweaked.jpg"),
+            self.work_path(),
+            image_path,
             "2",
         ]
         cli.entrypoint(args)
+        cli.entrypoint(["cascade", "--start", "2", self.work_path()])
+        self.verify_level1(planetary=True, drop_alpha=True)
+
+    def test_planet(self):
+        self.inner_test(
+            test_path("Equirectangular_projection_SW-tweaked.jpg"),
+            "plate-carree-planet",
+        )
+
+    def test_planet_zeroleft(self):
+        """
+        Our source image is a standard planetary map where longitudes range from
+        -180 to 180, left to right. So to get the correct zeroleft input, we
+        need to swap the left and right halves.
+        """
+        img = ImageLoader().load_path(
+            test_path("Equirectangular_projection_SW-tweaked.jpg")
+        )
+        hw = img.width // 2
+        buf = img.asarray()
+        temp = buf[:, hw:].copy()
+        buf[:, hw:] = buf[:, :hw]
+        buf[:, :hw] = temp
+        img._array = buf  # hack!
+        img._pil = None
+        p = self.work_path("zeroleft.jpg")
+        img.save(p, format="jpg")
+        self.inner_test(
+            p,
+            "plate-carree-planet-zeroleft",
+        )
+
+    def test_planet_zeroright(self):
+        """
+        The horizontal mirror of zeroleft. Longitudes increase to the left, but
+        the right edge of the image is longitude 0.
+        """
+        img = ImageLoader().load_path(
+            test_path("Equirectangular_projection_SW-tweaked.jpg")
+        )
+        hw = img.width // 2
+        buf = img.asarray()
+        temp = buf[:, hw:].copy()
+        buf[:, hw:] = buf[:, :hw]
+        buf[:, :hw] = temp
+        img._array = buf[:, ::-1]  # hack!
+        img._pil = None
+        p = self.work_path("zeroright.jpg")
+        img.save(p, format="jpg")
+        self.inner_test(
+            p,
+            "plate-carree-planet-zeroright",
+        )

@@ -213,6 +213,8 @@ def tile_allsky_getparser(parser):
             "plate-carree-galactic",
             "plate-carree-ecliptic",
             "plate-carree-planet",
+            "plate-carree-planet-zeroleft",
+            "plate-carree-planet-zeroright",
             "plate-carree-panorama",
         ],
     )
@@ -262,6 +264,16 @@ def tile_allsky_impl(settings):
         from .samplers import plate_carree_planet_sampler
 
         sampler = plate_carree_planet_sampler(img.asarray())
+        is_planet = True
+    elif settings.projection == "plate-carree-planet-zeroleft":
+        from .samplers import plate_carree_planet_zeroleft_sampler
+
+        sampler = plate_carree_planet_zeroleft_sampler(img.asarray())
+        is_planet = True
+    elif settings.projection == "plate-carree-planet-zeroright":
+        from .samplers import plate_carree_zeroright_sampler
+
+        sampler = plate_carree_zeroright_sampler(img.asarray())
         is_planet = True
     elif settings.projection == "plate-carree-panorama":
         from .samplers import plate_carree_sampler

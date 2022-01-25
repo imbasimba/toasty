@@ -66,6 +66,7 @@ class TestMultiTan(object):
                 OffsetX="2.33333333333195e-05"
                 OffsetY="2.33333333333195e-05"
                 Projection="Tan"
+                QuadTreeMap=""
                 Rotation="-0"
                 Sparse="True"
                 StockSet="False"
@@ -160,7 +161,8 @@ class TestMultiTan(object):
         """
         expected = etree.fromstring(
             self.WTML.replace('Thumbnail="thumb.jpg"', "").replace(
-                "<ThumbnailUrl>thumb.jpg</ThumbnailUrl>", ""
+                "<ThumbnailUrl>thumb.jpg</ThumbnailUrl>",
+                "<ThumbnailUrl></ThumbnailUrl>",
             )
         )
 

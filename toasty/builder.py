@@ -202,10 +202,17 @@ class Builder(object):
         return img
 
     def toast_base(self, sampler, depth, is_planet=False, is_pano=False, **kwargs):
-        from .toast import sample_layer
+        from .toast import sample_layer, ToastCoordinateSystem
 
         self._check_no_wcs_yet()
-        sample_layer(self.pio, sampler, depth, **kwargs)
+
+        coordsys = (
+            ToastCoordinateSystem.PLANETARY
+            if is_planet
+            else ToastCoordinateSystem.ASTRONOMICAL
+        )
+        coordsys = kwargs.pop("coordsys", coordsys)
+        sample_layer(self.pio, sampler, depth, coordsys=coordsys, **kwargs)
 
         if is_planet:
             self.imgset.data_set_type = DataSetType.PLANET

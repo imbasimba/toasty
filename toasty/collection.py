@@ -187,6 +187,12 @@ class SimpleFitsCollection(ImageCollection):
             wcs = WCS(hdu.header)
             shape = hdu.shape
 
+            if wcs.naxis >= len(shape):
+                # Sometimes the WCS defines more axes than are in the data cube;
+                # this should generally mean that there are virtual coordinate
+                # axes that we can think of as adding extra size-1 dimensions.
+                shape = (1,) * (wcs.naxis - len(shape)) + shape
+
             # We need to make sure the data are 2D celestial, since that's
             # what our image code and `reproject` (if it's being used) expect.
 
@@ -208,16 +214,17 @@ class SimpleFitsCollection(ImageCollection):
                     for t in full_wcs.get_axis_types()[::-1]
                 ]
 
-                for keep, axlen in zip(keep_axes, shape):
+                for axnum, (keep, axlen) in enumerate(zip(keep_axes, shape)):
                     if not keep and axlen != 1:
-                        raise Exception(
-                            f"cannot process input `{fits_path}`: found a non-celestial axis with size other than 1"
+                        warnings.warn(
+                            f"taking 0'th plane of non-celestial axis #{axnum} in input `{fits_path}`"
                         )
 
             # OK, almost there. Are we loading data or just the descriptor?
 
             if actually_load_data:
-                data = hdu.data
+                # Reshape in case of extra WCS axes:
+                data = hdu.data.reshape(shape)
 
                 if full_wcs is not None:  # need to subset?
                     data = data[tuple(slice(None) if k else 0 for k in keep_axes)]

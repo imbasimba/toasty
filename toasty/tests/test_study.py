@@ -126,6 +126,7 @@ class TestStudy(object):
     <Place
         Angle="0"
         AngularSize="0"
+        Constellation="GRU"
         DataSetType="Sky"
         Dec="-42.58752472831171"
         Magnitude="0"
@@ -204,6 +205,7 @@ class TestStudy(object):
     <Place
         Angle="0"
         AngularSize="0"
+        Constellation="GRU"
         DataSetType="Sky"
         Dec="-42.58752472831171"
         Magnitude="0"

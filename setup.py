@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2013-2020 Chris Beaumont and the AAS WorldWide Telescope team
+# Copyright 2013-2022 Chris Beaumont and the AAS WorldWide Telescope team
 # Licensed under the MIT License
 
 from __future__ import absolute_import, division, print_function
@@ -78,7 +78,7 @@ setup_args = dict(
         "reproject",
         "shapely",
         "tqdm>=4.0",
-        "wwt_data_formats>=0.12",
+        "wwt_data_formats>=0.13",
     ],
     extras_require={
         "test": [

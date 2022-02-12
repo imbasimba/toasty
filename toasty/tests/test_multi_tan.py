@@ -40,6 +40,7 @@ class TestMultiTan(object):
     <Place
         Angle="0"
         AngularSize="0"
+        Constellation="VIR"
         DataSetType="Sky"
         Dec="0.7438249862258411"
         Magnitude="0"

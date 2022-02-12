@@ -23,7 +23,7 @@ rotated by 180 degrees.
 """
 from __future__ import absolute_import, division, print_function
 
-__all__ = '''
+__all__ = """
 count_tiles_matching_filter
 create_single_tile
 generate_tiles
@@ -36,7 +36,7 @@ toast_pixel_for_point
 toast_tile_area
 toast_tile_for_point
 toast_tile_get_coords
-'''.split()
+""".split()
 
 from collections import namedtuple
 from enum import Enum
@@ -73,7 +73,12 @@ def _spherical_triangle_area(lat1, lon1, lat2, lon2, lat3, lon3):
     a = _arclength(lat2, lon2, lat3, lon3)
     b = _arclength(lat3, lon3, lat1, lon1)
     s = 0.5 * (a + b + c)
-    tane4 = np.sqrt(np.tan(0.5 * s) * np.tan(0.5 * (s - a)) * np.tan(0.5 * (s - b)) * np.tan(0.5 * (s - c)))
+    tane4 = np.sqrt(
+        np.tan(0.5 * s)
+        * np.tan(0.5 * (s - a))
+        * np.tan(0.5 * (s - b))
+        * np.tan(0.5 * (s - c))
+    )
     e = 4 * np.arctan(tane4)
     return e
 
@@ -83,24 +88,26 @@ class ToastCoordinateSystem(Enum):
     Different TOAST coordinate systems that are in use.
     """
 
-    ASTRONOMICAL = 'astronomical'
+    ASTRONOMICAL = "astronomical"
     """The default TOAST coordinate system, where the ``lat = lon = 0`` point
     lies at the middle right edge of the TOAST projection square."""
 
-    PLANETARY = 'planetary'
+    PLANETARY = "planetary"
     """The planetary TOAST coordinate system. This is rotated 180 degrees in
     longitude from the astronomical system, such that the ``lat = lon = 0``
     point lies at the middle left edge of the TOAST projection square."""
 
 
-Tile = namedtuple('Tile', 'pos corners increasing')
+Tile = namedtuple("Tile", "pos corners increasing")
 
-_level1_astronomical_lonlats = np.radians([
-    [(0, -90), (90, 0), (0, 90), (180, 0)],
-    [(90, 0), (0, -90), (0, 0), (0, 90)],
-    [(180, 0), (0, 90), (270, 0), (0, -90)],
-    [(0, 90), (0, 0), (0, -90), (270, 0)],
-])
+_level1_astronomical_lonlats = np.radians(
+    [
+        [(0, -90), (90, 0), (0, 90), (180, 0)],
+        [(90, 0), (0, -90), (0, 0), (0, 90)],
+        [(180, 0), (0, 90), (270, 0), (0, -90)],
+        [(0, 90), (0, 0), (0, -90), (270, 0)],
+    ]
+)
 _level1_astronomical_lonlats.flags.writeable = False
 
 
@@ -109,7 +116,7 @@ def _create_level1_tiles(coordsys):
 
     if coordsys == ToastCoordinateSystem.PLANETARY:
         lonlats = lonlats.copy()
-        lonlats[...,0] = (lonlats[...,0] + np.pi) % TWOPI
+        lonlats[..., 0] = (lonlats[..., 0] + np.pi) % TWOPI
 
     return [
         Tile(Pos(n=1, x=0, y=0), lonlats[0], True),
@@ -155,11 +162,13 @@ def _equ_to_xyz(lat, lon):
 
     """
     clat = np.cos(lat)
-    return np.array([
-        np.cos(lon) * clat,
-        np.sin(lat),
-        np.sin(lon) * clat,
-    ])
+    return np.array(
+        [
+            np.cos(lon) * clat,
+            np.sin(lat),
+            np.sin(lon) * clat,
+        ]
+    )
 
 
 def _left_of_half_space_score(point_a, point_b, test_point):
@@ -267,7 +276,7 @@ def toast_tile_for_point(depth, lat, lon, coordsys=ToastCoordinateSystem.ASTRONO
         return Tile(Pos(n=0, x=0, y=0), (None, None, None, None), False)
 
     for tile in _create_level1_tiles(coordsys):
-        if _toast_tile_containment_score(tile, lat, lon) == 0.:
+        if _toast_tile_containment_score(tile, lat, lon) == 0.0:
             break
 
     while tile.pos.n < depth:
@@ -283,7 +292,7 @@ def toast_tile_for_point(depth, lat, lon, coordsys=ToastCoordinateSystem.ASTRONO
         for child in _div4(tile):
             score = _toast_tile_containment_score(child, lat, lon)
 
-            if score == 0.:
+            if score == 0.0:
                 tile = child
                 break
 
@@ -355,7 +364,7 @@ def toast_pixel_for_point(depth, lat, lon, coordsys=ToastCoordinateSystem.ASTRON
     # that is closest to the input position.
 
     lons, lats = toast_tile_get_coords(tile)
-    dist2 = (lons - lon)**2 + (lats - lat)**2
+    dist2 = (lons - lon) ** 2 + (lats - lat) ** 2
     min_y, min_x = np.unravel_index(np.argmin(dist2), (256, 256))
 
     # Now, identify a postage stamp around that best-fit pixel and fit a biquadratic
@@ -367,21 +376,23 @@ def toast_pixel_for_point(depth, lat, lon, coordsys=ToastCoordinateSystem.ASTRON
     x1 = min(min_x + halfsize + 1, 256)
     y1 = min(min_y + halfsize + 1, 256)
 
-    dist2_stamp = dist2[y0:y1,x0:x1]
-    lons_stamp = lons[y0:y1,x0:x1]
-    lats_stamp = lats[y0:y1,x0:x1]
+    dist2_stamp = dist2[y0:y1, x0:x1]
+    lons_stamp = lons[y0:y1, x0:x1]
+    lats_stamp = lats[y0:y1, x0:x1]
 
     flat_lons = lons_stamp.flatten()
     flat_lats = lats_stamp.flatten()
 
-    A = np.array([
-        flat_lons * 0 + 1,
-        flat_lons,
-        flat_lats,
-        flat_lons**2,
-        flat_lons * flat_lats,
-        flat_lats**2,
-    ]).T
+    A = np.array(
+        [
+            flat_lons * 0 + 1,
+            flat_lons,
+            flat_lats,
+            flat_lons ** 2,
+            flat_lons * flat_lats,
+            flat_lats ** 2,
+        ]
+    ).T
 
     ygrid, xgrid = np.indices(dist2_stamp.shape)
     x_coeff, _r, _rank, _s = np.linalg.lstsq(A, xgrid.flatten(), rcond=None)
@@ -389,14 +400,16 @@ def toast_pixel_for_point(depth, lat, lon, coordsys=ToastCoordinateSystem.ASTRON
 
     # Evaluate the polynomial to get the refined pixel coordinates.
 
-    pt = np.array([
-        1,
-        lon,
-        lat,
-        lon**2,
-        lon * lat,
-        lat**2,
-    ])
+    pt = np.array(
+        [
+            1,
+            lon,
+            lat,
+            lon ** 2,
+            lon * lat,
+            lat ** 2,
+        ]
+    )
     x = np.dot(x_coeff, pt)
     y = np.dot(y_coeff, pt)
     return tile, x0 + x, y0 + y
@@ -451,9 +464,9 @@ def _div4(tile):
     y *= 2
 
     return [
-        Tile(Pos(n=n, x=x,     y=y    ), (ul, to, ce, le), increasing),
-        Tile(Pos(n=n, x=x + 1, y=y    ), (to, ur, ri, ce), increasing),
-        Tile(Pos(n=n, x=x,     y=y + 1), (le, ce, bo, ll), increasing),
+        Tile(Pos(n=n, x=x, y=y), (ul, to, ce, le), increasing),
+        Tile(Pos(n=n, x=x + 1, y=y), (to, ur, ri, ce), increasing),
+        Tile(Pos(n=n, x=x, y=y + 1), (le, ce, bo, ll), increasing),
         Tile(Pos(n=n, x=x + 1, y=y + 1), (ce, ri, lr, bo), increasing),
     ]
 
@@ -482,7 +495,7 @@ def create_single_tile(pos, coordsys=ToastCoordinateSystem.ASTRONOMICAL):
     """
 
     if pos.n == 0:
-        raise ValueError('cannot create a Tile for the n=0 tile')
+        raise ValueError("cannot create a Tile for the n=0 tile")
 
     children = _create_level1_tiles(coordsys)
     cur_n = 0
@@ -499,7 +512,9 @@ def create_single_tile(pos, coordsys=ToastCoordinateSystem.ASTRONOMICAL):
         children = _div4(tile)
 
 
-def generate_tiles(depth, bottom_only=True, coordsys=ToastCoordinateSystem.ASTRONOMICAL):
+def generate_tiles(
+    depth, bottom_only=True, coordsys=ToastCoordinateSystem.ASTRONOMICAL
+):
     """Generate a pyramid of TOAST tiles in deepest-first order.
 
     Parameters
@@ -520,10 +535,14 @@ def generate_tiles(depth, bottom_only=True, coordsys=ToastCoordinateSystem.ASTRO
     The ``n = 0`` depth is not included.
 
     """
-    return generate_tiles_filtered(depth, lambda t: True, bottom_only, coordsys=coordsys)
+    return generate_tiles_filtered(
+        depth, lambda t: True, bottom_only, coordsys=coordsys
+    )
 
 
-def generate_tiles_filtered(depth, filter, bottom_only=True, coordsys=ToastCoordinateSystem.ASTRONOMICAL):
+def generate_tiles_filtered(
+    depth, filter, bottom_only=True, coordsys=ToastCoordinateSystem.ASTRONOMICAL
+):
     """Generate a pyramid of TOAST tiles in deepest-first order, filtering out subtrees.
 
     Parameters
@@ -552,7 +571,9 @@ def generate_tiles_filtered(depth, filter, bottom_only=True, coordsys=ToastCoord
             yield item
 
 
-def count_tiles_matching_filter(depth, filter, bottom_only=True, coordsys=ToastCoordinateSystem.ASTRONOMICAL):
+def count_tiles_matching_filter(
+    depth, filter, bottom_only=True, coordsys=ToastCoordinateSystem.ASTRONOMICAL
+):
     """
     Count the number of tiles matching a filter.
 
@@ -570,7 +591,7 @@ def count_tiles_matching_filter(depth, filter, bottom_only=True, coordsys=ToastC
         :attr:`ToastCoordinateSystem.ASTRONOMICAL`.
 
     Returns
-    ------
+    -------
     The number of tiles matching the filter. Even if ``bottom_only`` is false,
     the ``n = 0`` tile is not counted.
 
@@ -582,7 +603,9 @@ def count_tiles_matching_filter(depth, filter, bottom_only=True, coordsys=ToastC
     # With a generic filter function, brute force is our only option:
     n = 0
 
-    for _tile in generate_tiles_filtered(depth, filter, bottom_only=bottom_only, coordsys=coordsys):
+    for _tile in generate_tiles_filtered(
+        depth, filter, bottom_only=bottom_only, coordsys=coordsys
+    ):
         n += 1
 
     return n
@@ -627,10 +650,13 @@ def sample_layer(
     """
 
     from .par_util import resolve_parallelism
+
     parallel = resolve_parallelism(parallel)
 
     if parallel > 1:
-        _sample_layer_parallel(pio, format, sampler, depth, coordsys, cli_progress, parallel)
+        _sample_layer_parallel(
+            pio, format, sampler, depth, coordsys, cli_progress, parallel
+        )
     else:
         _sample_layer_serial(pio, format, sampler, depth, coordsys, cli_progress)
 
@@ -647,15 +673,19 @@ def _sample_layer_serial(pio, format, sampler, depth, coordsys, cli_progress):
         print()
 
 
-def _sample_layer_parallel(pio, format, sampler, depth, coordsys, cli_progress, parallel):
+def _sample_layer_parallel(
+    pio, format, sampler, depth, coordsys, cli_progress, parallel
+):
     import multiprocessing as mp
 
     done_event = mp.Event()
-    queue = mp.Queue(maxsize = 2 * parallel)
+    queue = mp.Queue(maxsize=2 * parallel)
     workers = []
 
     for _ in range(parallel):
-        w = mp.Process(target=_mp_sample_worker, args=(queue, done_event, pio, sampler, format))
+        w = mp.Process(
+            target=_mp_sample_worker, args=(queue, done_event, pio, sampler, format)
+        )
         w.daemon = True
         w.start()
         workers.append(w)
@@ -738,25 +768,38 @@ def sample_layer_filtered(
     """
 
     from .par_util import resolve_parallelism
+
     parallel = resolve_parallelism(parallel)
 
     if parallel > 1:
-        _sample_filtered_parallel(pio, tile_filter, sampler, depth, coordsys, cli_progress, parallel)
+        _sample_filtered_parallel(
+            pio, tile_filter, sampler, depth, coordsys, cli_progress, parallel
+        )
     else:
-        _sample_filtered_serial(pio, tile_filter, sampler, depth, coordsys, cli_progress)
+        _sample_filtered_serial(
+            pio, tile_filter, sampler, depth, coordsys, cli_progress
+        )
 
 
 def _sample_filtered_serial(pio, tile_filter, sampler, depth, coordsys, cli_progress):
-    n_todo = count_tiles_matching_filter(depth, tile_filter, bottom_only=True, coordsys=coordsys)
+    n_todo = count_tiles_matching_filter(
+        depth, tile_filter, bottom_only=True, coordsys=coordsys
+    )
 
     with tqdm(total=n_todo, disable=not cli_progress) as progress:
-        for tile in generate_tiles_filtered(depth, tile_filter, bottom_only=True, coordsys=coordsys):
+        for tile in generate_tiles_filtered(
+            depth, tile_filter, bottom_only=True, coordsys=coordsys
+        ):
             lon, lat = toast_tile_get_coords(tile)
             sampled_data = sampler(lon, lat)
             img = Image.from_array(sampled_data)
 
-            with pio.update_image(tile.pos, masked_mode=img.mode, default='masked') as basis:
-                img.update_into_maskable_buffer(basis, slice(None), slice(None), slice(None), slice(None))
+            with pio.update_image(
+                tile.pos, masked_mode=img.mode, default="masked"
+            ) as basis:
+                img.update_into_maskable_buffer(
+                    basis, slice(None), slice(None), slice(None), slice(None)
+                )
 
             progress.update(1)
 
@@ -767,17 +810,23 @@ def _sample_filtered_serial(pio, tile_filter, sampler, depth, coordsys, cli_prog
     # chunks in parallel.
 
 
-def _sample_filtered_parallel(pio, tile_filter, sampler, depth, coordsys, cli_progress, parallel):
+def _sample_filtered_parallel(
+    pio, tile_filter, sampler, depth, coordsys, cli_progress, parallel
+):
     import multiprocessing as mp
 
-    n_todo = count_tiles_matching_filter(depth, tile_filter, bottom_only=True, coordsys=coordsys)
+    n_todo = count_tiles_matching_filter(
+        depth, tile_filter, bottom_only=True, coordsys=coordsys
+    )
 
     done_event = mp.Event()
-    queue = mp.Queue(maxsize = 2 * parallel)
+    queue = mp.Queue(maxsize=2 * parallel)
     workers = []
 
     for _ in range(parallel):
-        w = mp.Process(target=_mp_sample_filtered, args=(queue, done_event, pio, sampler))
+        w = mp.Process(
+            target=_mp_sample_filtered, args=(queue, done_event, pio, sampler)
+        )
         w.daemon = True
         w.start()
         workers.append(w)
@@ -785,7 +834,9 @@ def _sample_filtered_parallel(pio, tile_filter, sampler, depth, coordsys, cli_pr
     # Here we go:
 
     with tqdm(total=n_todo, disable=not cli_progress) as progress:
-        for tile in generate_tiles_filtered(depth, tile_filter, bottom_only=True, coordsys=coordsys):
+        for tile in generate_tiles_filtered(
+            depth, tile_filter, bottom_only=True, coordsys=coordsys
+        ):
             queue.put(tile)
             progress.update(1)
 
@@ -828,5 +879,9 @@ def _mp_sample_filtered(queue, done_event, pio, sampler):
         sampled_data = sampler(lon, lat)
         img = Image.from_array(sampled_data)
 
-        with pio.update_image(tile.pos, masked_mode=img.mode, default='masked') as basis:
-            img.update_into_maskable_buffer(basis, slice(None), slice(None), slice(None), slice(None))
+        with pio.update_image(
+            tile.pos, masked_mode=img.mode, default="masked"
+        ) as basis:
+            img.update_into_maskable_buffer(
+                basis, slice(None), slice(None), slice(None), slice(None)
+            )

@@ -28,14 +28,16 @@ successful.
 
 .. _WCS: https://fits.gsfc.nasa.gov/fits_wcs.html
 
-By default, only the presence of AVM data is reported. If the ``--print`` or
-``-p`` option is given, the AVM data will be dumped out.
+By default, the presence of AVM data is reported along with some information
+about the agreement between the AVM and the image shape. If the ``--print`` or
+``-p`` option is given, the actual AVM data will be dumped out.
 
 If the ``--exitcode`` option is given, the exit code of the command line tool
-will reflect whether AVM data were found. Zero (success) means that data were
-found, while nonzero (failure) indicates that no data were present, the data
-were corrupt, or that some other failure occurred. Without this option, the exit
-code will be zero if the image can be opened but contains no AVM data.
+will reflect whether spatial AVM data were found. Zero (success) means that
+spatial data were found, while nonzero (failure) indicates that no data were
+present, the data were corrupt, or that some other failure occurred. Without
+this option, the exit code will be zero if the image can be opened but contains
+no AVM data.
 
 
 Notes

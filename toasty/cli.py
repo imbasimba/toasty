@@ -105,6 +105,8 @@ def check_avm_getparser(parser):
 
 
 def check_avm_impl(settings):
+    from .image import ImageLoader
+
     try:
         from pyavm import AVM, exceptions
 
@@ -129,15 +131,61 @@ def check_avm_impl(settings):
             f"{settings.image}: AVM data are present but malformed: {e} ({e.__class__.__name__})"
         )
         sys.exit(1)
-    except IOError as e:
-        die(f"error probing AVM tags of `{settings.image}`: {e}")
+    except Exception as e:
+        die(
+            f"error probing AVM tags of `{settings.image}`: {e} ({e.__class__.__name__})"
+        )
+
+    status_exitcode = 0
 
     if settings.print_avm:
-        print(f"{settings.image}: AVM tags are present")
+        print_remark = ""
+    else:
+        print_remark = " (use `--print` to display them)"
+
+    print(f"{settings.image}: AVM tags are present{print_remark}")
+
+    if repr(avm.Spatial) == "":
+        print(f"{settings.image}: however, no spatial information")
+        status_exitcode = 1
+    elif avm.Spatial.ReferenceDimension is None:
+        print(
+            f"{settings.image}: including spatial information, but no reference dimension"
+        )
+    else:
+        img = ImageLoader().load_path(settings.image)
+        this_shape = (int(img.width), int(img.height))
+        ref_shape = (
+            int(avm.Spatial.ReferenceDimension[0]),
+            int(avm.Spatial.ReferenceDimension[1]),
+        )
+
+        if this_shape == ref_shape:
+            print(
+                f"{settings.image}: including spatial information for this image's dimensions"
+            )
+        else:
+            print(
+                f"{settings.image}: including spatial information at a different scale"
+            )
+            print(
+                f"{settings.image}: AVM is for {ref_shape[0]} x {ref_shape[1]}, image is {this_shape[0]} x {this_shape[1]}"
+            )
+            this_aspect = this_shape[0] / this_shape[1]
+            ref_aspect = ref_shape[0] / ref_shape[1]
+
+            # The threshold here approximates the one used by pyavm
+            if abs(this_aspect - ref_aspect) / (this_aspect + ref_aspect) >= 0.005:
+                print(
+                    f"{settings.image}: WARNING: these aspect ratios are not compatible"
+                )
+                status_exitcode = 1
+
+    if settings.print_avm:
         print()
         print(avm)
-    else:
-        print(f"{settings.image}: AVM tags are present (use `--print` to display them)")
+
+    sys.exit(status_exitcode if settings.exitcode else 0)
 
 
 # "make_thumbnail" subcommand

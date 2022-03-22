@@ -98,8 +98,13 @@ def _find_healpix_extension_index(pth):
 
     """
     for i, hdu in enumerate(pth):
-        if hdu.header.get("PIXTYPE") == "HEALPIX":
-            return i
+        if hdu.data is None:
+            continue
+
+        if hdu.header.get("PIXTYPE") != "HEALPIX":
+            continue
+
+        return i
     else:
         raise IndexError("No HEALPIX extensions found in %s" % pth.filename())
 

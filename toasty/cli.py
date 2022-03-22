@@ -378,6 +378,13 @@ def tile_healpix_getparser(parser):
         help="The root directory of the output tile pyramid",
     )
     parser.add_argument(
+        "--parallelism",
+        "-j",
+        metavar="COUNT",
+        type=int,
+        help="The parallelization level (default: use all CPUs if OS supports; specify `1` to force serial processing)",
+    )
+    parser.add_argument(
         "fitspath",
         metavar="PATH",
         help="The HEALPix FITS file to be tiled",
@@ -395,12 +402,17 @@ def tile_healpix_impl(settings):
     from .pyramid import PyramidIO
     from .samplers import healpix_fits_file_sampler
 
-    pio = PyramidIO(settings.outdir, default_format="npy")
+    pio = PyramidIO(settings.outdir, default_format="fits")
     sampler = healpix_fits_file_sampler(
         settings.fitspath, force_galactic=settings.galactic
     )
     builder = Builder(pio)
-    builder.toast_base(sampler, settings.depth)
+    builder.toast_base(
+        sampler,
+        settings.depth,
+        parallel=settings.parallelism,
+        cli_progress=True,
+    )
     builder.write_index_rel_wtml()
 
     print(

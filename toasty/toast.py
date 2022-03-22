@@ -662,10 +662,17 @@ def sample_layer(
 
 
 def _sample_layer_serial(pio, format, sampler, depth, coordsys, cli_progress):
+    # The usual vertical flip that we may need if tiling into FITS:
+    invert_into_tiles = pio.get_default_vertical_parity_sign() == 1
+
     with tqdm(total=tiles_at_depth(depth), disable=not cli_progress) as progress:
         for tile in generate_tiles(depth, bottom_only=True, coordsys=coordsys):
             lon, lat = toast_tile_get_coords(tile)
             sampled_data = sampler(lon, lat)
+
+            if invert_into_tiles:
+                sampled_data = sampled_data[::-1]
+
             pio.write_image(tile.pos, Image.from_array(sampled_data), format=format)
             progress.update(1)
 
@@ -716,6 +723,9 @@ def _mp_sample_worker(queue, done_event, pio, sampler, format):
     """
     from queue import Empty
 
+    # The usual vertical flip that we may need if tiling into FITS:
+    invert_into_tiles = pio.get_default_vertical_parity_sign() == 1
+
     while True:
         try:
             tile = queue.get(True, timeout=1)
@@ -726,6 +736,10 @@ def _mp_sample_worker(queue, done_event, pio, sampler, format):
 
         lon, lat = toast_tile_get_coords(tile)
         sampled_data = sampler(lon, lat)
+
+        if invert_into_tiles:
+            sampled_data = sampled_data[::-1]
+
         pio.write_image(tile.pos, Image.from_array(sampled_data), format=format)
 
 
@@ -786,12 +800,19 @@ def _sample_filtered_serial(pio, tile_filter, sampler, depth, coordsys, cli_prog
         depth, tile_filter, bottom_only=True, coordsys=coordsys
     )
 
+    # The usual vertical flip that we may need if tiling into FITS:
+    invert_into_tiles = pio.get_default_vertical_parity_sign() == 1
+
     with tqdm(total=n_todo, disable=not cli_progress) as progress:
         for tile in generate_tiles_filtered(
             depth, tile_filter, bottom_only=True, coordsys=coordsys
         ):
             lon, lat = toast_tile_get_coords(tile)
             sampled_data = sampler(lon, lat)
+
+            if invert_into_tiles:
+                sampled_data = sampled_data[::-1]
+
             img = Image.from_array(sampled_data)
 
             with pio.update_image(
@@ -867,6 +888,9 @@ def _mp_sample_filtered(queue, done_event, pio, sampler):
 
     from queue import Empty
 
+    # The usual vertical flip that we may need if tiling into FITS:
+    invert_into_tiles = pio.get_default_vertical_parity_sign() == 1
+
     while True:
         try:
             tile = queue.get(True, timeout=1)
@@ -877,6 +901,10 @@ def _mp_sample_filtered(queue, done_event, pio, sampler):
 
         lon, lat = toast_tile_get_coords(tile)
         sampled_data = sampler(lon, lat)
+
+        if invert_into_tiles:
+            sampled_data = sampled_data[::-1]
+
         img = Image.from_array(sampled_data)
 
         with pio.update_image(

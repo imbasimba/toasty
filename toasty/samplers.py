@@ -78,7 +78,7 @@ def healpix_sampler(data, nest=False, coord="C", interpolation="nearest"):
     def vec2pix(l, b):
         if galactic:
             f = ICRS(l * u.rad, b * u.rad)
-            g = f.transform_to(Galactic)
+            g = f.transform_to(Galactic())
             l, b = g.l.rad, g.b.rad
 
         theta = np.pi / 2 - b
@@ -98,13 +98,20 @@ def _find_healpix_extension_index(pth):
 
     """
     for i, hdu in enumerate(pth):
-        if hdu.header.get("PIXTYPE") == "HEALPIX":
-            return i
+        if hdu.data is None:
+            continue
+
+        if hdu.header.get("PIXTYPE") != "HEALPIX":
+            continue
+
+        return i
     else:
         raise IndexError("No HEALPIX extensions found in %s" % pth.filename())
 
 
-def healpix_fits_file_sampler(path, extension=None, interpolation="nearest"):
+def healpix_fits_file_sampler(
+    path, extension=None, interpolation="nearest", force_galactic=False
+):
     """Create a sampler for HEALPix data read from a FITS file.
 
     Parameters
@@ -118,6 +125,9 @@ def healpix_fits_file_sampler(path, extension=None, interpolation="nearest"):
         What interpolation scheme to use.
 
         WARNING: bilinear uses healpy's get_interp_val, which seems prone to segfaults
+    force_galactic : bool
+        If true, force use of Galactic coordinate system, regardless of
+        what the headers say.
 
     Returns
     -------
@@ -142,6 +152,9 @@ def healpix_fits_file_sampler(path, extension=None, interpolation="nearest"):
 
         nest = hdr.get("ORDERING") == "NESTED"
         coord = hdr.get("COORDSYS", "C")
+
+    if force_galactic:
+        coord = "G"
 
     return healpix_sampler(data, nest, coord, interpolation)
 

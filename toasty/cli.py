@@ -367,10 +367,22 @@ def tile_allsky_impl(settings):
 
 def tile_healpix_getparser(parser):
     parser.add_argument(
+        "--galactic",
+        action="store_true",
+        help="Force use of Galactic coordinate system, regardless of headers",
+    )
+    parser.add_argument(
         "--outdir",
         metavar="PATH",
         default=".",
         help="The root directory of the output tile pyramid",
+    )
+    parser.add_argument(
+        "--parallelism",
+        "-j",
+        metavar="COUNT",
+        type=int,
+        help="The parallelization level (default: use all CPUs if OS supports; specify `1` to force serial processing)",
     )
     parser.add_argument(
         "fitspath",
@@ -390,10 +402,17 @@ def tile_healpix_impl(settings):
     from .pyramid import PyramidIO
     from .samplers import healpix_fits_file_sampler
 
-    pio = PyramidIO(settings.outdir, default_format="npy")
-    sampler = healpix_fits_file_sampler(settings.fitspath)
+    pio = PyramidIO(settings.outdir, default_format="fits")
+    sampler = healpix_fits_file_sampler(
+        settings.fitspath, force_galactic=settings.galactic
+    )
     builder = Builder(pio)
-    builder.toast_base(sampler, settings.depth)
+    builder.toast_base(
+        sampler,
+        settings.depth,
+        parallel=settings.parallelism,
+        cli_progress=True,
+    )
     builder.write_index_rel_wtml()
 
     print(

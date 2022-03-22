@@ -367,6 +367,11 @@ def tile_allsky_impl(settings):
 
 def tile_healpix_getparser(parser):
     parser.add_argument(
+        "--galactic",
+        action="store_true",
+        help="Force use of Galactic coordinate system, regardless of headers",
+    )
+    parser.add_argument(
         "--outdir",
         metavar="PATH",
         default=".",
@@ -391,7 +396,9 @@ def tile_healpix_impl(settings):
     from .samplers import healpix_fits_file_sampler
 
     pio = PyramidIO(settings.outdir, default_format="npy")
-    sampler = healpix_fits_file_sampler(settings.fitspath)
+    sampler = healpix_fits_file_sampler(
+        settings.fitspath, force_galactic=settings.galactic
+    )
     builder = Builder(pio)
     builder.toast_base(sampler, settings.depth)
     builder.write_index_rel_wtml()

@@ -35,12 +35,12 @@ workflow in this case is as follows:
    which the curved surface of the sphere is mapped onto a 2D image. For
    full-sphere imagery, only a few choices are ever used: probably the main
    thing to check is whether your image is in equatorial (RA/Dec) or galactic
-   (l/b) coordinates. Consult the :ref:`cli-tile-allsky` documentation for the
-   supported choices. If your image uses an unsupported projection, please `file
-   a request`_ with the developers.
+   (l/b) coordinates. Consult the :ref:`cli-tile-allsky` documentation (or
+   :ref:`cli-tile-healpix`) for the supported choices. If your image uses an
+   unsupported projection, please `file a request`_ with the developers.
 
-4. Determine the *tiling depth* appropriate for your use case. The depth is a number
-   that specifies the highest resolution that your final map will attain.
+4. Determine the *tiling depth* appropriate for your use case. The depth is a
+   number that specifies the highest resolution that your final map will attain.
    Consult the :ref:`cli-tile-allsky` documentation for the quantitative
    definition. The best choice will depend on your individual circumstances. But
    as a general guideline, you should probably choose the depth that yields a
@@ -124,7 +124,7 @@ workflow in this case is as follows:
 
 11. Finally, upload the complete contents of your ``tiled`` subdirectory to your
     web server. In this case, the upload location should be such that the url
-    ``http://myserver.org/datasetname/index.wtml``_ will yield the
+    ``http://myserver.org/datasetname/index.wtml`` will yield the
     ``index.wtml`` file created in the previous step.
 
 .. _file a request: https://github.com/WorldWideTelescope/toasty/issues/

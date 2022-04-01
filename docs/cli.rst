@@ -16,6 +16,7 @@ CLI Reference
    cli/pipeline-publish
    cli/pipeline-refresh
    cli/tile-allsky
+   cli/tile-healpix
    cli/tile-study
    cli/tile-wwtl
    cli/transform-fx3-to-rgb

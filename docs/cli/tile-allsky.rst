@@ -105,3 +105,9 @@ because ``fork()``-based multiprocessing is required. MacOS should support this,
 but there is currently (as of Python 3.8) `a bug`_ preventing that.
 
 .. _a bug: https://bugs.python.org/issue33725
+
+
+See Also
+========
+
+- :ref:`cli-tile-healpix`

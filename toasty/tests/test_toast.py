@@ -305,12 +305,12 @@ class TestCliBasic(PyramidTester):
             test_path("Equirectangular_projection_SW-tweaked.jpg")
         )
         hw = img.width // 2
-        buf = img.asarray()
+
+        buf = img._as_writeable_array()
         temp = buf[:, hw:].copy()
         buf[:, hw:] = buf[:, :hw]
         buf[:, :hw] = temp
-        img._array = buf  # hack!
-        img._pil = None
+
         p = self.work_path("zeroleft.jpg")
         img.save(p, format="jpg")
         self.inner_test(
@@ -327,12 +327,13 @@ class TestCliBasic(PyramidTester):
             test_path("Equirectangular_projection_SW-tweaked.jpg")
         )
         hw = img.width // 2
-        buf = img.asarray()
+
+        buf = img._as_writeable_array()
         temp = buf[:, hw:].copy()
         buf[:, hw:] = buf[:, :hw]
         buf[:, :hw] = temp
         img._array = buf[:, ::-1]  # hack!
-        img._pil = None
+
         p = self.work_path("zeroright.jpg")
         img.save(p, format="jpg")
         self.inner_test(

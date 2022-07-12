@@ -1022,6 +1022,29 @@ class Image(object):
             self.flip_parity()
         return self
 
+    def _as_writeable_array(self):
+        """
+        Helper that does what it says. Should potentially become a public API at
+        some point?
+        """
+
+        arr = self.asarray()
+
+        if not arr.flags.writeable:
+            try:
+                arr.setflags(write=True)
+            except ValueError:
+                # Source array is immutable, perhaps because it does not own its
+                # data (OWNDATA flag is false). In that case we have to copy:
+                arr = arr.copy()
+                self._array = arr
+
+        # Ensure that we don't try to use the PIL representation anymore, since
+        # it will be out-of-date.
+        self._pil = None
+
+        return arr
+
     def fill_into_maskable_buffer(self, buffer, iy_idx, ix_idx, by_idx, bx_idx):
         """
         Fill a maskable buffer with a rectangle of data from this image.
@@ -1049,11 +1072,7 @@ class Image(object):
 
         """
         i = self.asarray()
-        b = buffer.asarray()
-
-        # Ensure that we don't try to use the PIL representation of the buffer anymore,
-        # since it will be out-of-date.
-        buffer._pil = None
+        b = buffer._as_writeable_array()
 
         if self.mode == ImageMode.RGB:
             b.fill(0)
@@ -1093,11 +1112,7 @@ class Image(object):
 
         """
         i = self.asarray()
-        b = buffer.asarray()
-
-        # Ensure that we don't try to use the PIL representation of the buffer anymore,
-        # since it will be out-of-date.
-        buffer._pil = None
+        b = buffer._as_writeable_array()
 
         sub_b = b[by_idx, bx_idx]
         sub_i = i[iy_idx, ix_idx]

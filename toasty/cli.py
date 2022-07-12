@@ -502,6 +502,11 @@ def tile_study_getparser(parser):
         help="Expect the input image to have AVM positioning tags",
     )
     parser.add_argument(
+        "--avm-from",
+        metavar="PATH",
+        help="Set positioning based on AVM tags in a different image",
+    )
+    parser.add_argument(
         "--fits-wcs",
         metavar="PATH",
         help="Get WCS information from this FITS file",
@@ -540,7 +545,7 @@ def tile_study_impl(settings):
 
     # Now deal with the WCS
 
-    if settings.avm:
+    if settings.avm or settings.avm_from:
         # We don't *always* check for AVM because pyavm prints out a lot of junk
         # and may not be installed.
         try:
@@ -551,10 +556,21 @@ def tile_study_impl(settings):
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                avm = AVM.from_image(settings.imgpath)
+
+                if settings.avm_from:
+                    if settings.avm:
+                        print(
+                            "warning: `--avm` option superseded by `--avm-from`",
+                            file=sys.stderr,
+                        )
+                    avm_input = settings.avm_from
+                else:
+                    avm_input = settings.imgpath
+
+                avm = AVM.from_image(avm_input)
         except Exception:
             print(
-                f"error: failed to read AVM tags of input `{settings.imgpath}`",
+                f"error: failed to read AVM tags of input `{avm_input}`",
                 file=sys.stderr,
             )
             raise

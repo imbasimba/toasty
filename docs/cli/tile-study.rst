@@ -18,6 +18,7 @@ Usage
       [--outdir DIR]
       [--name NAME]
       [--avm]
+      [--avm-from PATH]
       [--fits-wcs PATH]
       IMAGE-PATH
 
@@ -48,6 +49,12 @@ requires the `pyavm`_ package to be installed on your system.
 .. _Astronomy Visualization Metadata: https://virtualastronomy.org/avm_metadata.php
 
 .. _pyavm: https://astrofrog.github.io/pyavm/
+
+The ``--avm-from PATH`` argument is like ``--avm``, but loads the AVM
+information from a *different* image file. This can be useful if you have
+multiple files with different versions of the same image, and the one that you
+want to tile has broken or missing AVM. It is up to you to ensure that
+information contained in the AVM file corresponds to the main input image.
 
 If the ``--fits-wcs`` argument is given, Toasty will attempt to load
 world-coordinate information from the headers of the named `FITS`_ file. It is

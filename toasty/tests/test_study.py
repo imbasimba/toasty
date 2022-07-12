@@ -170,8 +170,7 @@ class TestStudy(object):
     </Place>
 </Folder>"""
 
-    @pytest.mark.skipif("not HAS_AVM")
-    def test_avm(self):
+    def basic_avm_test_helper(self, args):
         from xml.etree import ElementTree as etree
 
         # Hack for macOS: XML textualization is ever-so-slightly different.
@@ -183,7 +182,16 @@ class TestStudy(object):
 
         expected = etree.fromstring(wtml)
 
-        cli.entrypoint(
+        cli.entrypoint(args)
+
+        with open(self.work_path("index_rel.wtml"), "rt", encoding="utf8") as f:
+            observed = etree.fromstring(f.read())
+
+        assert_xml_elements_equal(observed, expected)
+
+    @pytest.mark.skipif("not HAS_AVM")
+    def test_avm(self):
+        self.basic_avm_test_helper(
             [
                 "tile-study",
                 "--avm",
@@ -193,10 +201,19 @@ class TestStudy(object):
             ]
         )
 
-        with open(self.work_path("index_rel.wtml"), "rt", encoding="utf8") as f:
-            observed = etree.fromstring(f.read())
-
-        assert_xml_elements_equal(observed, expected)
+    @pytest.mark.skipif("not HAS_AVM")
+    def test_avm_from(self):
+        # Dumb smoke test here
+        self.basic_avm_test_helper(
+            [
+                "tile-study",
+                "--avm-from",
+                test_path("geminiann11015a.jpg"),
+                "--outdir",
+                self.work_path(),
+                test_path("geminiann11015a.jpg"),
+            ]
+        )
 
     # Blah: this is the same as AVM_WTML, minus the metadata fields that aren't
     # preserved in the FITS export.

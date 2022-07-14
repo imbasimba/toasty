@@ -41,6 +41,10 @@ MATCH_HEADERS = [
     "CRVAL2",
     "CDELT1",
     "CDELT2",
+    "PC1_1",
+    "PC1_2",
+    "PC2_1",
+    "PC2_2",
 ]
 
 
@@ -108,7 +112,9 @@ class ImageCollection(ABC):
                 ref_headers = {}
 
                 for h in MATCH_HEADERS:
-                    ref_headers[h] = header[h]
+                    value = header.get(h)
+                    if value is not None:
+                        ref_headers[h] = value
 
                 if (
                     ref_headers["CTYPE1"] != "RA---TAN"
@@ -116,8 +122,7 @@ class ImageCollection(ABC):
                 ):
                     return False
             else:
-                for h in MATCH_HEADERS:
-                    expected = ref_headers[h]
+                for h, expected in ref_headers.items():
                     observed = header[h]
 
                     if observed != expected:

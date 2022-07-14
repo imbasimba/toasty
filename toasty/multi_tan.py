@@ -31,6 +31,8 @@ MATCH_HEADERS = [
 # np.isclose() or whatever it is.
 SAVE_HEADERS = [
     "PC1_1",
+    "PC1_2",
+    "PC2_1",
     "PC2_2",
 ]
 
@@ -97,7 +99,9 @@ class MultiTanProcessor(object):
                     ref_headers[h] = header[h]
 
                 for h in SAVE_HEADERS:
-                    ref_headers[h] = header[h]
+                    value = header.get(h)
+                    if value is not None:
+                        ref_headers[h] = value
 
                 if ref_headers["CTYPE1"] != "RA---TAN":
                     raise Exception(

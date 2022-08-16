@@ -15,10 +15,12 @@ from .. import cli
 class TestMiscCli(object):
     def setup_method(self, method):
         from tempfile import mkdtemp
+
         self.work_dir = mkdtemp()
 
     def teardown_method(self, method):
         from shutil import rmtree
+
         rmtree(self.work_dir)
 
     def work_path(self, *pieces):
@@ -29,9 +31,9 @@ class TestMiscCli(object):
         Just a smoketest.
         """
         args = [
-            'make-thumbnail',
-            test_path('Equirectangular_projection_SW-tweaked.jpg'),
-            self.work_path('basic_cli'),
+            "make-thumbnail",
+            test_path("Equirectangular_projection_SW-tweaked.jpg"),
+            self.work_path("basic_cli"),
         ]
         cli.entrypoint(args)
 
@@ -43,10 +45,28 @@ class TestMiscCli(object):
 
         parser = argparse.ArgumentParser()
         ImageLoader.add_arguments(parser)
-        settings = parser.parse_args(['--crop=1,2,3,4'])
-        img = ImageLoader.create_from_args(settings).load_path(test_path('crop_input.png'))
+        settings = parser.parse_args(["--crop=1,2,3,4"])
+        img = ImageLoader.create_from_args(settings).load_path(
+            test_path("crop_input.png")
+        )
         arr = img.asarray()
         assert arr.shape == (256, 256, 3)
         assert arr.max() == 0
 
+    def test_show_concept_doi(self):
+        """
+        More smoketests.
+        """
+        cli.entrypoint(["show", "concept-doi"])
 
+    def test_show_version(self):
+        """
+        More smoketests.
+        """
+        cli.entrypoint(["show", "version"])
+
+    def test_show_version_doi(self):
+        """
+        More smoketests.
+        """
+        cli.entrypoint(["show", "version-doi"])

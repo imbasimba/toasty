@@ -15,8 +15,9 @@
         name: 'Beaumont, Christopher',
       },
       {
-        affiliation: 'Space Telescope Science Institute',
+        affiliation: 'Space Telescope Science Institute; SUPA, School of Physics and Astronomy, University of St. Andrews',
         name: 'Brasseur, C.',
+        orcid: '0000-0002-9314-960X',
       },
       {
         affiliation: 'Winter Way',
@@ -36,6 +37,7 @@
       {
         affiliation: 'US Space and Rocket Center',
         name: 'Weigel, A. David',
+        orcid: '0000-0002-8026-2291',
       },
     ],
 

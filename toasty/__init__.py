@@ -22,7 +22,7 @@ def tile_fits(
     **kwargs
 ):
     """
-    Process a file or a list of FITS files into a tile pyramid using either a common tangential projection or HiPSgen.
+    Process a file or a list of FITS files into a tile pyramid using either a common tangential projection, TOAST, or HiPSgen.
 
     Parameters
     ----------
@@ -43,15 +43,15 @@ def tile_fits(
     force_hipsgen : optional boolean, defaults to False
         Force usage of HiPSgen tiling over tangential projection. If this and *force_tan* are set to False, this method
         will figure out when to use the different projections. Tangential projection for smaller angular areas and
-        HiPSgen larger regions of the sky.
+        TOAST larger regions of the sky.
     force_tan : optional boolean, defaults to False
         Force usage of tangential projection tiling over HiPSgen. If this and *force_hipsgen* are set to False, this
         method will figure out when to use the different projections. Tangential projection for smaller angular areas
-        and HiPSgen larger regions of the sky.
+        and TOAST larger regions of the sky.
     blankval : optional number, default None
         An image value to treat as undefined in all FITS inputs.
     kwargs
-        Settings for the tiling process. For example, ``blankval``.
+        Settings for the tiling process.
 
     Returns
     -------

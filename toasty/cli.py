@@ -874,6 +874,11 @@ def view_getparser(parser):
         help="The URL of the app to use (intended for developers)",
     )
     parser.add_argument(
+        "--tile-only",
+        action="store_true",
+        help="Tile the data but do not open for viewing",
+    )
+    parser.add_argument(
         "paths",
         metavar="PATHS",
         action=EnsureGlobsExpandedAction,
@@ -895,8 +900,14 @@ def view_impl(settings):
         tiler = FitsTiler(coll)
         tiler.tile(cli_progress=True, parallel=settings.parallelism)
 
+    rel_wtml_path = os.path.join(tiler.out_dir, "index_rel.wtml")
+
+    if settings.tile_only:
+        print("WTML:", rel_wtml_path)
+        return
+
     preview_wtml(
-        os.path.join(tiler.out_dir, "index_rel.wtml"),
+        rel_wtml_path,
         browser=settings.browser,
         app_type="research",
         app_url=settings.appurl,

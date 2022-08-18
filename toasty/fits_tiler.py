@@ -83,16 +83,6 @@ class FitsTiler(object):
         self.force_hipsgen = force_hipsgen
         self.force_tan = force_tan
 
-    def should_use_hipsgen(self):
-        """
-        Determine whether the tiling process should use ``hipsgen``.
-        """
-        return self.force_hipsgen or (
-            self._fits_covers_large_area()
-            and self._is_java_installed()
-            and not self.force_tan
-        )
-
     def tile(
         self,
         cli_progress=False,
@@ -101,7 +91,7 @@ class FitsTiler(object):
     ):
         """
         Process the collection into a tile pyramid using either a common
-        tangential projection or HiPSgen.
+        tangential projection, TOAST, or HiPSgen.
 
         Parameters
         ----------
@@ -125,8 +115,6 @@ class FitsTiler(object):
         :attr:`builder` of *self* will be fully initialized.
         """
 
-        use_hipsgen = self.should_use_hipsgen()
-
         if self.out_dir is None:
             # Kind of hacky here ... Note that export_simple() might return a
             # generator so we can't just index the return value.
@@ -137,7 +125,7 @@ class FitsTiler(object):
             first_file_name = first_fits_path.split(".gz")[0]
             self.out_dir = first_file_name[: first_file_name.rfind(".")] + "_tiled"
 
-            if use_hipsgen:
+            if self.force_hipsgen:
                 self.out_dir += "_HiPS"
 
         if cli_progress:
@@ -164,8 +152,10 @@ class FitsTiler(object):
 
                 return
 
-        if use_hipsgen:
+        if self.force_hipsgen:
             self._tile_hips(cli_progress)
+        elif self._fits_covers_large_area():
+            self._tile_toast(cli_progress, **kwargs)
         else:
             self._tile_tan(cli_progress, **kwargs)
 
@@ -198,7 +188,40 @@ class FitsTiler(object):
 
         self.builder.cascade(cli_progress=cli_progress, **kwargs)
 
+    def _tile_toast(self, cli_progress, **kwargs):
+        # TODO handle collections with more than 1 entry
+        for image in self.coll.images():
+            if image.has_wcs():
+                data = image.asarray()
+                wcs = image.wcs
+            break
+        if "start" in kwargs:
+            start = kwargs["start"]
+            kwargs.pop("start", None)
+        else:
+            start = pyramid.guess_base_layer_level(wcs=wcs, cli_progress=cli_progress)
+
+        from .samplers import WcsSampler
+
+        wcs_sampler = WcsSampler(data=data, wcs=wcs)
+        tile_filter = wcs_sampler.filter()
+        sampler = wcs_sampler.sampler()
+
+        if cli_progress:
+            print("Tiling base layer (step 1 of 2)")
+        self.builder.toast_base(
+            sampler, start, cli_progress=True, tile_filter=tile_filter
+        )
+
+        if cli_progress:
+            print("Downsampling (step 2 of 2)")
+        self.builder.cascade(cli_progress=cli_progress, tile_filter=tile_filter)
+        height, width = wcs._naxis
+        self.builder.apply_wcs_info(wcs=wcs, width=width, height=height)
+
     def _tile_hips(self, cli_progress):
+        if not self._is_java_installed():
+            raise Exception("Java is required to run to hipsgen")
         cached_hipsgen_path = download_file(
             "https://aladin.unistra.fr/java/Hipsgen.jar",
             show_progress=cli_progress,

@@ -863,6 +863,12 @@ def view_getparser(parser):
         help="The parallelization level (default: use all CPUs; specify `1` to force serial processing)",
     )
     parser.add_argument(
+        "--tunnel",
+        "-t",
+        metavar="HOST",
+        help="Use SSH tunnels to view an image stored on a remote host",
+    )
+    parser.add_argument(
         "--browser",
         "-b",
         metavar="BROWSER-TYPE",
@@ -887,7 +893,7 @@ def view_getparser(parser):
     )
 
 
-def view_impl(settings):
+def view_locally(settings):
     from wwt_data_formats.server import preview_wtml
     from .collection import CollectionLoader
     from .fits_tiler import FitsTiler
@@ -912,6 +918,214 @@ def view_impl(settings):
         app_type="research",
         app_url=settings.appurl,
     )
+
+
+def view_tunneled(settings):
+    import random
+    import subprocess
+    from urllib.parse import urlparse, urlunparse
+    from wwt_data_formats.folder import Folder
+    from wwt_data_formats.server import launch_app_for_wtml
+
+    # First: tunnel to the remote host to tile the data and get the path to the
+    # index_rel.wtml.
+    #
+    # If you do `ssh $host $command`, you don't get a login shell, and in some
+    # setups that means that not all environment initialization happens. Which
+    # might mean that the `toasty` command won't be available. We work around
+    # that by avoiding $command and writing an `exec` to stdin. This is gross
+    # and raises issues of escaping funky filenames, but those issues already
+    # exist with SSH command arguments.
+
+    ssh_argv = ["ssh", "-T", settings.tunnel]
+    toasty_argv = ["exec", "toasty", "view", "--tile-only"]
+    if settings.parallelism:
+        toasty_argv += ["--parallelism", int(settings.parallelism)]
+    toasty_argv += settings.paths
+
+    print(f"Preparing data on `{settings.tunnel}` ...\n")
+
+    proc = subprocess.Popen(
+        ssh_argv,
+        shell=False,
+        close_fds=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        stdin=subprocess.PIPE,
+        text=True,
+    )
+
+    print(" ".join(toasty_argv), file=proc.stdin)
+    proc.stdin.close()
+
+    index_rel_path = None
+
+    for line in proc.stdout:
+        print(line, end="")
+
+        if line.startswith("WTML:"):
+            index_rel_path = line.rstrip().split(None, 1)[1]
+
+    proc.wait(timeout=180)
+    if proc.returncode:
+        die(f"SSH command exited with error code {proc.returncode}")
+
+    if not index_rel_path:
+        die("SSH command seemed successful, but did not return path of data WTML file")
+
+    del proc
+
+    # Next, launch the server. Same environment workaround as before. We use a
+    # special "heartbeat" mode in the server to get it to exit reliably when the
+    # SSH connection goes away.
+
+    serve_argv = [
+        "exec",
+        "wwtdatatool",
+        "serve",
+        "--port",
+        "0",
+        "--heartbeat",
+        os.path.dirname(index_rel_path),
+    ]
+
+    print(f"\nLaunching data server on `{settings.tunnel}` ...\n")
+    serve_proc = None
+
+    try:
+        serve_proc = subprocess.Popen(
+            ssh_argv,
+            shell=False,
+            close_fds=True,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+
+        print(" ".join(serve_argv), file=serve_proc.stdin, flush=True)
+        serve_proc.stdin.close()
+        remote_serve_url = None
+
+        for line in serve_proc.stdout:
+            print(line, end="")
+
+            if line.startswith("listening at:"):
+                remote_serve_url = line.rstrip().split(None, 2)[2]
+                break
+
+        if serve_proc.poll() is not None:
+            die(f"SSH command exited early with code {serve_proc.returncode}")
+
+        if not remote_serve_url:
+            die("SSH command did not return web service URL")
+
+        try:
+            remote_url_parsed = urlparse(remote_serve_url)
+        except Exception as e:
+            die(f"could not parse service URL `{remote_serve_url}`: {e}")
+
+        # Now forward the relevant port. Unfortunately it does not seem to be
+        # possible to have SSH auto-choose the local port. It is possible to use a
+        # Unix socket on the local side, but then we won't work on non-Unix.
+
+        print("\nLaunching viewer here ...\n")
+        port = None
+
+        try:
+            for _ in range(10):
+                port = random.randint(44000, 48000)
+                forward_argv = [
+                    "ssh",
+                    "-O",
+                    "forward",
+                    "-L",
+                    f"{port}:{remote_url_parsed.netloc}",
+                    settings.tunnel,
+                ]
+
+                try:
+                    subprocess.check_call(forward_argv, shell=False)
+                    break
+                except Exception as e:
+                    warn(f"failed to forward port {port}: {e}")
+                    port = None
+
+            if port is None:
+                die("could not find a local port to relay traffic (?!)")
+
+            print(f"  Local port: {port}")
+
+            # Somewhat annoyingly, for the research app we currently need to get the URL
+            # of the imageset. The most reliable way to do that is going to be to look
+            # at the WTML.
+
+            wtml_base = os.path.basename(index_rel_path).replace("_rel.wtml", ".wtml")
+            local_wtml_url = urlunparse(
+                remote_url_parsed._replace(
+                    netloc=f"127.0.0.1:{port}",
+                    path=f"{remote_url_parsed.path}{wtml_base}",
+                )
+            )
+            fld = Folder.from_url(local_wtml_url)
+            image_url = None
+
+            for _index, _kind, imgset in fld.immediate_imagesets():
+                image_url = imgset.url
+                break
+
+            if image_url is None:
+                die("found no imagesets in data WTML folder `{local_wtml_url}`")
+
+            # Now we can finally launch the local browser.
+
+            print("  Local WTML:", local_wtml_url)
+
+            desc = launch_app_for_wtml(
+                local_wtml_url,
+                image_url=image_url,
+                browser=settings.browser,
+                app_type="research",
+                app_url=settings.appurl,
+            )
+
+            print(
+                f"\nOpening data in {desc} ... type Control-C to terminate this program when done"
+            )
+
+            try:
+                # We need to keep on reading the heartbeats sent by the data server
+                # to prevent its buffers from filling up.
+                while True:
+                    serve_proc.stdout.readline()
+            except KeyboardInterrupt:
+                print("\n(interrupted)\n")
+            except Exception as e:
+                print(f"\nTerminated on exception: {e} ({e.__class__.__name__})\n")
+        finally:
+            # Clean up the port forward.
+
+            if port is not None:
+                forward_argv[2] = "cancel"
+                try:
+                    subprocess.check_call(forward_argv, shell=False)
+                except Exception as e:
+                    warn(f"failed to cancel port forward: {e}")
+    finally:
+        # Clean up the server process. With our "heartbeat" mode,
+        # this is pretty straightforward.
+
+        if serve_proc is not None:
+            serve_proc.stdout.close()
+            serve_proc.stdin.close()
+            serve_proc.wait()
+
+
+def view_impl(settings):
+    if settings.tunnel:
+        view_tunneled(settings)
+    else:
+        view_locally(settings)
 
 
 # The CLI driver:

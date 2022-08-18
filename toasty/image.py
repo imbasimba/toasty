@@ -93,6 +93,8 @@ def _array_to_mode(array):
             return ImageMode.F64
         elif array.dtype.kind == "u" and array.dtype.itemsize == 1:
             return ImageMode.U8
+        elif array.dtype.kind == "i" and array.dtype.itemsize == 2:
+            return ImageMode.I16
         elif array.dtype.kind == "i" and array.dtype.itemsize == 4:
             return ImageMode.I32
     elif array.ndim == 3:
@@ -144,6 +146,9 @@ class ImageMode(Enum):
 
     U8 = "U8"
 
+    I16 = "I16"
+    "16-bit integer data."
+
     I32 = "I32"
     "32-bit integer data."
 
@@ -159,6 +164,8 @@ class ImageMode(Enum):
                 return cls.F64
             elif dtype.kind == "u" and dtype.itemsize == 1:
                 return cls.U8
+            elif dtype.kind == "i" and dtype.itemsize == 2:
+                return cls.I16
             elif dtype.kind == "i" and dtype.itemsize == 4:
                 return cls.I32
         elif len(shape) == 3:
@@ -212,6 +219,8 @@ class ImageMode(Enum):
             arr = np.empty((buf_height, buf_width, 3), dtype=np.float16)
         elif self == ImageMode.U8:
             arr = np.empty((buf_height, buf_width), dtype=np.uint8)
+        elif self == ImageMode.I16:
+            arr = np.empty((buf_height, buf_width), dtype=np.int16)
         elif self == ImageMode.I32:
             arr = np.empty((buf_height, buf_width), dtype=np.int32)
         else:
@@ -903,6 +912,7 @@ class Image(object):
                 ImageMode.F64,
                 ImageMode.F16x3,
                 ImageMode.U8,
+                ImageMode.I16,
                 ImageMode.I32,
             ):
                 return "npy"
@@ -1078,7 +1088,7 @@ class Image(object):
             b.fill(0)
             b[by_idx, bx_idx, :3] = i[iy_idx, ix_idx]
             b[by_idx, bx_idx, 3] = 255
-        elif self.mode in (ImageMode.RGBA, ImageMode.U8, ImageMode.I32):
+        elif self.mode in (ImageMode.RGBA, ImageMode.U8, ImageMode.I16, ImageMode.I32):
             b.fill(0)
             b[by_idx, bx_idx] = i[iy_idx, ix_idx]
         elif self.mode in (ImageMode.F32, ImageMode.F64, ImageMode.F16x3):
@@ -1131,7 +1141,7 @@ class Image(object):
             valid = ~np.any(np.isnan(sub_i), axis=2)
             valid = np.broadcast_to(valid[..., None], sub_i.shape)
             np.putmask(sub_b, valid, sub_i)
-        elif self.mode in (ImageMode.U8, ImageMode.I32):
+        elif self.mode in (ImageMode.U8, ImageMode.I16, ImageMode.I32):
             # zero is our maskval, so here's a convenient way to get pretty good
             # update semantics. It will behave unusually if two buffers overlap
             # and disagree on their non-zero pixel values: instead of the second
@@ -1221,7 +1231,14 @@ class Image(object):
         be saved in JPEG format.
 
         """
-        if self.mode in (ImageMode.I32, ImageMode.F32, ImageMode.F64, ImageMode.F16x3):
+        if self.mode in (
+            ImageMode.U8,
+            ImageMode.I16,
+            ImageMode.I32,
+            ImageMode.F32,
+            ImageMode.F64,
+            ImageMode.F16x3,
+        ):
             raise Exception("cannot thumbnail-ify non-RGB Image")
 
         THUMB_SHAPE = (96, 45)
@@ -1270,7 +1287,13 @@ class Image(object):
         with NaNs.
 
         """
-        if self._mode in (ImageMode.RGB, ImageMode.RGBA, ImageMode.U8, ImageMode.I32):
+        if self._mode in (
+            ImageMode.RGB,
+            ImageMode.RGBA,
+            ImageMode.U8,
+            ImageMode.I16,
+            ImageMode.I32,
+        ):
             self.asarray().fill(0)
         elif self._mode in (ImageMode.F32, ImageMode.F64, ImageMode.F16x3):
             self.asarray().fill(np.nan)

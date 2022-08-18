@@ -431,6 +431,175 @@ def plate_carree_zeroright_sampler(data):
     return vec2pix
 
 
+class WcsSampler(object):
+    """Create a sampler for data with a generic WCS specification.
+
+    The sampler returns values in float32, regardless of input data type.
+
+    Parameters
+    ----------
+    data : array
+        The image data.
+    wcs : :class:`astropy.wcs.WCS`
+        A WCS data structure describing the data.
+
+    Returns
+    -------
+    A function that samples the data; the call signature is ``vec2pix(lon, lat)
+    -> data``, where the inputs and output are 2D arrays and *lon* and *lat* are
+    in radians.
+
+    """
+
+    def __init__(self, data, wcs):
+        import numpy as np
+
+        self._image = np.float32(data)
+        self._wcs = wcs
+
+    def _image_bounds(self):
+        corners = self._wcs.calc_footprint()
+        lon_min = np.min(corners[:, 0]) * np.pi
+        lon_max = np.max(corners[:, 0]) * np.pi
+        lat_min = np.min(corners[:, 1]) * np.pi
+        lat_max = np.max(corners[:, 1]) * np.pi
+        return lon_min / 180, lon_max / 180, lat_min / 180, lat_max / 180
+
+    def filter(self):
+        """
+        Get a TOAST tile-filter function for the specified chunk.
+
+        Returns
+        -------
+        A callable object, ``filter(tile) -> bool``, suitable for use as a tile
+        filter function.
+        """
+        return _latlon_tile_filter(*self._image_bounds())
+
+    def sampler(self):
+        from astropy.coordinates import SkyCoord
+        from astropy import units as u
+
+        def vec2pix(lon, lat):
+            c = SkyCoord(lon * u.rad, lat * u.rad, frame="icrs")
+            idx = self._wcs.world_to_array_index(c)
+
+            # Flag out-of-bounds pixels. Currently (April 2022) world_to_array_index
+            # returns a tuple of lists, so we need to array-ify.
+            idx = tuple(np.asarray(i) for i in idx)
+            bad = (idx[0] < 0) | (idx[0] >= self._image.shape[0])
+
+            for i, i_idx in enumerate(idx[1:]):
+                bad |= i_idx < 0
+                bad |= i_idx >= self._image.shape[i + 1]  # note that i is off by 1 here
+
+            for i_idx in idx:
+                i_idx[bad] = 0
+
+            samp = self._image[idx]
+
+            # We could potentially allow integer values, and utilize the FITS "BLANK" keyword to set the NaN values.
+            # However, there are plenty of integer FITS files out there lacking the BLANK keyword in the FITS header.
+            # In these cases we would have to find an unused value and designate it as the "BLANK" value.
+            if samp.dtype.kind != "f":
+                raise ValueError(
+                    "Can not process dtype {0}. Convert the data to floating point values first. ".format(
+                        samp.dtype
+                    )
+                )
+            print(bad)
+            samp[bad] = np.nan
+
+            return samp
+
+        return vec2pix
+
+
+def _latlon_tile_filter(image_lon_min1, image_lon_max1, image_lat_min1, image_lat_max1):
+    def latlon_tile_filter(tile):
+        """
+        Return true if this tile might contain data from the source image.
+        """
+        # Need to copy the outer arguments since we're going to modify them.
+        image_lon_min = image_lon_min1
+        image_lon_max = image_lon_max1
+        image_lat_min = image_lat_min1
+        image_lat_max = image_lat_max1
+
+        corner_lonlats = np.asarray(tile.corners)  # shape (4, 2)
+
+        # Latitudes are easy -- no wrapping.
+
+        tile_lat_min = np.min(corner_lonlats[:, 1])
+        tile_lat_max = np.max(corner_lonlats[:, 1])
+
+        if image_lat_min > tile_lat_max:
+            return False
+        if image_lat_max < tile_lat_min:
+            return False
+
+        # Can't reject based on latitudes. Longitudes are trickier.
+        #
+        # Step 1: If we hit one of the poles, longitudes become
+        # ~meaningless, so all we can really do (in our simplistic approach
+        # here) is accept the tile. We compare to ~(pi - 1e-8) here to
+        # account for inevitable roundoff. Note that if we don't apply the
+        # lat-bounds filter first, every single chunk will accept tiles at
+        # the poles, even if it's right on the equator.
+
+        if tile_lat_max > 1.5707963 or tile_lat_min < -1.5707963:
+            return True
+
+        # Step 2: get good a coverage range for tile longitudes. Some tiles
+        # span a full pi in longitude, and sometimes the "corners"
+        # longitudes span all sorts of values from -2pi to 2pi. So just
+        # shuffle them around until we get a self-consistent min/max.
+
+        lons = corner_lonlats[:, 0]
+        keep_going = True
+
+        while keep_going:
+            keep_going = False
+
+            imin = np.argmin(lons)
+            tile_lon_min = lons[imin]
+            tile_lon_max = np.max(lons)
+
+            if tile_lon_max - tile_lon_min > np.pi:
+                keep_going = True
+                lons[imin] += 2 * np.pi
+
+        # Step 3: Now, shuffle the image longitudes by +/-2pi so that they
+        # line up with the tile longitude bounds. We know that we'll
+        # ultimately be comparing the image_lon_min to tile_lon_max, and
+        # image/max to tile/min, so we can treat those pairs individually.
+
+        while image_lon_min - tile_lon_max > np.pi:
+            image_lon_min -= 2 * np.pi
+
+        while tile_lon_max - image_lon_min > np.pi:
+            image_lon_min += 2 * np.pi
+
+        while image_lon_max - tile_lon_min > np.pi:
+            image_lon_max -= 2 * np.pi
+
+        while tile_lon_min - image_lon_max > np.pi:
+            image_lon_max += 2 * np.pi
+
+        # Finally, we can reject this tile if it lies beyond the boundaries
+        # of the image we're considering.
+
+        if image_lon_min > tile_lon_max:
+            return False
+        if image_lon_max < tile_lon_min:
+            return False
+
+        # Well, we couldn't reject it, so we must accept:
+        return True
+
+    return latlon_tile_filter
+
+
 class ChunkedPlateCarreeSampler(object):
     """
     Setup for TOAST sampling of a chunked plate-carree image.
@@ -455,7 +624,7 @@ class ChunkedPlateCarreeSampler(object):
         assert planetary, "XXX non-planetary plate carree not implemented"
 
         self.sx = 2 * np.pi / self._image.shape[1]  # radians per pixel, X direction
-        self.sy = np.pi / self._image.shape[0]  # ditto, for the X direction
+        self.sy = np.pi / self._image.shape[0]  # ditto, for the Y direction
 
     @property
     def n_chunks(self):
@@ -488,96 +657,7 @@ class ChunkedPlateCarreeSampler(object):
         A callable object, ``filter(tile) -> bool``, suitable for use as a tile
         filter function.
         """
-        (
-            chunk_lon_min1,
-            chunk_lon_max1,
-            chunk_lat_min1,
-            chunk_lat_max1,
-        ) = self._chunk_bounds(ichunk)
-
-        def latlon_tile_filter(tile):
-            """
-            Return true if this tile might contain data from this chunk of the
-            source image.
-            """
-            # Need to copy the outer arguments since we're going to modify them.
-            chunk_lon_min = chunk_lon_min1
-            chunk_lon_max = chunk_lon_max1
-            chunk_lat_min = chunk_lat_min1
-            chunk_lat_max = chunk_lat_max1
-
-            corner_lonlats = np.asarray(tile.corners)  # shape (4, 2)
-
-            # Latitudes are easy -- no wrapping.
-
-            tile_lat_min = np.min(corner_lonlats[:, 1])
-            tile_lat_max = np.max(corner_lonlats[:, 1])
-
-            if chunk_lat_min > tile_lat_max:
-                return False
-            if chunk_lat_max < tile_lat_min:
-                return False
-
-            # Can't reject based on latitudes. Longitudes are trickier.
-            #
-            # Step 1: If we hit one of the poles, longitudes become
-            # ~meaningless, so all we can really do (in our simplistic approach
-            # here) is accept the tile. We compare to ~(pi - 1e-8) here to
-            # account for inevitable roundoff. Note that if we don't apply the
-            # lat-bounds filter first, every single chunk will accept tiles at
-            # the poles, even if it's right on the equator.
-
-            if tile_lat_max > 1.5707963 or tile_lat_min < -1.5707963:
-                return True
-
-            # Step 2: get good a coverage range for tile longitudes. Some tiles
-            # span a full pi in longitude, and sometimes the "corners"
-            # longitudes span all sorts of values from -2pi to 2pi. So just
-            # shuffle them around until we get a self-consistent min/max.
-
-            lons = corner_lonlats[:, 0]
-            keep_going = True
-
-            while keep_going:
-                keep_going = False
-
-                imin = np.argmin(lons)
-                tile_lon_min = lons[imin]
-                tile_lon_max = np.max(lons)
-
-                if tile_lon_max - tile_lon_min > np.pi:
-                    keep_going = True
-                    lons[imin] += 2 * np.pi
-
-            # Step 3: Now, shuffle the chunk longitudes by +/-2pi so that they
-            # line up with the tile longitude bounds. We know that we'll
-            # ultimately be comparing the chunk_lon_min to tile_lon_max, and
-            # chunk/max to tile/min, so we can treat those pairs individually.
-
-            while chunk_lon_min - tile_lon_max > np.pi:
-                chunk_lon_min -= 2 * np.pi
-
-            while tile_lon_max - chunk_lon_min > np.pi:
-                chunk_lon_min += 2 * np.pi
-
-            while chunk_lon_max - tile_lon_min > np.pi:
-                chunk_lon_max -= 2 * np.pi
-
-            while tile_lon_min - chunk_lon_max > np.pi:
-                chunk_lon_max += 2 * np.pi
-
-            # Finally, we can reject this tile if it lies beyond the boundaries
-            # of the chunk we're considering.
-
-            if chunk_lon_min > tile_lon_max:
-                return False
-            if chunk_lon_max < tile_lon_min:
-                return False
-
-            # Well, we couldn't reject it, so we must accept:
-            return True
-
-        return latlon_tile_filter
+        return _latlon_tile_filter(*self._chunk_bounds(ichunk))
 
     def sampler(self, ichunk):
         """

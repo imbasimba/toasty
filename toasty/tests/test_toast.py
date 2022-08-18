@@ -269,6 +269,50 @@ class TestSampleLayer(PyramidTester):
         sample_layer(self.pio, sampler, 1, format="fits")
         self.verify_level1(format="fits", expected_2d=True)
 
+    def test_wcs_sampler(self):
+        from ..samplers import WcsSampler
+        from ..toast import Tile
+        from astropy.wcs import WCS
+
+        array = np.arange(4, dtype=float).reshape(2, 2)
+
+        pixel_distance = 10.0  # Degrees
+        wcs = WCS()
+        wcs.wcs.ctype = "RA---GLS", "DEC--GLS"
+        wcs.wcs.crval = 0, 0
+        wcs.wcs.crpix = 1, 1
+        wcs.wcs.cdelt = pixel_distance, pixel_distance
+        wcs._naxis = [2, 2]
+
+        wcs_sampler = WcsSampler(data=array, wcs=wcs)
+        pixel_distance_in_radian_value = pixel_distance / 180 * np.pi
+        sampler = wcs_sampler.sampler()
+        sample = sampler(
+            (0, pixel_distance_in_radian_value, 0, pixel_distance_in_radian_value),
+            (0, 0, pixel_distance_in_radian_value, pixel_distance_in_radian_value),
+        )
+        assert all(sample == [0, 1, 2, 3])
+
+        filter = wcs_sampler.filter()
+
+        tile = Tile(
+            None,
+            [
+                (-0.2, -0.2),
+                (0, pixel_distance_in_radian_value),
+                (0, 0),
+                (pixel_distance_in_radian_value, pixel_distance_in_radian_value),
+            ],
+            None,
+        )
+        assert filter(tile)
+
+        tile = Tile(None, [(-0.2, -0.2), (-0.1, 0.1), (0, -0.5), (-0.5, -0.5)], None)
+        assert filter(tile)
+
+        tile = Tile(None, [(-0.2, -0.2), (-0.1, -0.1), (0, -0.5), (-0.5, -0.5)], None)
+        assert not filter(tile)
+
 
 class TestCliBasic(PyramidTester):
     """

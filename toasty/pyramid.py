@@ -59,7 +59,7 @@ def tiles_at_depth(depth):
     """
     Return the number of tiles in the WWT tile pyramid layer at depth *depth*.
     """
-    return 4 ** depth
+    return 4**depth
 
 
 def is_subtile(deeper_pos, shallower_pos):
@@ -409,8 +409,8 @@ class PyramidIO(object):
         work. The "cascade" stage doesn't need locking, so in general only the
         deepest level of the pyramid will need to be cleaned.
         """
-        for x in range(0, 2 ** level):
-            for y in range(0, 2 ** level):
+        for x in range(0, 2**level):
+            for y in range(0, 2**level):
                 pos = Pos(level, x, y)
                 p = self.tile_path(pos, makedirs=False) + ".lock"
 

@@ -19,6 +19,23 @@ def test_averaging_merger():
     nt.assert_almost_equal(averaging_merger(t), [[2.0]])
 
 
+def test_initiate_readiness_state():
+    from ..merge import _initiate_readiness_state
+    from ..pyramid import Pos
+
+    readiness_state = {}
+    _initiate_readiness_state({Pos(1, 0, 0), Pos(1, 1, 0)}, readiness_state)
+    assert readiness_state.get(Pos(n=0, x=0, y=0)) == 0b1100
+
+    readiness_state = {}
+    _initiate_readiness_state({Pos(3, 7, 7), Pos(3, 3, 1)}, readiness_state)
+    assert readiness_state.get(Pos(n=0, x=0, y=0)) == 0b0110
+    assert readiness_state.get(Pos(n=1, x=1, y=1)) == 0b0111
+    assert readiness_state.get(Pos(n=1, x=0, y=0)) == 0b1101
+    assert readiness_state.get(Pos(n=2, x=3, y=3)) == 0b0111
+    assert readiness_state.get(Pos(n=2, x=1, y=0)) == 0b0111
+
+
 class TestCascade(object):
     def setup_method(self, method):
         from tempfile import mkdtemp

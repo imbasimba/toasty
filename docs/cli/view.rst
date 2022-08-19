@@ -76,13 +76,11 @@ assumes that the image was already successfully tiled, and skips straight to
 launching the viewer without rerunning the tiling process.
 
 The FITS data will be tiled either onto a common tangential projection, or into
-a HiPS format using `hipsgen`_, depending on the angular size subtended by the
-data. If any of the FITS image corners are separated by more than 20 degrees and
-Java is available, `hipsgen`_ will be used. Otherwise, Toasty's internal
-processing will be used, reprojecting the input data into a tangential
+a TOAST, depending on the angular size subtended by the data. If any of the
+FITS image corners are separated by more than 20 degrees, the TOAST format will
+be used. Otherwise, Toasty's will reproject the input data into a tangential
 (gnomonic) projection if necessary.
 
-.. _hipsgen: https://aladin.u-strasbg.fr/hips/HipsIn10Steps.gml
 
 
 See Also

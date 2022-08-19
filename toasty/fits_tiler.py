@@ -19,7 +19,7 @@ from astropy.utils.data import download_file
 import reproject
 from wwt_data_formats.enums import ProjectionType
 
-from toasty import builder, pyramid, multi_tan, multi_wcs
+from toasty import TilingMethod, builder, pyramid, multi_tan, multi_wcs
 
 __all__ = [
     "FitsTiler",
@@ -38,12 +38,10 @@ class FitsTiler(object):
         The output directory for the tiled FITS data.
         If None, a sensible default next to the first input file
         will be chosen.
-    force_hipsgen : optional bool, default False
-        If true, the tiling process will be forced to use the
-        HiPS format and the ``hipsgen`` tool.
-    force_tan : optional bool, default False
-        If true, the tiling process will be forced to target the
-        WWT "study" format with a tangential projection.
+    tiling_method : optional :class:`~toasty.TilingMethod`
+         Whether the tiling process will auto detected or manually
+         chosen. Defaults to auto detection based on the angular
+         size of the imageset.
     """
 
     coll = None
@@ -56,13 +54,8 @@ class FitsTiler(object):
     will be filled in after a successful invocation of the :meth:`tile` method.
     """
 
-    force_hipsgen = False
-    """Whether the tiling process will be forced to use the HiPS format and the
-    ``hipsgen`` tool."""
-
-    force_tan = False
-    """Whether the tiling process will be forced to target the WWT "study"
-    format with a tangential projection."""
+    tiling_method = TilingMethod.AUTO_DETECT
+    """Whether the tiling process will auto detected or manually chosen."""
 
     builder = None
     """A :class:`~toasty.builder.Builder` describing the output dataset.
@@ -75,13 +68,11 @@ class FitsTiler(object):
         self,
         coll,
         out_dir=None,
-        force_hipsgen=False,
-        force_tan=False,
+        tiling_method=TilingMethod.AUTO_DETECT,
     ):
         self.coll = coll
         self.out_dir = out_dir
-        self.force_hipsgen = force_hipsgen
-        self.force_tan = force_tan
+        self.tiling_method = tiling_method
 
     def tile(
         self,
@@ -90,8 +81,8 @@ class FitsTiler(object):
         **kwargs,
     ):
         """
-        Process the collection into a tile pyramid using either a common
-        tangential projection, TOAST, or HiPSgen.
+        Process the collection into a tile pyramid, either a common
+        tangential projection, TOAST, or HiPS.
 
         Parameters
         ----------
@@ -125,7 +116,7 @@ class FitsTiler(object):
             first_file_name = first_fits_path.split(".gz")[0]
             self.out_dir = first_file_name[: first_file_name.rfind(".")] + "_tiled"
 
-            if self.force_hipsgen:
+            if self.tiling_method == TilingMethod.HIPS:
                 self.out_dir += "_HiPS"
 
         if cli_progress:
@@ -152,9 +143,12 @@ class FitsTiler(object):
 
                 return
 
-        if self.force_hipsgen:
+        if self.tiling_method == TilingMethod.HIPS:
             self._tile_hips(cli_progress)
-        elif self._fits_covers_large_area():
+        elif self.tiling_method == TilingMethod.TOAST or (
+            self.tiling_method == TilingMethod.AUTO_DETECT
+            and self._fits_covers_large_area()
+        ):
             self._tile_toast(cli_progress, **kwargs)
         else:
             self._tile_tan(cli_progress, **kwargs)

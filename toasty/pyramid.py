@@ -21,6 +21,8 @@ next_highest_power_of_2
 Pos
 pos_children
 pos_parent
+get_parents
+guess_base_layer_level
 PyramidIO
 tiles_at_depth
 """.split()

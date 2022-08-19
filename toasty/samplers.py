@@ -31,6 +31,7 @@ plate_carree_planet_zeroleft_sampler
 plate_carree_zeroright_sampler
 healpix_fits_file_sampler
 healpix_sampler
+WcsSampler
 """.split()
 
 import numpy as np
@@ -445,10 +446,9 @@ class WcsSampler(object):
 
     Returns
     -------
-    A function that samples the data; the call signature is ``vec2pix(lon, lat)
-    -> data``, where the inputs and output are 2D arrays and *lon* and *lat* are
-    in radians.
-
+    A function that samples the data; the call signature is
+    ``vec2pix(lon, lat)-> data``, where the inputs and output are 2D arrays
+    and *lon* and *lat* are in radians.
     """
 
     def __init__(self, data, wcs):
@@ -507,7 +507,7 @@ class WcsSampler(object):
                         samp.dtype
                     )
                 )
-            print(bad)
+
             samp[bad] = np.nan
 
             return samp

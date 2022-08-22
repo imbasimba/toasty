@@ -8,6 +8,7 @@ requires = [
 build-backend = 'setuptools.build_meta'
 
 [tool.cranko]
-extra_python_rewrite_files = [
-  "docs/conf.py"
+annotated_files = [
+  "docs/conf.py",
+  "toasty/cli.py",
 ]

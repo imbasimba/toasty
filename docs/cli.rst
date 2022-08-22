@@ -15,6 +15,9 @@ CLI Reference
    cli/pipeline-process-todos
    cli/pipeline-publish
    cli/pipeline-refresh
+   cli/show-concept-doi
+   cli/show-version
+   cli/show-version-doi
    cli/tile-allsky
    cli/tile-healpix
    cli/tile-study

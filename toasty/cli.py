@@ -866,7 +866,7 @@ def view_getparser(parser):
         "--tunnel",
         "-t",
         metavar="HOST",
-        help="Use SSH tunnels to view an image stored on a remote host",
+        help="Use SSH tunneling to view an image stored on a remote host",
     )
     parser.add_argument(
         "--browser",
@@ -936,11 +936,13 @@ def view_tunneled(settings):
     # that by avoiding $command and writing an `exec` to stdin. This is gross
     # and raises issues of escaping funky filenames, but those issues already
     # exist with SSH command arguments.
+    #
+    # We give SSH `-T` to prevent warnings about not allocating pseudo-TTYs.
 
     ssh_argv = ["ssh", "-T", settings.tunnel]
     toasty_argv = ["exec", "toasty", "view", "--tile-only"]
     if settings.parallelism:
-        toasty_argv += ["--parallelism", int(settings.parallelism)]
+        toasty_argv += ["--parallelism", str(settings.parallelism)]
     toasty_argv += settings.paths
 
     print(f"Preparing data on `{settings.tunnel}` ...\n")
@@ -949,9 +951,9 @@ def view_tunneled(settings):
         ssh_argv,
         shell=False,
         close_fds=True,
+        stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        stdin=subprocess.PIPE,
         text=True,
     )
 
@@ -977,7 +979,8 @@ def view_tunneled(settings):
 
     # Next, launch the server. Same environment workaround as before. We use a
     # special "heartbeat" mode in the server to get it to exit reliably when the
-    # SSH connection goes away.
+    # SSH connection goes away. `--port 0` has the OS automatically choose a
+    # free port.
 
     serve_argv = [
         "exec",
@@ -1056,9 +1059,10 @@ def view_tunneled(settings):
 
             print(f"  Local port: {port}")
 
-            # Somewhat annoyingly, for the research app we currently need to get the URL
-            # of the imageset. The most reliable way to do that is going to be to look
-            # at the WTML.
+            # Somewhat annoyingly, for the research app we currently need to get
+            # the URL of the imageset. The most reliable way to do that is going
+            # to be to look at the WTML. This reproduces some of the logic in
+            # `wwt_data_formats.server.preview_wtml()`.
 
             wtml_base = os.path.basename(index_rel_path).replace("_rel.wtml", ".wtml")
             local_wtml_url = urlunparse(

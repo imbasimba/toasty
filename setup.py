@@ -78,7 +78,7 @@ setup_args = dict(
         "reproject",
         "shapely",
         "tqdm>=4.0",
-        "wwt_data_formats>=0.13",
+        "wwt_data_formats>=0.15",
     ],
     extras_require={
         "test": [

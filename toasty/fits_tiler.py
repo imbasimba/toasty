@@ -19,7 +19,9 @@ from astropy.utils.data import download_file
 import reproject
 from wwt_data_formats.enums import ProjectionType
 
-from toasty import TilingMethod, builder, pyramid, multi_tan, multi_wcs
+from . import builder, pyramid, multi_tan, multi_wcs
+from .__init__ import TilingMethod
+
 
 __all__ = [
     "FitsTiler",

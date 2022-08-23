@@ -7,6 +7,7 @@ from __future__ import absolute_import, division, print_function
 import pytest
 from . import test_path
 from ..__init__ import TilingMethod, tile_fits
+from wwt_data_formats.enums import ProjectionType
 from shutil import rmtree
 from pathlib import Path
 
@@ -27,7 +28,10 @@ class TestToasty(object):
             out_dir=out_dir_input,
             tiling_method=TilingMethod.TAN,
             cli_progress=True,
+            override=True,
         )
+        # source image is smaller than one tile (256x256),so it is conveted to a sky image
+        assert bld.imgset.projection == ProjectionType.SKY_IMAGE
         assert out_dir == out_dir_input
         assert Path(out_dir, "index_rel.wtml").is_file()
         assert Path(out_dir, "0", "0", "0_0.fits").is_file()
@@ -38,7 +42,10 @@ class TestToasty(object):
         # collections take a significant time to process
         out_dir, bld = tile_fits(
             fits=[test_path("wcs512.fits.gz"), test_path("wcs512.fits.gz")],
+            tiling_method=TilingMethod.TAN,
+            override=True,
         )
+        assert bld.imgset.projection == ProjectionType.TAN
         assert out_dir == test_path("wcs512_tiled")
         assert Path(out_dir, "index_rel.wtml").is_file()
         assert Path(out_dir, "0", "0", "0_0.fits").is_file()
@@ -52,7 +59,9 @@ class TestToasty(object):
             out_dir=out_dir_input,
             tiling_method=TilingMethod.TOAST,
             cli_progress=True,
+            override=True,
         )
+        assert bld.imgset.projection == ProjectionType.TOAST
         assert out_dir == out_dir_input
         assert Path(out_dir, "index_rel.wtml").is_file()
         assert Path(out_dir, "0", "0", "0_0.fits").is_file()
@@ -61,7 +70,10 @@ class TestToasty(object):
 
         out_dir, bld = tile_fits(
             fits=[test_path("wcs512.fits.gz")],
+            tiling_method=TilingMethod.TOAST,
+            override=True,
         )
+        assert bld.imgset.projection == ProjectionType.TOAST
         assert out_dir == test_path("wcs512_tiled")
         assert Path(out_dir, "index_rel.wtml").is_file()
         assert Path(out_dir, "0", "0", "0_0.fits").is_file()

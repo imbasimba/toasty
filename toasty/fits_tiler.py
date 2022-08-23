@@ -79,6 +79,7 @@ class FitsTiler(object):
     def tile(
         self,
         cli_progress=False,
+        parallel=None,
         override=False,
         **kwargs,
     ):
@@ -91,6 +92,11 @@ class FitsTiler(object):
         cli_progress : optional boolean, defaults to False
             If true, progress messages will be printed as the FITS files
             are being processed.
+        parallel : integer or None (the default)
+            The level of parallelization to use. If unspecified, defaults to using
+            all CPUs. If the OS does not support fork-based multiprocessing,
+            parallel processing is not possible and serial processing will be
+            forced. Pass ``1`` to force serial processing.
         override : optional boolean, defaults to False
             By default, if the output directory already exists, the tiling
             process is skipped. If this argument is true, an existing
@@ -146,26 +152,28 @@ class FitsTiler(object):
                 return
 
         if self.tiling_method == TilingMethod.HIPS:
-            self._tile_hips(cli_progress)
+            self._tile_hips(cli_progress, parallel)
         elif self.tiling_method == TilingMethod.TOAST or (
             self.tiling_method == TilingMethod.AUTO_DETECT
             and self._fits_covers_large_area()
         ):
-            self._tile_toast(cli_progress, **kwargs)
+            self._tile_toast(cli_progress, parallel, **kwargs)
         else:
-            self._tile_tan(cli_progress, **kwargs)
+            self._tile_tan(cli_progress, parallel, **kwargs)
 
         self.builder.write_index_rel_wtml()
         return self
 
-    def _tile_tan(self, cli_progress, **kwargs):
+    def _tile_tan(self, cli_progress, parallel, **kwargs):
         if self.coll._is_multi_tan():
             if cli_progress:
                 print("Tiling base layer in multi-TAN mode (step 1 of 2)")
 
             tile_processor = multi_tan.MultiTanProcessor(self.coll)
             tile_processor.compute_global_pixelization(self.builder)
-            tile_processor.tile(self.builder.pio, cli_progress=cli_progress, **kwargs)
+            tile_processor.tile(
+                self.builder.pio, cli_progress=cli_progress, parallel=parallel, **kwargs
+            )
         else:
             if cli_progress:
                 print("Tiling base layer in multi-WCS mode (step 1 of 2)")
@@ -176,6 +184,7 @@ class FitsTiler(object):
                 self.builder.pio,
                 reproject.reproject_interp,
                 cli_progress=cli_progress,
+                parallel=parallel,
                 **kwargs,
             )
 
@@ -184,13 +193,14 @@ class FitsTiler(object):
 
         self.builder.cascade(cli_progress=cli_progress, **kwargs)
 
-    def _tile_toast(self, cli_progress, **kwargs):
+    def _tile_toast(self, cli_progress, parallel, **kwargs):
         # TODO handle collections with more than 1 entry
         for image in self.coll.images():
             if image.has_wcs():
                 data = image.asarray()
                 wcs = image.wcs
             break
+
         if "start" in kwargs:
             start = kwargs["start"]
             kwargs.pop("start", None)
@@ -205,19 +215,33 @@ class FitsTiler(object):
 
         if cli_progress:
             print("Tiling base layer (step 1 of 2)")
+
         self.builder.toast_base(
-            sampler, start, cli_progress=True, tile_filter=tile_filter
+            sampler,
+            start,
+            cli_progress=True,
+            tile_filter=tile_filter,
+            parallel=parallel,
         )
 
         if cli_progress:
             print("Downsampling (step 2 of 2)")
-        self.builder.cascade(cli_progress=cli_progress, tile_filter=tile_filter)
+
+        self.builder.cascade(
+            cli_progress=cli_progress, tile_filter=tile_filter, parallel=parallel
+        )
+
         height, width = wcs._naxis
         self.builder.apply_wcs_info(wcs=wcs, width=width, height=height)
 
-    def _tile_hips(self, cli_progress):
+    def _tile_hips(self, cli_progress, _parallel):
+        """
+        For later: we could try to honor _parallel here.
+        """
+
         if not self._is_java_installed():
             raise Exception("Java is required to run to hipsgen")
+
         cached_hipsgen_path = download_file(
             "https://aladin.unistra.fr/java/Hipsgen.jar",
             show_progress=cli_progress,

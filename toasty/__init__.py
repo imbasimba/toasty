@@ -27,6 +27,7 @@ def tile_fits(
     hdu_index=None,
     override=False,
     cli_progress=False,
+    parallel=None,
     tiling_method=TilingMethod.AUTO_DETECT,
     blankval=None,
     **kwargs
@@ -51,6 +52,11 @@ def tile_fits(
         served. To override the content in *out_dir*, set *override* to True.
     cli_progress : optional boolean, defaults to False
         If true, progress messages will be printed as the FITS files are being processed.
+    parallel : integer or None (the default)
+        The level of parallelization to use. If unspecified, defaults to using
+        all CPUs. If the OS does not support fork-based multiprocessing,
+        parallel processing is not possible and serial processing will be
+        forced. Pass ``1`` to force serial processing.
     tiling_method : optional :class:`~toasty.TilingMethod`
         Can be used to force a specific tiling method, i.e. tiled tangential projection, TOAST, or HiPS. Defatults to
         auto detection, which choses the most apropriate method.
@@ -75,5 +81,7 @@ def tile_fits(
         out_dir=out_dir,
         tiling_method=tiling_method,
     )
-    tiler.tile(cli_progress=cli_progress, override=override, **kwargs)
+    tiler.tile(
+        cli_progress=cli_progress, parallel=parallel, override=override, **kwargs
+    )
     return tiler.out_dir, tiler.builder

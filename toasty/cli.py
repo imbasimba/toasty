@@ -893,7 +893,7 @@ def view_impl(settings):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         tiler = FitsTiler(coll)
-        tiler.tile(cli_progress=True)
+        tiler.tile(cli_progress=True, parallel=settings.parallelism)
 
     preview_wtml(
         os.path.join(tiler.out_dir, "index_rel.wtml"),

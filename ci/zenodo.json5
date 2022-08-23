@@ -1,0 +1,69 @@
+// See https://pkgw.github.io/cranko/book/latest/integrations/zenodo.html
+// and https://developers.zenodo.org/#representation
+
+{
+  conceptrecid: 'new-for:0.18.0',
+
+  metadata: {
+    upload_type: 'software',
+    language: 'eng',
+
+    // ** Keep this alphabetical by family name!!! **
+    creators: [
+      {
+        affiliation: 'Google',
+        name: 'Beaumont, Christopher',
+      },
+      {
+        affiliation: 'Space Telescope Science Institute; SUPA, School of Physics and Astronomy, University of St. Andrews',
+        name: 'Brasseur, C.',
+        orcid: '0000-0002-9314-960X',
+      },
+      {
+        affiliation: 'Winter Way',
+        name: 'Norman, Henrik',
+        orcid: '0000-0003-4189-3450',
+      },
+      {
+        affiliation: 'Aperio Software',
+        name: 'Robitaille, Thomas P.',
+        orcid: '0000-0002-8642-1329',
+      },
+      {
+        affiliation: 'Center for Astrophysics | Harvard & Smithsonian',
+        name: 'Williams, Peter K. G.',
+        orcid: '0000-0003-3734-3587',
+      },
+      {
+        affiliation: 'US Space and Rocket Center',
+        name: 'Weigel, A. David',
+        orcid: '0000-0002-8026-2291',
+      },
+    ],
+
+    // Subset of HTML allowed here:
+    description: 'toasty is a Python library that helps you create “tile pyramids” \
+from astronomical image data, as used in the TOAST format. These multi-resolution \
+maps can be viewed in software such as the AAS WorldWide Telescope. Learn more \
+at <a href="https://toasty.readthedocs.io/">the toasty website</a>.',
+
+    access_right: 'open',
+    license: 'MIT', // see https://spdx.org/licenses/
+
+    // Relevant grants are currently (2022 Aug) missing from Zenodo's database
+    // so we don't include them for now.
+    //
+    // grants: [
+    //   // National Science Foundation:
+    //   {id: '10.13039/100000001::2004840'},
+    // ],
+
+    // Keywords use an uncontrolled vocabulary (and so are of limited usefulness):
+    keywords: [
+      'AAS WorldWide Telescope',
+      'Astronomy',
+      'Python',
+      'Visualization',
+    ],
+  },
+}

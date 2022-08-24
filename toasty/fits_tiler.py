@@ -193,43 +193,65 @@ class FitsTiler(object):
         self.builder.cascade(cli_progress=cli_progress, **kwargs)
 
     def _tile_toast(self, cli_progress, parallel, **kwargs):
-        # TODO handle collections with more than 1 entry
-        for image in self.coll.images():
-            if image.has_wcs():
-                data = image.asarray()
-                wcs = image.wcs
-            break
-
         start = kwargs.pop("start", None)
         if start is None:
-            start = pyramid.guess_base_layer_level(wcs=wcs, cli_progress=cli_progress)
+            start = 1
+            for image in self.coll.images():
+                if image.has_wcs():
+                    level = pyramid.guess_base_layer_level(wcs=image.wcs)
+                    if level > start:
+                        start = level
 
-        from .samplers import WcsSampler
+            if cli_progress:
+                import math
 
-        wcs_sampler = WcsSampler(data=data, wcs=wcs)
-        tile_filter = wcs_sampler.filter()
-        sampler = wcs_sampler.sampler()
+                print(
+                    "Assuming level {} (~{} arcmin/pixel) is appropriate".format(
+                        start, 21.095 / math.pow(2, start - 1)
+                    )
+                )
 
         if cli_progress:
             print("Tiling base layer (step 1 of 2)")
 
-        self.builder.toast_base(
-            sampler,
-            start,
-            cli_progress=cli_progress,
-            tile_filter=tile_filter,
-            parallel=parallel,
-        )
+        from .samplers import WcsSampler
+
+        filters = []
+        for image in self.coll.images():
+            wcs_sampler = WcsSampler(data=image.asarray(), wcs=image.wcs)
+            tile_filter = wcs_sampler.filter()
+            sampler = wcs_sampler.sampler()
+
+            self.builder.toast_base(
+                sampler,
+                start,
+                cli_progress=cli_progress,
+                tile_filter=tile_filter,
+                parallel=parallel,
+            )
+            filters.append(tile_filter)
+            # Saving the WCS of the last image to have something to
+            # point the imageset to. Of course, the WCS of any image
+            # in the collection would result in an acceptable position.
+            # but in case of image overlap, the last image is always
+            # put on top, since it is processed last.
+            last_wcs = image.wcs
 
         if cli_progress:
             print("Downsampling (step 2 of 2)")
 
+        def tile_filters(tile):
+            for filter in filters:
+                if filter(tile):
+                    return True
+            return False
+
         self.builder.cascade(
-            cli_progress=cli_progress, tile_filter=tile_filter, parallel=parallel
+            cli_progress=cli_progress, tile_filter=tile_filters, parallel=parallel
         )
 
-        height, width = wcs._naxis
-        self.builder.apply_wcs_info(wcs=wcs, width=width, height=height)
+        height, width = last_wcs._naxis
+        self.builder.apply_wcs_info(wcs=last_wcs, width=width, height=height)
 
     def _tile_hips(self, cli_progress, _parallel):
         """

@@ -209,7 +209,7 @@ def get_parents(pos_collection, get_all_ancestors=False):
     return parents
 
 
-def guess_base_layer_level(wcs, cli_progress=False):
+def guess_base_layer_level(wcs):
     from astropy import units as u
     from astropy.wcs.utils import proj_plane_pixel_area
     import math
@@ -233,13 +233,6 @@ def guess_base_layer_level(wcs, cli_progress=False):
     while tile_size_per_pixel > side_length:
         level += 1
         tile_size_per_pixel /= 2
-
-    if cli_progress:
-        print(
-            "Assuming level {} (~{} arcmin/pixel) is appropriate".format(
-                level, tile_arcmin_per_pixel / math.pow(2, level - 1)
-            )
-        )
 
     return level
 

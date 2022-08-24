@@ -587,7 +587,7 @@ class WcsSampler(object):
             if e < nm:
                 # "top" edge (thinking of array as [lon, lat] ~ [x, y])
                 lo = max(e - 1, 0)
-                hi = max(e + 1, nm)
+                hi = min(e + 1, nm)
                 n = max(int(np.ceil(coarse_idx1[hi] - coarse_idx1[lo])), 1)
                 refined_idx1 = np.linspace(coarse_idx1[lo], coarse_idx1[hi], n)
                 refined_idx2 = np.zeros(n) + coarse_idx2[0]
@@ -595,7 +595,7 @@ class WcsSampler(object):
                 # "right" edge
                 rel = e - nm
                 lo = max(rel - 1, 0)
-                hi = max(rel + 1, nm)
+                hi = min(rel + 1, nm)
                 n = max(int(np.ceil(coarse_idx2[hi] - coarse_idx2[lo])), 1)
                 refined_idx1 = np.zeros(n) + coarse_idx1[nm]
                 refined_idx2 = np.linspace(coarse_idx2[lo], coarse_idx2[hi], n)
@@ -603,7 +603,7 @@ class WcsSampler(object):
                 # "bottom" edge, traversed backwards (right-to-left)
                 rel = 3 * nm - (1 + e)
                 lo = max(rel - 1, 0)
-                hi = max(rel + 1, nm)
+                hi = min(rel + 1, nm)
                 n = max(int(np.ceil(coarse_idx1[hi] - coarse_idx1[lo])), 1)
                 refined_idx1 = np.linspace(coarse_idx1[lo], coarse_idx1[hi], n)
                 refined_idx2 = np.zeros(n) + coarse_idx2[nm]
@@ -612,7 +612,7 @@ class WcsSampler(object):
                 # has an extra pixel to close back to [0,0].
                 rel = 4 * nm - e
                 lo = max(rel - 1, 0)
-                hi = max(rel + 1, nm)
+                hi = min(rel + 1, nm)
                 n = max(int(np.ceil(coarse_idx2[hi] - coarse_idx2[lo])), 1)
                 refined_idx1 = np.zeros(n) + coarse_idx1[0]
                 refined_idx2 = np.linspace(coarse_idx2[lo], coarse_idx2[hi], n)

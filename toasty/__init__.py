@@ -58,8 +58,8 @@ def tile_fits(
         parallel processing is not possible and serial processing will be
         forced. Pass ``1`` to force serial processing.
     tiling_method : optional :class:`~toasty.TilingMethod`
-        Can be used to force a specific tiling method, i.e. tiled tangential projection, TOAST, or HiPS. Defatults to
-        auto detection, which choses the most apropriate method.
+        Can be used to force a specific tiling method, i.e. tiled tangential projection, TOAST, or HiPS. Defaults to
+        auto-detection, which choses the most appropriate method.
     blankval : optional number, default None
         An image value to treat as undefined in all FITS inputs.
     kwargs

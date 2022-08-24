@@ -6,7 +6,7 @@ from __future__ import absolute_import, division, print_function
 
 import pytest
 from . import test_path
-from ..__init__ import TilingMethod, tile_fits
+from .. import TilingMethod, tile_fits
 from wwt_data_formats.enums import ProjectionType
 from shutil import rmtree
 from pathlib import Path

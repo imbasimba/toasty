@@ -19,8 +19,7 @@ from astropy.utils.data import download_file
 import reproject
 from wwt_data_formats.enums import ProjectionType
 
-from . import builder, pyramid, multi_tan, multi_wcs
-from .__init__ import TilingMethod
+from . import builder, pyramid, multi_tan, multi_wcs, TilingMethod
 
 
 __all__ = [
@@ -41,7 +40,7 @@ class FitsTiler(object):
         If None, a sensible default next to the first input file
         will be chosen.
     tiling_method : optional :class:`~toasty.TilingMethod`
-         Whether the tiling process will auto detected or manually
+         Whether the tiling process will be auto-detected or manually
          chosen. Defaults to auto detection based on the angular
          size of the imageset.
     """
@@ -57,7 +56,7 @@ class FitsTiler(object):
     """
 
     tiling_method = TilingMethod.AUTO_DETECT
-    """Whether the tiling process will auto detected or manually chosen."""
+    """Whether the tiling process will be auto-detected or manually chosen."""
 
     builder = None
     """A :class:`~toasty.builder.Builder` describing the output dataset.
@@ -84,7 +83,7 @@ class FitsTiler(object):
         **kwargs,
     ):
         """
-        Process the collection into a tile pyramid, either a common
+        Process the collection into a tile pyramid, using either a common
         tangential projection, TOAST, or HiPS.
 
         Parameters
@@ -201,10 +200,8 @@ class FitsTiler(object):
                 wcs = image.wcs
             break
 
-        if "start" in kwargs:
-            start = kwargs["start"]
-            kwargs.pop("start", None)
-        else:
+        start = kwargs.pop("start", None)
+        if start is None:
             start = pyramid.guess_base_layer_level(wcs=wcs, cli_progress=cli_progress)
 
         from .samplers import WcsSampler

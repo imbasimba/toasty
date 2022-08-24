@@ -78,7 +78,7 @@ launching the viewer without rerunning the tiling process.
 The FITS data will be tiled either onto a common tangential projection, or into
 a TOAST, depending on the angular size subtended by the data. If any of the
 FITS image corners are separated by more than 20 degrees, the TOAST format will
-be used. Otherwise, Toasty's will reproject the input data into a tangential
+be used. Otherwise, Toasty will reproject the input data into a tangential
 (gnomonic) projection if necessary.
 
 

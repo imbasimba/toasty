@@ -689,10 +689,32 @@ class WcsSampler(object):
 
 
 def _latlon_tile_filter(image_lon_min1, image_lon_max1, image_lat_min1, image_lat_max1):
+    """
+    Return a "tile filter" function that only accepts tiles that overlap a
+    bounding box in latitude and longitude.
+
+    The arguments to this function give the bounding box edges, measured in
+    radians. We refer to the lat/lon bounding box as the "image" bounds although
+    this filtering process can be useful even if you don't have an actual image
+    handy.
+
+    The image longitudes should be "unwrapped" such that ``image_lon_min1 <
+    image_lon_max1`` always. For instance, longitude bounds of ``(170, 400)``
+    define an image that spans 230 degrees in longitude. The longitude bounds
+    can span more than 360 degrees if the image really covers all longitudes.
+    (This can happen if it touches one of the poles.)
+
+    Usual bounding box semantics apply. If your bounding box is "too big" the
+    only problem is that more tiles are touched than strictly necessary.
+    """
+
     def latlon_tile_filter(tile):
         """
         Return true if this tile might contain data from the source image.
         """
+        assert image_lon_min1 < image_lon_max1
+        assert image_lat_min1 < image_lat_max1
+
         # Need to copy the outer arguments since we're going to modify them.
         image_lon_min = image_lon_min1
         image_lon_max = image_lon_max1
@@ -742,33 +764,36 @@ def _latlon_tile_filter(image_lon_min1, image_lon_max1, image_lat_min1, image_la
                 keep_going = True
                 lons[imin] += 2 * np.pi
 
-        # Step 3: Now, shuffle the image longitudes by +/-2pi so that they
-        # line up with the tile longitude bounds. We know that we'll
-        # ultimately be comparing the image_lon_min to tile_lon_max, and
-        # image/max to tile/min, so we can treat those pairs individually.
+        # Step 3: Now, shuffle the tile longitudes so that the left edge of the
+        # tile is to the right of the left edge of the image. We might drag it
+        # to the left (in chunks of 360 degrees) if it's really far to the
+        # right.
 
-        while image_lon_min - tile_lon_max > np.pi:
-            image_lon_min -= 2 * np.pi
+        while tile_lon_min < image_lon_min:
+            tile_lon_min += 2 * np.pi
+            tile_lon_max += 2 * np.pi
 
-        while tile_lon_max - image_lon_min > np.pi:
-            image_lon_min += 2 * np.pi
+        while tile_lon_min - image_lon_min > 2 * np.pi:
+            tile_lon_min -= 2 * np.pi
+            tile_lon_max -= 2 * np.pi
 
-        while image_lon_max - tile_lon_min > np.pi:
-            image_lon_max -= 2 * np.pi
+        # Step 4. Now we can test. In this configuration, if the left edge of
+        # the tile is not clear of the right edge of the image, there's an
+        # overlap.
 
-        while tile_lon_min - image_lon_max > np.pi:
-            image_lon_max += 2 * np.pi
+        if tile_lon_min < image_lon_max:
+            return True
 
-        # Finally, we can reject this tile if it lies beyond the boundaries
-        # of the image we're considering.
+        # But we must also check for wraparound! If we imagine that the image is
+        # duplicated at its current position + 2pi radians, if the right edge of
+        # the tile passes the "next" left edge of the image, we also overlap.
 
-        if image_lon_min > tile_lon_max:
-            return False
-        if image_lon_max < tile_lon_min:
-            return False
+        if tile_lon_max > image_lon_min + 2 * np.pi:
+            return True
 
-        # Well, we couldn't reject it, so we must accept:
-        return True
+        # Otherwise, there is no overlap.
+
+        return False
 
     return latlon_tile_filter
 

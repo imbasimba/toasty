@@ -458,12 +458,185 @@ class WcsSampler(object):
         self._wcs = wcs
 
     def _image_bounds(self):
-        corners = self._wcs.calc_footprint()
-        lon_min = np.min(corners[:, 0]) * np.pi
-        lon_max = np.max(corners[:, 0]) * np.pi
-        lat_min = np.min(corners[:, 1]) * np.pi
-        lat_max = np.max(corners[:, 1]) * np.pi
-        return lon_min / 180, lon_max / 180, lat_min / 180, lat_max / 180
+        """
+        Get the bounds of the image.
+
+        Returns ``(lon_min, lon_max, lat_min, lat_max)``, in radians. Latitudes
+        should be "unwrapped", so that ``lat_min=30, lat_max=60`` implies that
+        the image spans 30 degrees in latitude. ``lat_min=60, lat_max=390`` has
+        the same effective bounding values, but represents an image that spans
+        330 degrees in longitude.
+        """
+
+        # First, we calculate lats and lons in a "coarse" grid spanning the
+        # entire image. This is necessary for images that, e.g., traverse the
+        # north pole, where the maximum latitude occurs *inside* the image, not
+        # at a corner, and not even along an edge.
+
+        D2R = np.pi / 180
+        N_COARSE = 32
+        naxis2, naxis1 = self._image.shape
+        coarse_pix = np.empty((N_COARSE, N_COARSE, 2))
+        coarse_idx1 = np.linspace(0.5, naxis1 + 0.5, N_COARSE)
+        coarse_idx2 = np.linspace(0.5, naxis2 + 0.5, N_COARSE)
+        coarse_pix[..., 0] = coarse_idx1.reshape((-1, 1))
+        coarse_pix[..., 1] = coarse_idx2.reshape((1, -1))
+
+        coarse_world = self._wcs.wcs_pix2world(coarse_pix.reshape((-1, 2)), 1).reshape(
+            (N_COARSE, N_COARSE, 2)
+        )
+
+        # It's really important that our bounds are precise, in the sense that
+        # every piece of every pixel of the image is contained within them. To
+        # get this precision, we'll identify the extreme values on our coarse
+        # grid and then resample at pixel resolution. Unless the output
+        # pixelization is significantly oversampling the input image, this
+        # should yield bounds that are definitionally good enough to make sure
+        # that we cover every tile that we should.
+
+        # Latitudes don't wrap, but latitude extrema can happen in the middle of
+        # the image (e.g. if it contains the north pole). So we need to refine
+        # in a 2D search across the entire coarse grid.
+
+        coarse_lat = coarse_world[..., 1]
+
+        def refine_lat(arg_op):
+            """
+            `arg_op` is something like `np.argmax()`: an extreme-value finder.
+            """
+            e1, e2 = np.unravel_index(arg_op(coarse_lat), coarse_lat.shape)
+
+            # Construct a sub-grid around the extreme-value point. We know that
+            # the edges of `coarse_pix` correspond exactly to the edges of the
+            # image, so we don't have to go beyond them if the maximum lies on
+            # an edge.
+            #
+            # First, compute indices into `coarse_pix`.
+
+            lo1 = max(e1 - 1, 0)
+            hi1 = min(e1 + 1, coarse_lat.shape[0] - 1)
+            lo2 = max(e2 - 1, 0)
+            hi2 = min(e2 + 1, coarse_lat.shape[1] - 1)
+
+            # Now figure out how many samples to compute in our refined grid.
+            # We want to sample essentially every pixel.
+
+            n1 = max(int(np.ceil(coarse_idx1[hi1] - coarse_idx1[lo1])), 1)
+            n2 = max(int(np.ceil(coarse_idx2[hi2] - coarse_idx2[lo2])), 1)
+
+            # Generate that grid.
+
+            refined_pix = np.empty((n1, n2, 2))
+            refined_idx1 = np.linspace(coarse_idx1[lo1], coarse_idx1[hi1], n1)
+            refined_idx2 = np.linspace(coarse_idx2[lo2], coarse_idx2[hi2], n2)
+            refined_pix[..., 0] = refined_idx1.reshape((-1, 1))
+            refined_pix[..., 1] = refined_idx2.reshape((1, -1))
+
+            # Compute the refined world grid.
+
+            refined_world = self._wcs.wcs_pix2world(
+                refined_pix.reshape((-1, 2)), 1
+            ).reshape((n1, n2, 2))
+
+            # Find the *real* extreme value and convert to radians
+
+            refined_grid = refined_world[..., 1].flatten()
+            return refined_grid[arg_op(refined_grid)] * D2R
+
+        lat_min = refine_lat(np.argmin)
+        lat_max = refine_lat(np.argmax)
+
+        # Longitudes are annoying since we need to make sure they're unwrapped.
+        # On the other hand, I can't think of a non-pathological way in which an
+        # image's maximum longitude would occur anywhere other than its edge.
+        # Which is good, since I don't think "unwrapping" in 2D is feasible:
+        # that's why complex functions have branch cuts and such. To avoid all
+        # that, we search for the extreme values only along the edge of the
+        # image, after unwrapping the coordinates into a 1D array.
+
+        coarse_lon = coarse_world[..., 0]
+
+        nm = N_COARSE - 1
+        coarse_edge_lons = np.empty(4 * nm + 1)
+        coarse_edge_lons[0:nm] = coarse_lon[:nm, 0]
+        coarse_edge_lons[nm : 2 * nm] = coarse_lon[nm, :nm]
+        coarse_edge_lons[2 * nm : 3 * nm] = coarse_lon[-1:0:-1, nm]
+        coarse_edge_lons[3 * nm :] = coarse_lon[0, -1::-1]
+
+        deltas = np.zeros(coarse_edge_lons.shape, dtype=np.int)
+
+        for i in range(1, coarse_edge_lons.size):
+            v0 = coarse_edge_lons[i - 1]
+            v1 = coarse_edge_lons[i]
+            d = 0
+
+            while v1 - v0 > 180:
+                v1 -= 360
+                d -= 1
+
+            while v0 - v1 > 180:
+                v1 += 360
+                d += 1
+
+            coarse_edge_lons[i] = v1
+            deltas[i] = d
+
+        def refine_lon(arg_op):
+            e = arg_op(coarse_edge_lons)
+
+            if e < nm:
+                # "top" edge (thinking of array as [lon, lat] ~ [x, y])
+                lo = max(e - 1, 0)
+                hi = max(e + 1, nm)
+                n = max(int(np.ceil(coarse_idx1[hi] - coarse_idx1[lo])), 1)
+                refined_idx1 = np.linspace(coarse_idx1[lo], coarse_idx1[hi], n)
+                refined_idx2 = np.zeros(n) + coarse_idx2[0]
+            elif e < 2 * nm:
+                # "right" edge
+                rel = e - nm
+                lo = max(rel - 1, 0)
+                hi = max(rel + 1, nm)
+                n = max(int(np.ceil(coarse_idx2[hi] - coarse_idx2[lo])), 1)
+                refined_idx1 = np.zeros(n) + coarse_idx1[nm]
+                refined_idx2 = np.linspace(coarse_idx2[lo], coarse_idx2[hi], n)
+            elif e < 3 * nm:
+                # "bottom" edge, traversed backwards (right-to-left)
+                rel = 3 * nm - (1 + e)
+                lo = max(rel - 1, 0)
+                hi = max(rel + 1, nm)
+                n = max(int(np.ceil(coarse_idx1[hi] - coarse_idx1[lo])), 1)
+                refined_idx1 = np.linspace(coarse_idx1[lo], coarse_idx1[hi], n)
+                refined_idx2 = np.zeros(n) + coarse_idx2[nm]
+            else:
+                # "left" edge, traversed backwards (bottom-to-top). This "side"
+                # has an extra pixel to close back to [0,0].
+                rel = 4 * nm - e
+                lo = max(rel - 1, 0)
+                hi = max(rel + 1, nm)
+                n = max(int(np.ceil(coarse_idx2[hi] - coarse_idx2[lo])), 1)
+                refined_idx1 = np.zeros(n) + coarse_idx1[0]
+                refined_idx2 = np.linspace(coarse_idx2[lo], coarse_idx2[hi], n)
+
+            refined_pix = np.empty((n, 2))
+            refined_pix[..., 0] = refined_idx1
+            refined_pix[..., 1] = refined_idx2
+
+            # Compute the refined world grid.
+
+            refined_lon = self._wcs.wcs_pix2world(refined_pix, 1)[:, 0]
+
+            # But wait! We need to re-apply whatever delta was involved in the
+            # global unwrapping. I'm 95% sure that we won't ever need to
+            # re-unwrap here.
+
+            refined_lon += 360 * deltas[e]
+
+            # Convert to radians and we're done.
+            return refined_lon[arg_op(refined_lon)] * D2R
+
+        lon_min = refine_lon(np.argmin)
+        lon_max = refine_lon(np.argmax)
+        return lon_min, lon_max, lat_min, lat_max
 
     def filter(self):
         """

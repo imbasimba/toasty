@@ -216,7 +216,7 @@ class FitsTiler(object):
         self.builder.toast_base(
             sampler,
             start,
-            cli_progress=True,
+            cli_progress=cli_progress,
             tile_filter=tile_filter,
             parallel=parallel,
         )

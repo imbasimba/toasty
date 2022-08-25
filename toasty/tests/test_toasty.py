@@ -74,7 +74,7 @@ class TestToasty(object):
             override=True,
         )
         assert bld.imgset.projection == ProjectionType.TOAST
-        assert out_dir == test_path("wcs512_tiled")
+        assert out_dir == test_path("wcs512_tiled_TOAST")
         assert Path(out_dir, "index_rel.wtml").is_file()
         assert Path(out_dir, "0", "0", "0_0.fits").is_file()
         rmtree(out_dir)

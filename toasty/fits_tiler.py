@@ -74,6 +74,11 @@ class FitsTiler(object):
         self.coll = coll
         self.out_dir = out_dir
         self.tiling_method = tiling_method
+        if (
+            self.tiling_method == TilingMethod.AUTO_DETECT
+            and self._fits_covers_large_area()
+        ):
+            self.tiling_method == TilingMethod.TOAST
 
     def tile(
         self,
@@ -125,6 +130,8 @@ class FitsTiler(object):
 
             if self.tiling_method == TilingMethod.HIPS:
                 self.out_dir += "_HiPS"
+            if self.tiling_method == TilingMethod.TOAST:
+                self.out_dir += "_TOAST"
 
         if cli_progress:
             print(f"Tile output directory is `{self.out_dir}`")
@@ -152,10 +159,7 @@ class FitsTiler(object):
 
         if self.tiling_method == TilingMethod.HIPS:
             self._tile_hips(cli_progress, parallel)
-        elif self.tiling_method == TilingMethod.TOAST or (
-            self.tiling_method == TilingMethod.AUTO_DETECT
-            and self._fits_covers_large_area()
-        ):
+        elif self.tiling_method == TilingMethod.TOAST:
             self._tile_toast(cli_progress, parallel, **kwargs)
         else:
             self._tile_tan(cli_progress, parallel, **kwargs)

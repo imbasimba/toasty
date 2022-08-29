@@ -74,11 +74,12 @@ class FitsTiler(object):
         self.coll = coll
         self.out_dir = out_dir
         self.tiling_method = tiling_method
-        if (
-            self.tiling_method == TilingMethod.AUTO_DETECT
-            and self._fits_covers_large_area()
-        ):
-            self.tiling_method == TilingMethod.TOAST
+
+        if self.tiling_method == TilingMethod.AUTO_DETECT:
+            if self._fits_covers_large_area():
+                self.tiling_method = TilingMethod.TOAST
+            else:
+                self.tiling_method = TilingMethod.TAN
 
     def tile(
         self,

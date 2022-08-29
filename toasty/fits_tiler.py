@@ -70,10 +70,12 @@ class FitsTiler(object):
         coll,
         out_dir=None,
         tiling_method=TilingMethod.AUTO_DETECT,
+        add_place_for_toast=True,
     ):
         self.coll = coll
         self.out_dir = out_dir
         self.tiling_method = tiling_method
+        self.add_place_for_toast = add_place_for_toast
 
         if self.tiling_method == TilingMethod.AUTO_DETECT:
             if self._fits_covers_large_area():
@@ -165,7 +167,9 @@ class FitsTiler(object):
         else:
             self._tile_tan(cli_progress, parallel, **kwargs)
 
-        self.builder.write_index_rel_wtml()
+        self.builder.write_index_rel_wtml(
+            add_place_for_toast=self.add_place_for_toast,
+        )
         return self
 
     def _tile_tan(self, cli_progress, parallel, **kwargs):

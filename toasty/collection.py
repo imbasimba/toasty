@@ -187,6 +187,17 @@ class SimpleFitsCollection(ImageCollection):
                 hdu.header["CTYPE1"] = "RA---TPV"
                 hdu.header["CTYPE2"] = "DEC--TPV"
 
+                # Extra hack (?) for `rh04475_00_01ww_tnx.fit` needed to fix 180
+                # deg rotation. Based on the last paragraph of \S2.2 in
+                # Calabretta & Greisen (2002), I think the headers in this file
+                # are wrong. This presumably also applies to other DASCH files
+                # that cross the north pole; possibly an issue in wcstools,
+                # which is the WCS kit used for this project. I'm not currently
+                # able to get my hands on other DASCH files to test out other
+                # cases where this fix may be needed.
+                if hdu.header["CRVAL2"] == 90:
+                    hdu.header["LONPOLE"] = 180.0
+
             # End hack(s).
 
             wcs = WCS(hdu.header)

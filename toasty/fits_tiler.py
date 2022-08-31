@@ -19,7 +19,8 @@ from astropy.utils.data import download_file
 import reproject
 from wwt_data_formats.enums import ProjectionType
 
-from toasty import builder, pyramid, multi_tan, multi_wcs
+from . import builder, pyramid, multi_tan, multi_wcs, TilingMethod
+
 
 __all__ = [
     "FitsTiler",
@@ -38,12 +39,10 @@ class FitsTiler(object):
         The output directory for the tiled FITS data.
         If None, a sensible default next to the first input file
         will be chosen.
-    force_hipsgen : optional bool, default False
-        If true, the tiling process will be forced to use the
-        HiPS format and the ``hipsgen`` tool.
-    force_tan : optional bool, default False
-        If true, the tiling process will be forced to target the
-        WWT "study" format with a tangential projection.
+    tiling_method : optional :class:`~toasty.TilingMethod`
+         Whether the tiling process will be auto-detected or manually
+         chosen. Defaults to auto detection based on the angular
+         size of the imageset.
     """
 
     coll = None
@@ -56,13 +55,8 @@ class FitsTiler(object):
     will be filled in after a successful invocation of the :meth:`tile` method.
     """
 
-    force_hipsgen = False
-    """Whether the tiling process will be forced to use the HiPS format and the
-    ``hipsgen`` tool."""
-
-    force_tan = False
-    """Whether the tiling process will be forced to target the WWT "study"
-    format with a tangential projection."""
+    tiling_method = TilingMethod.AUTO_DETECT
+    """Whether the tiling process will be auto-detected or manually chosen."""
 
     builder = None
     """A :class:`~toasty.builder.Builder` describing the output dataset.
@@ -75,39 +69,41 @@ class FitsTiler(object):
         self,
         coll,
         out_dir=None,
-        force_hipsgen=False,
-        force_tan=False,
+        tiling_method=TilingMethod.AUTO_DETECT,
+        add_place_for_toast=True,
     ):
         self.coll = coll
         self.out_dir = out_dir
-        self.force_hipsgen = force_hipsgen
-        self.force_tan = force_tan
+        self.tiling_method = tiling_method
+        self.add_place_for_toast = add_place_for_toast
 
-    def should_use_hipsgen(self):
-        """
-        Determine whether the tiling process should use ``hipsgen``.
-        """
-        return self.force_hipsgen or (
-            self._fits_covers_large_area()
-            and self._is_java_installed()
-            and not self.force_tan
-        )
+        if self.tiling_method == TilingMethod.AUTO_DETECT:
+            if self._fits_covers_large_area():
+                self.tiling_method = TilingMethod.TOAST
+            else:
+                self.tiling_method = TilingMethod.TAN
 
     def tile(
         self,
         cli_progress=False,
+        parallel=None,
         override=False,
         **kwargs,
     ):
         """
-        Process the collection into a tile pyramid using either a common
-        tangential projection or HiPSgen.
+        Process the collection into a tile pyramid, using either a common
+        tangential projection, TOAST, or HiPS.
 
         Parameters
         ----------
         cli_progress : optional boolean, defaults to False
             If true, progress messages will be printed as the FITS files
             are being processed.
+        parallel : integer or None (the default)
+            The level of parallelization to use. If unspecified, defaults to using
+            all CPUs. If the OS does not support fork-based multiprocessing,
+            parallel processing is not possible and serial processing will be
+            forced. Pass ``1`` to force serial processing.
         override : optional boolean, defaults to False
             By default, if the output directory already exists, the tiling
             process is skipped. If this argument is true, an existing
@@ -125,8 +121,6 @@ class FitsTiler(object):
         :attr:`builder` of *self* will be fully initialized.
         """
 
-        use_hipsgen = self.should_use_hipsgen()
-
         if self.out_dir is None:
             # Kind of hacky here ... Note that export_simple() might return a
             # generator so we can't just index the return value.
@@ -137,8 +131,10 @@ class FitsTiler(object):
             first_file_name = first_fits_path.split(".gz")[0]
             self.out_dir = first_file_name[: first_file_name.rfind(".")] + "_tiled"
 
-            if use_hipsgen:
+            if self.tiling_method == TilingMethod.HIPS:
                 self.out_dir += "_HiPS"
+            if self.tiling_method == TilingMethod.TOAST:
+                self.out_dir += "_TOAST"
 
         if cli_progress:
             print(f"Tile output directory is `{self.out_dir}`")
@@ -164,22 +160,28 @@ class FitsTiler(object):
 
                 return
 
-        if use_hipsgen:
-            self._tile_hips(cli_progress)
+        if self.tiling_method == TilingMethod.HIPS:
+            self._tile_hips(cli_progress, parallel)
+        elif self.tiling_method == TilingMethod.TOAST:
+            self._tile_toast(cli_progress, parallel, **kwargs)
         else:
-            self._tile_tan(cli_progress, **kwargs)
+            self._tile_tan(cli_progress, parallel, **kwargs)
 
-        self.builder.write_index_rel_wtml()
+        self.builder.write_index_rel_wtml(
+            add_place_for_toast=self.add_place_for_toast,
+        )
         return self
 
-    def _tile_tan(self, cli_progress, **kwargs):
+    def _tile_tan(self, cli_progress, parallel, **kwargs):
         if self.coll._is_multi_tan():
             if cli_progress:
                 print("Tiling base layer in multi-TAN mode (step 1 of 2)")
 
             tile_processor = multi_tan.MultiTanProcessor(self.coll)
             tile_processor.compute_global_pixelization(self.builder)
-            tile_processor.tile(self.builder.pio, cli_progress=cli_progress, **kwargs)
+            tile_processor.tile(
+                self.builder.pio, cli_progress=cli_progress, parallel=parallel, **kwargs
+            )
         else:
             if cli_progress:
                 print("Tiling base layer in multi-WCS mode (step 1 of 2)")
@@ -190,6 +192,7 @@ class FitsTiler(object):
                 self.builder.pio,
                 reproject.reproject_interp,
                 cli_progress=cli_progress,
+                parallel=parallel,
                 **kwargs,
             )
 
@@ -198,7 +201,75 @@ class FitsTiler(object):
 
         self.builder.cascade(cli_progress=cli_progress, **kwargs)
 
-    def _tile_hips(self, cli_progress):
+    def _tile_toast(self, cli_progress, parallel, **kwargs):
+        start = kwargs.pop("start", None)
+        if start is None:
+            start = 1
+            for image in self.coll.images():
+                if image.has_wcs():
+                    level = pyramid.guess_base_layer_level(wcs=image.wcs)
+                    if level > start:
+                        start = level
+
+            if cli_progress:
+                import math
+
+                print(
+                    "Assuming level {} (~{} arcmin/pixel) is appropriate".format(
+                        start, 21.095 / math.pow(2, start - 1)
+                    )
+                )
+
+        if cli_progress:
+            print("Tiling base layer (step 1 of 2)")
+
+        from .samplers import WcsSampler
+
+        filters = []
+        for image in self.coll.images():
+            wcs_sampler = WcsSampler(data=image.asarray(), wcs=image.wcs)
+            tile_filter = wcs_sampler.filter()
+            sampler = wcs_sampler.sampler()
+
+            self.builder.toast_base(
+                sampler,
+                start,
+                cli_progress=cli_progress,
+                tile_filter=tile_filter,
+                parallel=parallel,
+            )
+            filters.append(tile_filter)
+            # Saving the WCS of the last image to have something to
+            # point the imageset to. Of course, the WCS of any image
+            # in the collection would result in an acceptable position.
+            # but in case of image overlap, the last image is always
+            # put on top, since it is processed last.
+            last_wcs = image.wcs
+
+        if cli_progress:
+            print("Downsampling (step 2 of 2)")
+
+        def tile_filters(tile):
+            for filter in filters:
+                if filter(tile):
+                    return True
+            return False
+
+        self.builder.cascade(
+            cli_progress=cli_progress, tile_filter=tile_filters, parallel=parallel
+        )
+
+        height, width = last_wcs._naxis
+        self.builder.apply_wcs_info(wcs=last_wcs, width=width, height=height)
+
+    def _tile_hips(self, cli_progress, _parallel):
+        """
+        For later: we could try to honor _parallel here.
+        """
+
+        if not self._is_java_installed():
+            raise Exception("Java is required to run to hipsgen")
+
         cached_hipsgen_path = download_file(
             "https://aladin.unistra.fr/java/Hipsgen.jar",
             show_progress=cli_progress,
@@ -304,13 +375,16 @@ class FitsTiler(object):
         return max_distance > Angle("20d")
 
     def _is_java_installed(self):
-        java_version = run(
-            ["java", "-version"], capture_output=True, text=True, check=True
-        )
-        return (
-            "version" in java_version.stdout.lower()
-            or "version" in java_version.stderr.lower()
-        )
+        try:
+            java_version = run(
+                ["java", "-version"], capture_output=True, text=True, check=True
+            )
+            return (
+                "version" in java_version.stdout.lower()
+                or "version" in java_version.stderr.lower()
+            )
+        except:
+            return False
 
     def _create_hipsgen_input_dir(self, fits_list):
         dir = tempfile.TemporaryDirectory()
@@ -345,11 +419,19 @@ class FitsTiler(object):
         self.builder.imgset.base_degrees_per_tile = float(
             hips_properties["hips_initial_fov"]
         )
-        pixel_cut = hips_properties["hips_pixel_cut"].split(" ")
-        self.builder.imgset.pixel_cut_low = float(pixel_cut[0])
-        self.builder.imgset.pixel_cut_high = float(pixel_cut[1])
-        data_range = hips_properties["hips_data_range"].split(" ")
-        self.builder.imgset.data_min = float(data_range[0])
-        self.builder.imgset.data_max = float(data_range[1])
+
+        pixel_cut = hips_properties.get("hips_pixel_cut")
+
+        if pixel_cut is not None:
+            pixel_cut = pixel_cut.split(" ")
+            self.builder.imgset.pixel_cut_low = float(pixel_cut[0])
+            self.builder.imgset.pixel_cut_high = float(pixel_cut[1])
+
+        data_range = hips_properties.get("hips_data_range")
+
+        if data_range is not None:
+            data_range = data_range.split(" ")
+            self.builder.imgset.data_min = float(data_range[0])
+            self.builder.imgset.data_max = float(data_range[1])
 
         self.builder.imgset.url = "Norder{0}/Dir{1}/Npix{2}"

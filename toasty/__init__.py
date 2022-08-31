@@ -7,7 +7,18 @@ from __future__ import absolute_import, division, print_function
 
 __all__ = [
     "tile_fits",
+    "TilingMethod",
 ]
+
+from enum import Enum
+
+
+class TilingMethod(Enum):
+    UNTILED = 1
+    TAN = 2
+    TOAST = 3
+    HIPS = 4
+    AUTO_DETECT = 5
 
 
 def tile_fits(
@@ -16,13 +27,14 @@ def tile_fits(
     hdu_index=None,
     override=False,
     cli_progress=False,
-    force_hipsgen=False,
-    force_tan=False,
+    parallel=None,
+    tiling_method=TilingMethod.AUTO_DETECT,
     blankval=None,
     **kwargs
 ):
     """
-    Process a file or a list of FITS files into a tile pyramid using either a common tangential projection or HiPSgen.
+    Process a file or a list of FITS files into a tile pyramid in the form of either a common tangential projection,
+    TOAST, or HiPS.
 
     Parameters
     ----------
@@ -40,18 +52,18 @@ def tile_fits(
         served. To override the content in *out_dir*, set *override* to True.
     cli_progress : optional boolean, defaults to False
         If true, progress messages will be printed as the FITS files are being processed.
-    force_hipsgen : optional boolean, defaults to False
-        Force usage of HiPSgen tiling over tangential projection. If this and *force_tan* are set to False, this method
-        will figure out when to use the different projections. Tangential projection for smaller angular areas and
-        HiPSgen larger regions of the sky.
-    force_tan : optional boolean, defaults to False
-        Force usage of tangential projection tiling over HiPSgen. If this and *force_hipsgen* are set to False, this
-        method will figure out when to use the different projections. Tangential projection for smaller angular areas
-        and HiPSgen larger regions of the sky.
+    parallel : integer or None (the default)
+        The level of parallelization to use. If unspecified, defaults to using
+        all CPUs. If the OS does not support fork-based multiprocessing,
+        parallel processing is not possible and serial processing will be
+        forced. Pass ``1`` to force serial processing.
+    tiling_method : optional :class:`~toasty.TilingMethod`
+        Can be used to force a specific tiling method, i.e. tiled tangential projection, TOAST, or HiPS. Defaults to
+        auto-detection, which choses the most appropriate method.
     blankval : optional number, default None
         An image value to treat as undefined in all FITS inputs.
     kwargs
-        Settings for the tiling process. For example, ``blankval``.
+        Settings for the tiling process.
 
     Returns
     -------
@@ -67,8 +79,9 @@ def tile_fits(
     tiler = fits_tiler.FitsTiler(
         coll,
         out_dir=out_dir,
-        force_hipsgen=force_hipsgen,
-        force_tan=force_tan,
+        tiling_method=tiling_method,
     )
-    tiler.tile(cli_progress=cli_progress, override=override, **kwargs)
+    tiler.tile(
+        cli_progress=cli_progress, parallel=parallel, override=override, **kwargs
+    )
     return tiler.out_dir, tiler.builder

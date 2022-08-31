@@ -16,16 +16,35 @@ def test_averaging_merger():
     from ..merge import averaging_merger
 
     t = np.array([[np.nan, 1], [3, np.nan]])
-    nt.assert_almost_equal(averaging_merger(t), [[2.]])
+    nt.assert_almost_equal(averaging_merger(t), [[2.0]])
+
+
+def test_initiate_readiness_state():
+    from ..merge import _initiate_readiness_state
+    from ..pyramid import Pos
+
+    readiness_state = {}
+    _initiate_readiness_state({Pos(1, 0, 0), Pos(1, 1, 0)}, readiness_state)
+    assert readiness_state.get(Pos(n=0, x=0, y=0)) == 0b1100
+
+    readiness_state = {}
+    _initiate_readiness_state({Pos(3, 7, 7), Pos(3, 3, 1)}, readiness_state)
+    assert readiness_state.get(Pos(n=0, x=0, y=0)) == 0b0110
+    assert readiness_state.get(Pos(n=1, x=1, y=1)) == 0b0111
+    assert readiness_state.get(Pos(n=1, x=0, y=0)) == 0b1101
+    assert readiness_state.get(Pos(n=2, x=3, y=3)) == 0b0111
+    assert readiness_state.get(Pos(n=2, x=1, y=0)) == 0b0111
 
 
 class TestCascade(object):
     def setup_method(self, method):
         from tempfile import mkdtemp
+
         self.work_dir = mkdtemp()
 
     def teardown_method(self, method):
         from shutil import rmtree
+
         rmtree(self.work_dir)
 
     def work_path(self, *pieces):
@@ -37,21 +56,27 @@ class TestCascade(object):
         module directly.
 
         """
-        for variants in (['--parallelism=1'], ['--parallelism=2', '--placeholder-thumbnail']):
-            args = ['tile-allsky']
+        for variants in (
+            ["--parallelism=1"],
+            ["--parallelism=2", "--placeholder-thumbnail"],
+        ):
+            args = ["tile-allsky"]
             args += variants
             args += [
-                '--outdir', self.work_path('basic_cli'),
-                test_path('Equirectangular_projection_SW-tweaked.jpg'),
-                '1',
+                "--outdir",
+                self.work_path("basic_cli"),
+                test_path("Equirectangular_projection_SW-tweaked.jpg"),
+                "1",
             ]
             cli.entrypoint(args)
 
-        for parallelism in '12':
+        for parallelism in "12":
             args = [
-                'cascade',
-                '--parallelism', parallelism,
-                '--start', '1',
-                self.work_path('basic_cli'),
+                "cascade",
+                "--parallelism",
+                parallelism,
+                "--start",
+                "1",
+                self.work_path("basic_cli"),
             ]
             cli.entrypoint(args)

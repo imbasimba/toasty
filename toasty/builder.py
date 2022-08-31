@@ -202,7 +202,7 @@ class Builder(object):
         return img
 
     def toast_base(self, sampler, depth, is_planet=False, is_pano=False, **kwargs):
-        from .toast import sample_layer, ToastCoordinateSystem
+        from .toast import sample_layer, sample_layer_filtered, ToastCoordinateSystem
 
         self._check_no_wcs_yet()
 
@@ -212,7 +212,12 @@ class Builder(object):
             else ToastCoordinateSystem.ASTRONOMICAL
         )
         coordsys = kwargs.pop("coordsys", coordsys)
-        sample_layer(self.pio, sampler, depth, coordsys=coordsys, **kwargs)
+        if "tile_filter" in kwargs:
+            sample_layer_filtered(
+                pio=self.pio, sampler=sampler, depth=depth, coordsys=coordsys, **kwargs
+            )
+        else:
+            sample_layer(self.pio, sampler, depth, coordsys=coordsys, **kwargs)
 
         if is_planet:
             self.imgset.data_set_type = DataSetType.PLANET
@@ -274,9 +279,9 @@ class Builder(object):
 
     def apply_wcs_info(self, wcs, width, height):
         self.imgset.set_position_from_wcs(
-            wcs.to_header(),
-            width,
-            height,
+            headers=wcs.to_header(),
+            width=width,
+            height=height,
             place=self.place,
         )
 
@@ -320,10 +325,17 @@ class Builder(object):
         self.place.name = name
         return self
 
-    def create_wtml_folder(self):
+    def create_wtml_folder(self, add_place_for_toast=False):
         """
         Create a one-item :class:`wwt_data_formats.folder.Folder` object
         capturing this image.
+
+        Parameters
+        ----------
+        add_place_for_toast : optional boolean, defaults to False
+            All-sky/all-planet datasets usually don't want to be associated with a
+            particular Place. Otherwise, loading up the imageset causes the view
+            to zoom to a particular RA/Dec or lat/lon, likely 0,0.
         """
         from wwt_data_formats.folder import Folder
 
@@ -334,22 +346,17 @@ class Builder(object):
         folder = Folder()
         folder.name = self.imgset.name
 
-        # For all-sky/all-planet datasets, don't associate the imageset with a
-        # particular Place. Otherwise, loading up the imageset causes the view
-        # to zoom to a particular RA/Dec or lat/lon, likely 0,0. We might want
-        # to make this manually configurable but this heuristic should Do The
-        # Right Thing most times.
-        if self.imgset.projection == ProjectionType.TOAST:
+        if self.imgset.projection == ProjectionType.TOAST and not add_place_for_toast:
             folder.children = [self.imgset]
         else:
             folder.children = [self.place]
 
         return folder
 
-    def write_index_rel_wtml(self):
+    def write_index_rel_wtml(self, add_place_for_toast=False):
         from wwt_data_formats import write_xml_doc
 
-        folder = self.create_wtml_folder()
+        folder = self.create_wtml_folder(add_place_for_toast=add_place_for_toast)
 
         with self.pio.open_metadata_for_write("index_rel.wtml") as f:
             write_xml_doc(folder.to_xml(), dest_stream=f, dest_wants_bytes=True)

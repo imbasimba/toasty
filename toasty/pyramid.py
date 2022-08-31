@@ -21,6 +21,8 @@ next_highest_power_of_2
 Pos
 pos_children
 pos_parent
+get_parents
+guess_base_layer_level
 PyramidIO
 tiles_at_depth
 """.split()
@@ -59,7 +61,7 @@ def tiles_at_depth(depth):
     """
     Return the number of tiles in the WWT tile pyramid layer at depth *depth*.
     """
-    return 4 ** depth
+    return 4**depth
 
 
 def is_subtile(deeper_pos, shallower_pos):
@@ -170,6 +172,69 @@ def generate_pos(depth):
     """
     for item in _postfix_pos(Pos(0, 0, 0), depth):
         yield item
+
+
+def get_parents(pos_collection, get_all_ancestors=False):
+    """Return a set of all parents or ancestors of a collection of tiles.
+
+    Parameters
+    ----------
+    pos_collection : list or set of :class:`Pos`
+        The collection of :class:`Pos` to find all parents for.
+        This collection cannot contain Pos of differing levels (n values).
+    get_all_ancestors : boolean, defaults to False
+        Choose this if you want to get all ancestors, and not just the parent tiles.
+
+    Yields
+    ------
+    parents : set of :class:`Pos`
+        A set containing the :class:`Pos` of all parents for the input.
+
+    """
+    parents = set()
+    if any(
+        x in pos_collection
+        for x in (Pos(1, 0, 0), Pos(1, 0, 1), Pos(1, 1, 0), Pos(1, 1, 1))
+    ):
+        parents.add(Pos(0, 0, 0))
+        return parents
+
+    for pos in pos_collection:
+        parent_pos = pos_parent(pos)[0]
+        parents.add(parent_pos)
+
+    if get_all_ancestors:
+        grandparents = get_parents(parents, get_all_ancestors)
+        parents = parents.union(grandparents)
+    return parents
+
+
+def guess_base_layer_level(wcs):
+    from astropy import units as u
+    from astropy.wcs.utils import proj_plane_pixel_area
+    import math
+
+    tile_arcmin_per_pixel = 21.095
+    if wcs.celestial.wcs.cunit[0] != wcs.celestial.wcs.cunit[1]:
+        import warnings
+
+        warnings.warn(
+            "Toasty is having problems guessing an appropriate level, because the image axes are described in different units"
+        )
+
+    tile_size_per_pixel = u.arcmin.to(
+        wcs.celestial.wcs.cunit[0], value=tile_arcmin_per_pixel
+    )
+
+    # Assuming roughly a square image
+    side_length = math.sqrt(proj_plane_pixel_area(wcs.celestial))
+
+    level = 1
+    while tile_size_per_pixel > side_length:
+        level += 1
+        tile_size_per_pixel /= 2
+
+    return level
 
 
 class PyramidIO(object):
@@ -409,8 +474,8 @@ class PyramidIO(object):
         work. The "cascade" stage doesn't need locking, so in general only the
         deepest level of the pyramid will need to be cleaned.
         """
-        for x in range(0, 2 ** level):
-            for y in range(0, 2 ** level):
+        for x in range(0, 2**level):
+            for y in range(0, 2**level):
                 pos = Pos(level, x, y)
                 p = self.tile_path(pos, makedirs=False) + ".lock"
 

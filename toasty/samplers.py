@@ -31,9 +31,13 @@ plate_carree_planet_zeroleft_sampler
 plate_carree_zeroright_sampler
 healpix_fits_file_sampler
 healpix_sampler
+WcsSampler
 """.split()
 
 import numpy as np
+
+TWOPI = 2 * np.pi
+HALFPI = 0.5 * np.pi
 
 
 def healpix_sampler(data, nest=False, coord="C", interpolation="nearest"):
@@ -186,13 +190,13 @@ def plate_carree_sampler(data):
     data = np.asarray(data)
     ny, nx = data.shape[:2]
 
-    dx = nx / (2 * np.pi)  # pixels per radian in the X direction
+    dx = nx / TWOPI  # pixels per radian in the X direction
     dy = ny / np.pi  # ditto, for the Y direction
     lon0 = np.pi - 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
-    lat0 = 0.5 * np.pi - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
+    lat0 = HALFPI - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
 
     def vec2pix(lon, lat):
-        lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
+        lon = (lon + np.pi) % TWOPI - np.pi  # ensure in range [-pi, pi]
         ix = (lon0 - lon) * dx
         ix = np.round(ix).astype(int)
         ix = np.clip(ix, 0, nx - 1)
@@ -229,16 +233,16 @@ def plate_carree_galactic_sampler(data):
     data = np.asarray(data)
     ny, nx = data.shape[:2]
 
-    dx = nx / (2 * np.pi)  # pixels per radian in the X direction
+    dx = nx / TWOPI  # pixels per radian in the X direction
     dy = ny / np.pi  # ditto, for the Y direction
     lon0 = np.pi - 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
-    lat0 = 0.5 * np.pi - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
+    lat0 = HALFPI - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
 
     def vec2pix(lon, lat):
         gal = ICRS(lon * u.rad, lat * u.rad).transform_to(Galactic)
         lon, lat = gal.l.rad, gal.b.rad
 
-        lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
+        lon = (lon + np.pi) % TWOPI - np.pi  # ensure in range [-pi, pi]
         ix = (lon0 - lon) * dx
         ix = np.round(ix).astype(int)
         ix = np.clip(ix, 0, nx - 1)
@@ -275,15 +279,15 @@ def plate_carree_ecliptic_sampler(data):
     data = np.asarray(data)
     ny, nx = data.shape[:2]
 
-    dx = nx / (2 * np.pi)  # pixels per radian in the X direction
+    dx = nx / TWOPI  # pixels per radian in the X direction
     dy = ny / np.pi  # ditto, for the Y direction
     lon0 = np.pi - 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
-    lat0 = 0.5 * np.pi - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
+    lat0 = HALFPI - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
 
     def vec2pix(lon, lat):
         ecl = ICRS(lon * u.rad, lat * u.rad).transform_to(Ecliptic)
         lon, lat = ecl.lon.rad, ecl.lat.rad
-        lon = lon % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
+        lon = lon % TWOPI - np.pi  # ensure in range [-pi, pi]
 
         ix = (lon0 - lon) * dx
         ix = np.round(ix).astype(int)
@@ -322,13 +326,13 @@ def plate_carree_planet_sampler(data):
     data = np.asarray(data)
     ny, nx = data.shape[:2]
 
-    dx = nx / (2 * np.pi)  # pixels per radian in the X direction
+    dx = nx / TWOPI  # pixels per radian in the X direction
     dy = ny / np.pi  # ditto, for the Y direction
     lon0 = -np.pi + 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
-    lat0 = 0.5 * np.pi - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
+    lat0 = HALFPI - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
 
     def vec2pix(lon, lat):
-        lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
+        lon = (lon + np.pi) % TWOPI - np.pi  # ensure in range [-pi, pi]
         ix = (lon - lon0) * dx
         ix = np.round(ix).astype(int)
         ix = np.clip(ix, 0, nx - 1)
@@ -368,13 +372,13 @@ def plate_carree_planet_zeroleft_sampler(data):
     data = np.asarray(data)
     ny, nx = data.shape[:2]
 
-    dx = nx / (2 * np.pi)  # pixels per radian in the X direction
+    dx = nx / TWOPI  # pixels per radian in the X direction
     dy = ny / np.pi  # ditto, for the Y direction
     lon0 = 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
-    lat0 = 0.5 * np.pi - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
+    lat0 = HALFPI - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
 
     def vec2pix(lon, lat):
-        lon = lon % (2 * np.pi)  # ensure in range [0, 2pi]
+        lon = lon % TWOPI  # ensure in range [0, 2pi]
         ix = (lon - lon0) * dx
         ix = np.round(ix).astype(int)
         ix = np.clip(ix, 0, nx - 1)
@@ -411,13 +415,13 @@ def plate_carree_zeroright_sampler(data):
     data = np.asarray(data)
     ny, nx = data.shape[:2]
 
-    dx = nx / (2 * np.pi)  # pixels per radian in the X direction
+    dx = nx / TWOPI  # pixels per radian in the X direction
     dy = ny / np.pi  # ditto, for the Y direction
-    lon0 = 2 * np.pi - 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
-    lat0 = 0.5 * np.pi - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
+    lon0 = TWOPI - 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
+    lat0 = HALFPI - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
 
     def vec2pix(lon, lat):
-        lon = lon % (2 * np.pi)  # ensure in range [0, 2pi]
+        lon = lon % TWOPI  # ensure in range [0, 2pi]
         ix = (lon0 - lon) * dx
         ix = np.round(ix).astype(int)
         ix = np.clip(ix, 0, nx - 1)
@@ -429,6 +433,295 @@ def plate_carree_zeroright_sampler(data):
         return data[iy, ix]
 
     return vec2pix
+
+
+class WcsSampler(object):
+    """Create a sampler for data with a generic WCS specification.
+
+    The sampler returns values in float32, regardless of input data type.
+
+    Parameters
+    ----------
+    data : array
+        The image data.
+    wcs : :class:`astropy.wcs.WCS`
+        A WCS data structure describing the data.
+
+    Returns
+    -------
+    A function that samples the data; the call signature is
+    ``vec2pix(lon, lat)-> data``, where the inputs and output are 2D arrays
+    and *lon* and *lat* are in radians.
+    """
+
+    def __init__(self, data, wcs):
+        import numpy as np
+
+        self._image = np.float32(data)
+        self._wcs = wcs
+
+    def _image_bounds(self):
+        """
+        Get the bounds of the image.
+
+        Returns ``(lon_min, lon_max, lat_min, lat_max)``, in radians. Latitudes
+        should be "unwrapped", so that ``lat_min=30, lat_max=60`` implies that
+        the image spans 30 degrees in latitude. ``lat_min=60, lat_max=390`` has
+        the same effective bounding values, but represents an image that spans
+        330 degrees in longitude.
+        """
+
+        # First, we calculate lats and lons in a "coarse" grid spanning the
+        # entire image. This is necessary for images that, e.g., traverse the
+        # north pole, where the maximum latitude occurs *inside* the image, not
+        # at a corner, and not even along an edge.
+
+        D2R = np.pi / 180
+        N_COARSE = 32
+        naxis2, naxis1 = self._image.shape
+        coarse_pix = np.empty((N_COARSE, N_COARSE, 2))
+        coarse_idx1 = np.linspace(0.5, naxis1 + 0.5, N_COARSE)
+        coarse_idx2 = np.linspace(0.5, naxis2 + 0.5, N_COARSE)
+        coarse_pix[..., 0] = coarse_idx1.reshape((-1, 1))
+        coarse_pix[..., 1] = coarse_idx2.reshape((1, -1))
+
+        coarse_world = self._wcs.wcs_pix2world(coarse_pix.reshape((-1, 2)), 1).reshape(
+            (N_COARSE, N_COARSE, 2)
+        )
+
+        # It's really important that our bounds are precise, in the sense that
+        # every piece of every pixel of the image is contained within them. To
+        # get this precision, we'll identify the extreme values on our coarse
+        # grid and then resample at pixel resolution. Unless the output
+        # pixelization is significantly oversampling the input image, this
+        # should yield bounds that are definitionally good enough to make sure
+        # that we cover every tile that we should.
+
+        # Latitudes don't wrap, but latitude extrema can happen in the middle of
+        # the image (e.g. if it contains the north pole). So we need to refine
+        # in a 2D search across the entire coarse grid.
+
+        coarse_lat = coarse_world[..., 1]
+
+        def refine_lat(arg_op):
+            """
+            `arg_op` is something like `np.argmax()`: an extreme-value finder.
+            """
+            e1, e2 = np.unravel_index(arg_op(coarse_lat), coarse_lat.shape)
+
+            # Construct a sub-grid around the extreme-value point. We know that
+            # the edges of `coarse_pix` correspond exactly to the edges of the
+            # image, so we don't have to go beyond them if the maximum lies on
+            # an edge.
+            #
+            # First, compute indices into `coarse_pix`.
+
+            lo1 = max(e1 - 1, 0)
+            hi1 = min(e1 + 1, coarse_lat.shape[0] - 1)
+            lo2 = max(e2 - 1, 0)
+            hi2 = min(e2 + 1, coarse_lat.shape[1] - 1)
+
+            # Now figure out how many samples to compute in our refined grid.
+            # We want to sample essentially every pixel.
+
+            n1 = max(int(np.ceil(coarse_idx1[hi1] - coarse_idx1[lo1])), 1)
+            n2 = max(int(np.ceil(coarse_idx2[hi2] - coarse_idx2[lo2])), 1)
+
+            # Generate that grid.
+
+            refined_pix = np.empty((n1, n2, 2))
+            refined_idx1 = np.linspace(coarse_idx1[lo1], coarse_idx1[hi1], n1)
+            refined_idx2 = np.linspace(coarse_idx2[lo2], coarse_idx2[hi2], n2)
+            refined_pix[..., 0] = refined_idx1.reshape((-1, 1))
+            refined_pix[..., 1] = refined_idx2.reshape((1, -1))
+
+            # Compute the refined world grid.
+
+            refined_world = self._wcs.wcs_pix2world(
+                refined_pix.reshape((-1, 2)), 1
+            ).reshape((n1, n2, 2))
+
+            # Find the *real* extreme value and convert to radians
+
+            refined_grid = refined_world[..., 1].flatten()
+            return refined_grid[arg_op(refined_grid)] * D2R
+
+        lat_min = refine_lat(np.argmin)
+        lat_max = refine_lat(np.argmax)
+
+        # Longitudes are annoying since we need to make sure they're unwrapped.
+        # On the other hand, I can't think of a non-pathological way in which an
+        # image's maximum longitude would occur anywhere other than its edge.
+        # Which is good, since I don't think "unwrapping" in 2D is feasible:
+        # that's why complex functions have branch cuts and such. To avoid all
+        # that, we search for the extreme values only along the edge of the
+        # image, after unwrapping the coordinates into a 1D array.
+
+        coarse_lon = coarse_world[..., 0]
+
+        nm = N_COARSE - 1
+        coarse_edge_lons = np.empty(4 * nm + 1)
+        coarse_edge_lons[0:nm] = coarse_lon[:nm, 0]
+        coarse_edge_lons[nm : 2 * nm] = coarse_lon[nm, :nm]
+        coarse_edge_lons[2 * nm : 3 * nm] = coarse_lon[-1:0:-1, nm]
+        coarse_edge_lons[3 * nm :] = coarse_lon[0, -1::-1]
+
+        deltas = np.zeros(coarse_edge_lons.shape, dtype=np.int)
+
+        for i in range(1, coarse_edge_lons.size):
+            v0 = coarse_edge_lons[i - 1]
+            v1 = coarse_edge_lons[i]
+            d = 0
+
+            while v1 - v0 > 180:
+                v1 -= 360
+                d -= 1
+
+            while v0 - v1 > 180:
+                v1 += 360
+                d += 1
+
+            coarse_edge_lons[i] = v1
+            deltas[i] = d
+
+        def refine_lon(arg_op):
+            e = arg_op(coarse_edge_lons)
+
+            if e < nm:
+                # "top" edge (thinking of array as [lon, lat] ~ [x, y])
+                lo = max(e - 1, 0)
+                hi = min(e + 1, nm)
+                n = max(int(np.ceil(coarse_idx1[hi] - coarse_idx1[lo])), 1)
+                refined_idx1 = np.linspace(coarse_idx1[lo], coarse_idx1[hi], n)
+                refined_idx2 = np.zeros(n) + coarse_idx2[0]
+            elif e < 2 * nm:
+                # "right" edge
+                rel = e - nm
+                lo = max(rel - 1, 0)
+                hi = min(rel + 1, nm)
+                n = max(int(np.ceil(coarse_idx2[hi] - coarse_idx2[lo])), 1)
+                refined_idx1 = np.zeros(n) + coarse_idx1[nm]
+                refined_idx2 = np.linspace(coarse_idx2[lo], coarse_idx2[hi], n)
+            elif e < 3 * nm:
+                # "bottom" edge, traversed backwards (right-to-left)
+                rel = 3 * nm - (1 + e)
+                lo = max(rel - 1, 0)
+                hi = min(rel + 1, nm)
+                n = max(int(np.ceil(coarse_idx1[hi] - coarse_idx1[lo])), 1)
+                refined_idx1 = np.linspace(coarse_idx1[lo], coarse_idx1[hi], n)
+                refined_idx2 = np.zeros(n) + coarse_idx2[nm]
+            else:
+                # "left" edge, traversed backwards (bottom-to-top). This "side"
+                # has an extra pixel to close back to [0,0].
+                rel = 4 * nm - e
+                lo = max(rel - 1, 0)
+                hi = min(rel + 1, nm)
+                n = max(int(np.ceil(coarse_idx2[hi] - coarse_idx2[lo])), 1)
+                refined_idx1 = np.zeros(n) + coarse_idx1[0]
+                refined_idx2 = np.linspace(coarse_idx2[lo], coarse_idx2[hi], n)
+
+            refined_pix = np.empty((n, 2))
+            refined_pix[..., 0] = refined_idx1
+            refined_pix[..., 1] = refined_idx2
+
+            # Compute the refined world grid.
+
+            refined_lon = self._wcs.wcs_pix2world(refined_pix, 1)[:, 0]
+
+            # But wait! We need to re-apply whatever delta was involved in the
+            # global unwrapping. I'm 95% sure that we won't ever need to
+            # re-unwrap here.
+
+            refined_lon += 360 * deltas[e]
+
+            # Convert to radians and we're done.
+            return refined_lon[arg_op(refined_lon)] * D2R
+
+        lon_min = refine_lon(np.argmin)
+        lon_max = refine_lon(np.argmax)
+        return lon_min, lon_max, lat_min, lat_max
+
+    def filter(self):
+        """
+        Get a TOAST tile-filter function for the specified chunk.
+
+        Returns
+        -------
+        A callable object, ``filter(tile) -> bool``, suitable for use as a tile
+        filter function.
+        """
+        return _latlon_tile_filter(*self._image_bounds())
+
+    def sampler(self):
+        from astropy.coordinates import SkyCoord
+        from astropy import units as u
+
+        def vec2pix(lon, lat):
+            c = SkyCoord(lon * u.rad, lat * u.rad, frame="icrs")
+            idx = self._wcs.world_to_array_index(c)
+
+            # Flag out-of-bounds pixels. Currently (April 2022) world_to_array_index
+            # returns a tuple of lists, so we need to array-ify.
+            idx = tuple(np.asarray(i) for i in idx)
+            bad = (idx[0] < 0) | (idx[0] >= self._image.shape[0])
+
+            for i, i_idx in enumerate(idx[1:]):
+                bad |= i_idx < 0
+                bad |= i_idx >= self._image.shape[i + 1]  # note that i is off by 1 here
+
+            for i_idx in idx:
+                i_idx[bad] = 0
+
+            samp = self._image[idx]
+
+            # We could potentially allow integer values, and utilize the FITS "BLANK" keyword to set the NaN values.
+            # However, there are plenty of integer FITS files out there lacking the BLANK keyword in the FITS header.
+            # In these cases we would have to find an unused value and designate it as the "BLANK" value.
+            if samp.dtype.kind != "f":
+                raise ValueError(
+                    "Can not process dtype {0}. Convert the data to floating point values first. ".format(
+                        samp.dtype
+                    )
+                )
+
+            samp[bad] = np.nan
+
+            return samp
+
+        return vec2pix
+
+
+def _latlon_tile_filter(image_lon_min, image_lon_max, image_lat_min, image_lat_max):
+    """
+    Return a "tile filter" function that only accepts tiles that overlap a
+    bounding box in latitude and longitude.
+
+    The arguments to this function give the bounding box edges, measured in
+    radians. We refer to the lat/lon bounding box as the "image" bounds although
+    this filtering process can be useful even if you don't have an actual image
+    handy.
+
+    The image longitudes should be "unwrapped" such that ``image_lon_min <
+    image_lon_max`` always. For instance, longitude bounds of ``(170, 400)``
+    define an image that spans 230 degrees in longitude. The longitude bounds
+    can span more than 360 degrees if the image really covers all longitudes.
+    (This can happen if it touches one of the poles.)
+
+    Usual bounding box semantics apply. If your bounding box is "too big" the
+    only problem is that more tiles are touched than strictly necessary.
+    """
+    assert image_lon_min < image_lon_max
+    assert image_lat_min < image_lat_max
+
+    from ._libtoasty import tile_intersects_latlon_bbox
+
+    def latlon_tile_filter(tile):
+        corner_lonlats = np.asarray(tile.corners)
+        return tile_intersects_latlon_bbox(
+            corner_lonlats, image_lon_min, image_lon_max, image_lat_min, image_lat_max
+        )
+
+    return latlon_tile_filter
 
 
 class ChunkedPlateCarreeSampler(object):
@@ -454,8 +747,8 @@ class ChunkedPlateCarreeSampler(object):
 
         assert planetary, "XXX non-planetary plate carree not implemented"
 
-        self.sx = 2 * np.pi / self._image.shape[1]  # radians per pixel, X direction
-        self.sy = np.pi / self._image.shape[0]  # ditto, for the X direction
+        self.sx = TWOPI / self._image.shape[1]  # radians per pixel, X direction
+        self.sy = np.pi / self._image.shape[0]  # ditto, for the Y direction
 
     @property
     def n_chunks(self):
@@ -468,8 +761,8 @@ class ChunkedPlateCarreeSampler(object):
         # pixel edges, in the appropriate direction, not pixel centers.
         lon_l = self.sx * cx - np.pi
         lon_r = self.sx * (cx + cw) - np.pi
-        lat_u = 0.5 * np.pi - self.sy * cy
-        lat_d = 0.5 * np.pi - self.sy * (cy + ch)  # note: lat_u > lat_d
+        lat_u = HALFPI - self.sy * cy
+        lat_d = HALFPI - self.sy * (cy + ch)  # note: lat_u > lat_d
 
         return lon_l, lon_r, lat_d, lat_u
 
@@ -488,96 +781,7 @@ class ChunkedPlateCarreeSampler(object):
         A callable object, ``filter(tile) -> bool``, suitable for use as a tile
         filter function.
         """
-        (
-            chunk_lon_min1,
-            chunk_lon_max1,
-            chunk_lat_min1,
-            chunk_lat_max1,
-        ) = self._chunk_bounds(ichunk)
-
-        def latlon_tile_filter(tile):
-            """
-            Return true if this tile might contain data from this chunk of the
-            source image.
-            """
-            # Need to copy the outer arguments since we're going to modify them.
-            chunk_lon_min = chunk_lon_min1
-            chunk_lon_max = chunk_lon_max1
-            chunk_lat_min = chunk_lat_min1
-            chunk_lat_max = chunk_lat_max1
-
-            corner_lonlats = np.asarray(tile.corners)  # shape (4, 2)
-
-            # Latitudes are easy -- no wrapping.
-
-            tile_lat_min = np.min(corner_lonlats[:, 1])
-            tile_lat_max = np.max(corner_lonlats[:, 1])
-
-            if chunk_lat_min > tile_lat_max:
-                return False
-            if chunk_lat_max < tile_lat_min:
-                return False
-
-            # Can't reject based on latitudes. Longitudes are trickier.
-            #
-            # Step 1: If we hit one of the poles, longitudes become
-            # ~meaningless, so all we can really do (in our simplistic approach
-            # here) is accept the tile. We compare to ~(pi - 1e-8) here to
-            # account for inevitable roundoff. Note that if we don't apply the
-            # lat-bounds filter first, every single chunk will accept tiles at
-            # the poles, even if it's right on the equator.
-
-            if tile_lat_max > 1.5707963 or tile_lat_min < -1.5707963:
-                return True
-
-            # Step 2: get good a coverage range for tile longitudes. Some tiles
-            # span a full pi in longitude, and sometimes the "corners"
-            # longitudes span all sorts of values from -2pi to 2pi. So just
-            # shuffle them around until we get a self-consistent min/max.
-
-            lons = corner_lonlats[:, 0]
-            keep_going = True
-
-            while keep_going:
-                keep_going = False
-
-                imin = np.argmin(lons)
-                tile_lon_min = lons[imin]
-                tile_lon_max = np.max(lons)
-
-                if tile_lon_max - tile_lon_min > np.pi:
-                    keep_going = True
-                    lons[imin] += 2 * np.pi
-
-            # Step 3: Now, shuffle the chunk longitudes by +/-2pi so that they
-            # line up with the tile longitude bounds. We know that we'll
-            # ultimately be comparing the chunk_lon_min to tile_lon_max, and
-            # chunk/max to tile/min, so we can treat those pairs individually.
-
-            while chunk_lon_min - tile_lon_max > np.pi:
-                chunk_lon_min -= 2 * np.pi
-
-            while tile_lon_max - chunk_lon_min > np.pi:
-                chunk_lon_min += 2 * np.pi
-
-            while chunk_lon_max - tile_lon_min > np.pi:
-                chunk_lon_max -= 2 * np.pi
-
-            while tile_lon_min - chunk_lon_max > np.pi:
-                chunk_lon_max += 2 * np.pi
-
-            # Finally, we can reject this tile if it lies beyond the boundaries
-            # of the chunk we're considering.
-
-            if chunk_lon_min > tile_lon_max:
-                return False
-            if chunk_lon_max < tile_lon_min:
-                return False
-
-            # Well, we couldn't reject it, so we must accept:
-            return True
-
-        return latlon_tile_filter
+        return _latlon_tile_filter(*self._chunk_bounds(ichunk))
 
     def sampler(self, ichunk):
         """
@@ -617,7 +821,7 @@ class ChunkedPlateCarreeSampler(object):
         )  # latitudes of the centers of the pixels with iy = 0
 
         def plate_carree_planet_sampler(lon, lat):
-            lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
+            lon = (lon + np.pi) % TWOPI - np.pi  # ensure in range [-pi, pi]
             ix = (lon - lon0) * dx
             ix = np.round(ix).astype(int)
             ok = (ix >= 0) & (ix < nx)

@@ -922,6 +922,7 @@ def view_locally(settings):
 
 def view_tunneled(settings):
     import random
+    import shlex
     import subprocess
     from urllib.parse import urlparse, urlunparse
     from wwt_data_formats.folder import Folder
@@ -943,7 +944,7 @@ def view_tunneled(settings):
     toasty_argv = ["exec", "toasty", "view", "--tile-only"]
     if settings.parallelism:
         toasty_argv += ["--parallelism", str(settings.parallelism)]
-    toasty_argv += settings.paths
+    toasty_argv += [shlex.quote(p) for p in settings.paths]
 
     print(f"Preparing data on `{settings.tunnel}` ...\n")
 
@@ -989,7 +990,7 @@ def view_tunneled(settings):
         "--port",
         "0",
         "--heartbeat",
-        os.path.dirname(index_rel_path),
+        shlex.quote(os.path.dirname(index_rel_path)),
     ]
 
     print(f"\nLaunching data server on `{settings.tunnel}` ...\n")

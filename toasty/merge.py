@@ -271,12 +271,12 @@ def _cascade_images_parallel(pio, start, merger, cli_progress, parallel, tile_fi
             if pos.n == first_level_to_do:
                 ready_queue.put(pos)
     else:
-        tiles_to_process = []
+        tiles_to_process = set()
         for tile in generate_tiles_filtered(
             first_level_to_do, tile_filter, bottom_only=True
         ):
             ready_queue.put(tile.pos)
-            tiles_to_process.append(tile.pos)
+            tiles_to_process.add(tile.pos)
         _initiate_readiness_state(tiles_to_process, readiness)
 
     # The workers pick up tiles that are ready to process and do the merging.

@@ -566,8 +566,9 @@ def generate_tiles_filtered(
 
     """
     for t in _create_level1_tiles(coordsys):
-        for item in _postfix_corner(t, depth, filter, bottom_only):
-            yield item
+        if filter(t):
+            for item in _postfix_corner(t, depth, filter, bottom_only):
+                yield item
 
 
 def count_tiles_matching_filter(

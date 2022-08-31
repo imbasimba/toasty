@@ -36,6 +36,9 @@ WcsSampler
 
 import numpy as np
 
+TWOPI = 2 * np.pi
+HALFPI = 0.5 * np.pi
+
 
 def healpix_sampler(data, nest=False, coord="C", interpolation="nearest"):
     """Create a sampler for HEALPix image data.
@@ -187,13 +190,13 @@ def plate_carree_sampler(data):
     data = np.asarray(data)
     ny, nx = data.shape[:2]
 
-    dx = nx / (2 * np.pi)  # pixels per radian in the X direction
+    dx = nx / TWOPI  # pixels per radian in the X direction
     dy = ny / np.pi  # ditto, for the Y direction
     lon0 = np.pi - 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
-    lat0 = 0.5 * np.pi - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
+    lat0 = HALFPI - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
 
     def vec2pix(lon, lat):
-        lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
+        lon = (lon + np.pi) % TWOPI - np.pi  # ensure in range [-pi, pi]
         ix = (lon0 - lon) * dx
         ix = np.round(ix).astype(int)
         ix = np.clip(ix, 0, nx - 1)
@@ -230,16 +233,16 @@ def plate_carree_galactic_sampler(data):
     data = np.asarray(data)
     ny, nx = data.shape[:2]
 
-    dx = nx / (2 * np.pi)  # pixels per radian in the X direction
+    dx = nx / TWOPI  # pixels per radian in the X direction
     dy = ny / np.pi  # ditto, for the Y direction
     lon0 = np.pi - 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
-    lat0 = 0.5 * np.pi - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
+    lat0 = HALFPI - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
 
     def vec2pix(lon, lat):
         gal = ICRS(lon * u.rad, lat * u.rad).transform_to(Galactic)
         lon, lat = gal.l.rad, gal.b.rad
 
-        lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
+        lon = (lon + np.pi) % TWOPI - np.pi  # ensure in range [-pi, pi]
         ix = (lon0 - lon) * dx
         ix = np.round(ix).astype(int)
         ix = np.clip(ix, 0, nx - 1)
@@ -276,15 +279,15 @@ def plate_carree_ecliptic_sampler(data):
     data = np.asarray(data)
     ny, nx = data.shape[:2]
 
-    dx = nx / (2 * np.pi)  # pixels per radian in the X direction
+    dx = nx / TWOPI  # pixels per radian in the X direction
     dy = ny / np.pi  # ditto, for the Y direction
     lon0 = np.pi - 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
-    lat0 = 0.5 * np.pi - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
+    lat0 = HALFPI - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
 
     def vec2pix(lon, lat):
         ecl = ICRS(lon * u.rad, lat * u.rad).transform_to(Ecliptic)
         lon, lat = ecl.lon.rad, ecl.lat.rad
-        lon = lon % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
+        lon = lon % TWOPI - np.pi  # ensure in range [-pi, pi]
 
         ix = (lon0 - lon) * dx
         ix = np.round(ix).astype(int)
@@ -323,13 +326,13 @@ def plate_carree_planet_sampler(data):
     data = np.asarray(data)
     ny, nx = data.shape[:2]
 
-    dx = nx / (2 * np.pi)  # pixels per radian in the X direction
+    dx = nx / TWOPI  # pixels per radian in the X direction
     dy = ny / np.pi  # ditto, for the Y direction
     lon0 = -np.pi + 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
-    lat0 = 0.5 * np.pi - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
+    lat0 = HALFPI - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
 
     def vec2pix(lon, lat):
-        lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
+        lon = (lon + np.pi) % TWOPI - np.pi  # ensure in range [-pi, pi]
         ix = (lon - lon0) * dx
         ix = np.round(ix).astype(int)
         ix = np.clip(ix, 0, nx - 1)
@@ -369,13 +372,13 @@ def plate_carree_planet_zeroleft_sampler(data):
     data = np.asarray(data)
     ny, nx = data.shape[:2]
 
-    dx = nx / (2 * np.pi)  # pixels per radian in the X direction
+    dx = nx / TWOPI  # pixels per radian in the X direction
     dy = ny / np.pi  # ditto, for the Y direction
     lon0 = 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
-    lat0 = 0.5 * np.pi - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
+    lat0 = HALFPI - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
 
     def vec2pix(lon, lat):
-        lon = lon % (2 * np.pi)  # ensure in range [0, 2pi]
+        lon = lon % TWOPI  # ensure in range [0, 2pi]
         ix = (lon - lon0) * dx
         ix = np.round(ix).astype(int)
         ix = np.clip(ix, 0, nx - 1)
@@ -412,13 +415,13 @@ def plate_carree_zeroright_sampler(data):
     data = np.asarray(data)
     ny, nx = data.shape[:2]
 
-    dx = nx / (2 * np.pi)  # pixels per radian in the X direction
+    dx = nx / TWOPI  # pixels per radian in the X direction
     dy = ny / np.pi  # ditto, for the Y direction
-    lon0 = 2 * np.pi - 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
-    lat0 = 0.5 * np.pi - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
+    lon0 = TWOPI - 0.5 / dx  # longitudes of the centers of the pixels with ix = 0
+    lat0 = HALFPI - 0.5 / dy  # latitudes of the centers of the pixels with iy = 0
 
     def vec2pix(lon, lat):
-        lon = lon % (2 * np.pi)  # ensure in range [0, 2pi]
+        lon = lon % TWOPI  # ensure in range [0, 2pi]
         ix = (lon0 - lon) * dx
         ix = np.round(ix).astype(int)
         ix = np.clip(ix, 0, nx - 1)
@@ -698,8 +701,8 @@ def _latlon_tile_filter(image_lon_min1, image_lon_max1, image_lat_min1, image_la
     this filtering process can be useful even if you don't have an actual image
     handy.
 
-    The image longitudes should be "unwrapped" such that ``image_lon_min1 <
-    image_lon_max1`` always. For instance, longitude bounds of ``(170, 400)``
+    The image longitudes should be "unwrapped" such that ``image_lon_min <
+    image_lon_max`` always. For instance, longitude bounds of ``(170, 400)``
     define an image that spans 230 degrees in longitude. The longitude bounds
     can span more than 360 degrees if the image really covers all longitudes.
     (This can happen if it touches one of the poles.)
@@ -762,7 +765,7 @@ def _latlon_tile_filter(image_lon_min1, image_lon_max1, image_lat_min1, image_la
 
             if tile_lon_max - tile_lon_min > np.pi:
                 keep_going = True
-                lons[imin] += 2 * np.pi
+                lons[imin] += TWOPI
 
         # Step 3: Now, shuffle the tile longitudes so that the left edge of the
         # tile is to the right of the left edge of the image. We might drag it
@@ -770,12 +773,12 @@ def _latlon_tile_filter(image_lon_min1, image_lon_max1, image_lat_min1, image_la
         # right.
 
         while tile_lon_min < image_lon_min:
-            tile_lon_min += 2 * np.pi
-            tile_lon_max += 2 * np.pi
+            tile_lon_min += TWOPI
+            tile_lon_max += TWOPI
 
-        while tile_lon_min - image_lon_min > 2 * np.pi:
-            tile_lon_min -= 2 * np.pi
-            tile_lon_max -= 2 * np.pi
+        while tile_lon_min - image_lon_min > TWOPI:
+            tile_lon_min -= TWOPI
+            tile_lon_max -= TWOPI
 
         # Step 4. Now we can test. In this configuration, if the left edge of
         # the tile is not clear of the right edge of the image, there's an
@@ -788,7 +791,7 @@ def _latlon_tile_filter(image_lon_min1, image_lon_max1, image_lat_min1, image_la
         # duplicated at its current position + 2pi radians, if the right edge of
         # the tile passes the "next" left edge of the image, we also overlap.
 
-        if tile_lon_max > image_lon_min + 2 * np.pi:
+        if tile_lon_max > image_lon_min + TWOPI:
             return True
 
         # Otherwise, there is no overlap.
@@ -821,7 +824,7 @@ class ChunkedPlateCarreeSampler(object):
 
         assert planetary, "XXX non-planetary plate carree not implemented"
 
-        self.sx = 2 * np.pi / self._image.shape[1]  # radians per pixel, X direction
+        self.sx = TWOPI / self._image.shape[1]  # radians per pixel, X direction
         self.sy = np.pi / self._image.shape[0]  # ditto, for the Y direction
 
     @property
@@ -835,8 +838,8 @@ class ChunkedPlateCarreeSampler(object):
         # pixel edges, in the appropriate direction, not pixel centers.
         lon_l = self.sx * cx - np.pi
         lon_r = self.sx * (cx + cw) - np.pi
-        lat_u = 0.5 * np.pi - self.sy * cy
-        lat_d = 0.5 * np.pi - self.sy * (cy + ch)  # note: lat_u > lat_d
+        lat_u = HALFPI - self.sy * cy
+        lat_d = HALFPI - self.sy * (cy + ch)  # note: lat_u > lat_d
 
         return lon_l, lon_r, lat_d, lat_u
 
@@ -895,7 +898,7 @@ class ChunkedPlateCarreeSampler(object):
         )  # latitudes of the centers of the pixels with iy = 0
 
         def plate_carree_planet_sampler(lon, lat):
-            lon = (lon + np.pi) % (2 * np.pi) - np.pi  # ensure in range [-pi, pi]
+            lon = (lon + np.pi) % TWOPI - np.pi  # ensure in range [-pi, pi]
             ix = (lon - lon0) * dx
             ix = np.round(ix).astype(int)
             ok = (ix >= 0) & (ix < nx)

@@ -713,84 +713,13 @@ def _latlon_tile_filter(image_lon_min, image_lon_max, image_lat_min, image_lat_m
     assert image_lon_min < image_lon_max
     assert image_lat_min < image_lat_max
 
+    from ._libtoasty import tile_intersects_latlon_bbox
+
     def latlon_tile_filter(tile):
-        """
-        Return true if this tile might contain data from the source image.
-        """
-
-        corner_lonlats = np.asarray(tile.corners)  # shape (4, 2)
-
-        # Latitudes are easy -- no wrapping.
-
-        tile_lat_min = np.min(corner_lonlats[:, 1])
-        tile_lat_max = np.max(corner_lonlats[:, 1])
-
-        if image_lat_min > tile_lat_max:
-            return False
-        if image_lat_max < tile_lat_min:
-            return False
-
-        # Can't reject based on latitudes. Longitudes are trickier.
-        #
-        # Step 1: If we hit one of the poles, longitudes become
-        # ~meaningless, so all we can really do (in our simplistic approach
-        # here) is accept the tile. We compare to ~(pi - 1e-8) here to
-        # account for inevitable roundoff. Note that if we don't apply the
-        # lat-bounds filter first, every single chunk will accept tiles at
-        # the poles, even if it's right on the equator.
-
-        if tile_lat_max > 1.5707963 or tile_lat_min < -1.5707963:
-            return True
-
-        # Step 2: get good a coverage range for tile longitudes. Some tiles
-        # span a full pi in longitude, and sometimes the "corners"
-        # longitudes span all sorts of values from -2pi to 2pi. So just
-        # shuffle them around until we get a self-consistent min/max.
-
-        lons = corner_lonlats[:, 0]
-        keep_going = True
-
-        while keep_going:
-            keep_going = False
-
-            imin = np.argmin(lons)
-            tile_lon_min = lons[imin]
-            tile_lon_max = np.max(lons)
-
-            if tile_lon_max - tile_lon_min > np.pi:
-                keep_going = True
-                lons[imin] += TWOPI
-
-        # Step 3: Now, shuffle the tile longitudes so that the left edge of the
-        # tile is to the right of the left edge of the image. We might drag it
-        # to the left (in chunks of 360 degrees) if it's really far to the
-        # right.
-
-        while tile_lon_min < image_lon_min:
-            tile_lon_min += TWOPI
-            tile_lon_max += TWOPI
-
-        while tile_lon_min - image_lon_min > TWOPI:
-            tile_lon_min -= TWOPI
-            tile_lon_max -= TWOPI
-
-        # Step 4. Now we can test. In this configuration, if the left edge of
-        # the tile is not clear of the right edge of the image, there's an
-        # overlap.
-
-        if tile_lon_min < image_lon_max:
-            return True
-
-        # But we must also check for wraparound! If we imagine that the image is
-        # duplicated at its current position + 2pi radians, if the right edge of
-        # the tile passes the "next" left edge of the image, we also overlap.
-
-        if tile_lon_max > image_lon_min + TWOPI:
-            return True
-
-        # Otherwise, there is no overlap.
-
-        return False
+        corner_lonlats = np.asarray(tile.corners)
+        return tile_intersects_latlon_bbox(
+            corner_lonlats, image_lon_min, image_lon_max, image_lat_min, image_lat_max
+        )
 
     return latlon_tile_filter
 

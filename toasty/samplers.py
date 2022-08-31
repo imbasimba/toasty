@@ -691,7 +691,7 @@ class WcsSampler(object):
         return vec2pix
 
 
-def _latlon_tile_filter(image_lon_min1, image_lon_max1, image_lat_min1, image_lat_max1):
+def _latlon_tile_filter(image_lon_min, image_lon_max, image_lat_min, image_lat_max):
     """
     Return a "tile filter" function that only accepts tiles that overlap a
     bounding box in latitude and longitude.
@@ -710,19 +710,13 @@ def _latlon_tile_filter(image_lon_min1, image_lon_max1, image_lat_min1, image_la
     Usual bounding box semantics apply. If your bounding box is "too big" the
     only problem is that more tiles are touched than strictly necessary.
     """
+    assert image_lon_min < image_lon_max
+    assert image_lat_min < image_lat_max
 
     def latlon_tile_filter(tile):
         """
         Return true if this tile might contain data from the source image.
         """
-        assert image_lon_min1 < image_lon_max1
-        assert image_lat_min1 < image_lat_max1
-
-        # Need to copy the outer arguments since we're going to modify them.
-        image_lon_min = image_lon_min1
-        image_lon_max = image_lon_max1
-        image_lat_min = image_lat_min1
-        image_lat_max = image_lat_max1
 
         corner_lonlats = np.asarray(tile.corners)  # shape (4, 2)
 

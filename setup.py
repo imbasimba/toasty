@@ -2,11 +2,8 @@
 # Copyright 2013-2022 Chris Beaumont and the AAS WorldWide Telescope team
 # Licensed under the MIT License
 
-from __future__ import absolute_import, division, print_function
-
 from Cython.Distutils import build_ext  # in pyproject.toml
 import numpy as np  # in pyproject.toml
-import os
 from setuptools import setup, Extension
 
 
@@ -52,10 +49,10 @@ setup_args = dict(
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
-        "Programming Language :: Python :: 2.7",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Topic :: Scientific/Engineering :: Astronomy",
         "Topic :: Scientific/Engineering :: Visualization",
     ],
@@ -78,7 +75,7 @@ setup_args = dict(
         "reproject",
         "shapely",
         "tqdm>=4.0",
-        "wwt_data_formats>=0.13",
+        "wwt_data_formats>=0.15",
     ],
     extras_require={
         "test": [

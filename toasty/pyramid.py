@@ -743,6 +743,10 @@ class Pyramid(object):
         if self.depth > 9 and self._tile_filter is not None:
             print(f"... {time.time() - t0:.1f}s elapsed")
 
+        if total == 0:
+            print("- Nothing to do.")
+            return
+
         # In serial mode, we can do actual processing as another reduction:
 
         riter = self._make_iter_reducer(default_value=False)
@@ -829,6 +833,10 @@ class Pyramid(object):
             print(
                 f"... {time.time() - t0:.1f}s elapsed; queue size {ready_queue.qsize()}; ready map size {len(readiness)}"
             )
+
+        if total == 0:
+            print("- Nothing to do.")
+            return
 
         # Ready to create workers! These workers pick up tiles that are ready to
         # process and do the merging.

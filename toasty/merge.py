@@ -173,36 +173,28 @@ class TileMerger(object):
                 )
 
         merged = Image.from_array(self._merger(self._buf.asarray()))
-        min_value, max_value = _get_min_max_of_children(
-            self._pio, [img0, img1, img2, img3]
-        )
+        min_value, max_value = self._get_min_max_of_children([img0, img1, img2, img3])
         self._pio.write_image(pos, merged, min_value=min_value, max_value=max_value)
 
+    def _get_min_max_of_children(self, children):
+        min_value = None
+        max_value = None
 
-def _get_min_max_of_children(pio, children):
-    min_value = None
-    max_value = None
-    if "fits" in pio.get_default_format():
-        min_values = _get_existing_min_values(children)
-        if min_values:  # Check there are any valid min values
-            min_value = min(min_values)
-        max_values = _get_existing_max_values(children)
-        if max_values:  # Check there are any valid max values
-            max_value = max(max_values)
-    return min_value, max_value
+        if "fits" in self._pio.get_default_format():
+            min_values = []
+            max_values = []
 
+            for image in children:
+                if image is not None:
+                    if image.data_min is not None:
+                        min_values.append(image.data_min)
+                    if image.data_max is not None:
+                        max_values.append(image.data_max)
 
-def _get_existing_min_values(images):
-    values = []
-    for image in images:
-        if image is not None and image.data_min is not None:
-            values.append(image.data_min)
-    return values
+            if min_values:  # There may not be any valid values!
+                min_value = min(min_values)
 
+            if max_values:
+                max_value = max(max_values)
 
-def _get_existing_max_values(images):
-    values = []
-    for image in images:
-        if image is not None and image.data_max is not None:
-            values.append(image.data_max)
-    return values
+        return min_value, max_value

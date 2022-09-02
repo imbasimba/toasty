@@ -709,6 +709,12 @@ def _latlon_tile_filter(image_lon_min, image_lon_max, image_lat_min, image_lat_m
 
     Usual bounding box semantics apply. If your bounding box is "too big" the
     only problem is that more tiles are touched than strictly necessary.
+
+    Note that this filter can give somewhat surprising semantics: if the filter
+    matches tile T, it is possible that it does not match any of T's children.
+    This is because we're doing a bounding-box test, and it is possible that the
+    bounding box of T overlaps the image while the union of the bounding boxes
+    of T's children does not.
     """
     assert image_lon_min < image_lon_max
     assert image_lat_min < image_lat_max

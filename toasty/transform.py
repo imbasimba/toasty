@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2020-2021 the AAS WorldWide Telescope project
+# Copyright 2020-2022 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 """
@@ -14,9 +14,9 @@ u8_to_rgb
 
 from astropy import visualization as viz
 import numpy as np
-from tqdm import tqdm
 
 from .image import ImageMode, Image
+from .progress import progress_bar
 from .pyramid import depth2tiles, generate_pos
 
 
@@ -34,13 +34,11 @@ def _do_a_transform(pio, depth, make_buf, do_one, pio_out=None, parallel=None, c
     else:
         buf = make_buf()
 
-        with tqdm(total=depth2tiles(depth), disable=not cli_progress) as progress:
+        with progress_bar(total=depth2tiles(depth), show=cli_progress) as progress:
             for pos in generate_pos(depth):
                 do_one(buf, pos, pio, pio_out)
                 progress.update(1)
 
-        if cli_progress:
-            print()
 
 
 def _transform_parallel(pio_in, pio_out, depth, make_buf, do_one, cli_progress, parallel):
@@ -60,7 +58,7 @@ def _transform_parallel(pio_in, pio_out, depth, make_buf, do_one, cli_progress, 
 
     # Send out them tiles
 
-    with tqdm(total=depth2tiles(depth), disable=not cli_progress) as progress:
+    with progress_bar(total=depth2tiles(depth), show=cli_progress) as progress:
         for pos in generate_pos(depth):
               queue.put(pos)
               progress.update(1)
@@ -73,9 +71,6 @@ def _transform_parallel(pio_in, pio_out, depth, make_buf, do_one, cli_progress, 
 
     for w in workers:
         w.join()
-
-    if cli_progress:
-        print()
 
 
 def _transform_mp_worker(queue, done_event, pio_in, pio_out, make_buf, do_one):

@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2020-2021 the AAS WorldWide Telescope project
+# Copyright 2020-2022 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 """
@@ -18,10 +18,10 @@ MultiWcsProcessor
 '''.split()
 
 import numpy as np
-from tqdm import tqdm
 import warnings
 
 from .image import Image, ImageDescription, ImageMode
+from .progress import progress_bar
 from .study import StudyTiling
 
 MAXIMUM_CHUNK_SIZE = 128 * 1024 * 1024
@@ -165,8 +165,7 @@ class MultiWcsProcessor(object):
             parallel processing is not possible and serial processing will be
             forced. Pass ``1`` to force serial processing.
         cli_progress : optional boolean, defaults False
-            If true, a progress bar will be printed to the terminal using tqdm.
-
+            If true, a progress bar will be printed to the terminal.
         """
         from .par_util import resolve_parallelism
         parallel = resolve_parallelism(parallel)
@@ -184,7 +183,7 @@ class MultiWcsProcessor(object):
     def _tile_serial(self, pio, reproject_function, cli_progress, **kwargs):
         invert_into_tiles = pio.get_default_vertical_parity_sign() == 1
 
-        with tqdm(total=self._n_todo, disable=not cli_progress) as progress:
+        with progress_bar(total=self._n_todo, show=cli_progress) as progress:
             for image, desc in zip(self._collection.images(), self._descs):
                 input_array = image.asarray()
 
@@ -232,10 +231,6 @@ class MultiWcsProcessor(object):
 
                         progress.update(1)
 
-        if cli_progress:
-            print()
-
-
     def _tile_parallel(self, pio, reproject_function, cli_progress, parallel, **kwargs):
         import multiprocessing as mp
 
@@ -253,7 +248,7 @@ class MultiWcsProcessor(object):
 
         # Send out them segments
 
-        with tqdm(total=len(self._descs), disable=not cli_progress) as progress:
+        with progress_bar(total=len(self._descs), show=cli_progress) as progress:
             for image, desc in zip(self._collection.images(), self._descs):
                 queue.put((image, desc, self._combined_wcs))
                 progress.update(1)
@@ -266,9 +261,6 @@ class MultiWcsProcessor(object):
 
         for w in workers:
             w.join()
-
-        if cli_progress:
-            print()
 
 
 def _mp_tile_worker(queue, done_event, pio, reproject_function, kwargs):

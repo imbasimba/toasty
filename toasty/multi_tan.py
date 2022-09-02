@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2019-2021 the AAS WorldWide Telescope project
+# Copyright 2019-2022 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 """
@@ -12,9 +12,9 @@ MultiTanProcessor
 
 from astropy.wcs import WCS
 import numpy as np
-from tqdm import tqdm
 import warnings
 
+from .progress import progress_bar
 from .study import StudyTiling
 
 MATCH_HEADERS = [
@@ -212,7 +212,7 @@ class MultiTanProcessor(object):
             parallel processing is not possible and serial processing will be
             forced. Pass ``1`` to force serial processing.
         cli_progress : optional boolean, defaults False
-            If true, a progress bar will be printed to the terminal using tqdm.
+            If true, a progress bar will be printed to the terminal.
         """
 
         from .par_util import resolve_parallelism
@@ -231,7 +231,7 @@ class MultiTanProcessor(object):
     def _tile_serial(self, pio, cli_progress, **kwargs):
         tile_parity_sign = pio.get_default_vertical_parity_sign()
 
-        with tqdm(total=self._n_todo, disable=not cli_progress) as progress:
+        with progress_bar(total=self._n_todo, show=cli_progress) as progress:
             for image, desc in zip(self._collection.images(), self._descs):
                 # Ensure that the image and the eventual tile agree on parity
                 if image.get_parity_sign() != tile_parity_sign:
@@ -272,9 +272,6 @@ class MultiTanProcessor(object):
 
                     progress.update(1)
 
-        if cli_progress:
-            print()
-
     def _tile_parallel(self, pio, cli_progress, parallel, **kwargs):
         import multiprocessing as mp
 
@@ -294,7 +291,7 @@ class MultiTanProcessor(object):
 
         # Send out them segments
 
-        with tqdm(total=len(self._descs), disable=not cli_progress) as progress:
+        with progress_bar(total=len(self._descs), show=cli_progress) as progress:
             for image, desc in zip(self._collection.images(), self._descs):
                 queue.put((image, desc))
                 progress.update(1)
@@ -307,9 +304,6 @@ class MultiTanProcessor(object):
 
         for w in workers:
             w.join()
-
-        if cli_progress:
-            print()
 
 
 def _mp_tile_worker(queue, done_event, pio, _kwargs):

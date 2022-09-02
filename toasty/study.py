@@ -1,12 +1,11 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2021 the AAS WorldWide Telescope project
+# Copyright 2021-2022 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 """Common routines for tiling images anchored to the sky in a gnomonic
 (tangential) projection.
 
 """
-from __future__ import absolute_import, division, print_function
 
 __all__ = '''
 StudyTiling
@@ -14,9 +13,9 @@ tile_study_image
 '''.split()
 
 import numpy as np
-from tqdm import tqdm
 
-from .pyramid import Pos, next_highest_power_of_2, tiles_at_depth
+from .progress import progress_bar
+from .pyramid import Pos, next_highest_power_of_2
 
 
 class StudyTiling(object):
@@ -308,7 +307,7 @@ class StudyTiling(object):
         pio : :class:`toasty.pyramid.PyramidIO`
             A handle for doing I/O on the tile pyramid
         cli_progress : optional boolean, defaults False
-            If true, a progress bar will be printed to the terminal using tqdm.
+            If true, a progress bar will be printed to the terminal.
 
         Returns
         -------
@@ -332,8 +331,18 @@ class StudyTiling(object):
         buffer = image.mode.make_maskable_buffer(256, 256)
         buffer._default_format = image._default_format
 
-        with tqdm(total=self.count_populated_positions(), disable=not cli_progress) as progress:
-            for pos, width, height, image_x, image_y, tile_x, tile_y in self.generate_populated_positions():
+        with progress_bar(
+            total=self.count_populated_positions(), show=cli_progress
+        ) as progress:
+            for (
+                pos,
+                width,
+                height,
+                image_x,
+                image_y,
+                tile_x,
+                tile_y,
+            ) in self.generate_populated_positions():
                 if invert_into_tiles:
                     flip_tile_y1 = 255 - tile_y
                     flip_tile_y0 = flip_tile_y1 - height
@@ -353,9 +362,6 @@ class StudyTiling(object):
                 pio.write_image(pos, buffer)
                 progress.update(1)
 
-        if cli_progress:
-            print()
-
         return self
 
 
@@ -369,7 +375,7 @@ def tile_study_image(image, pio, cli_progress=False):
     pio : :class:`toasty.pyramid.PyramidIO`
         A handle for doing I/O on the tile pyramid
     cli_progress : optional boolean, defaults False
-        If true, a progress bar will be printed to the terminal using tqdm.
+        If true, a progress bar will be printed to the terminal.
 
     Returns
     -------

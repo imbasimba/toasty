@@ -387,9 +387,9 @@ def toast_pixel_for_point(depth, lat, lon, coordsys=ToastCoordinateSystem.ASTRON
             flat_lons * 0 + 1,
             flat_lons,
             flat_lats,
-            flat_lons ** 2,
+            flat_lons**2,
             flat_lons * flat_lats,
-            flat_lats ** 2,
+            flat_lats**2,
         ]
     ).T
 
@@ -404,9 +404,9 @@ def toast_pixel_for_point(depth, lat, lon, coordsys=ToastCoordinateSystem.ASTRON
             1,
             lon,
             lat,
-            lon ** 2,
+            lon**2,
             lon * lat,
-            lat ** 2,
+            lat**2,
         ]
     )
     x = np.dot(x_coeff, pt)

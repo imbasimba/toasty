@@ -18,7 +18,6 @@ next_highest_power_of_2
 Pos
 pos_children
 pos_parent
-get_parents
 guess_base_layer_level
 Pyramid
 PyramidIO
@@ -170,42 +169,6 @@ def generate_pos(depth):
     """
     for item in _postfix_pos(Pos(0, 0, 0), depth):
         yield item
-
-
-def get_parents(pos_collection, get_all_ancestors=False):
-    """Return a set of all parents or ancestors of a collection of tiles.
-
-    Parameters
-    ----------
-    pos_collection : list or set of :class:`Pos`
-        The collection of :class:`Pos` to find all parents for.
-        This collection cannot contain Pos of differing levels (n values).
-    get_all_ancestors : boolean, defaults to False
-        Choose this if you want to get all ancestors, and not just the parent tiles.
-
-    Yields
-    ------
-    parents : set of :class:`Pos`
-        A set containing the :class:`Pos` of all parents for the input.
-
-    """
-    parents = set()
-    if any(
-        x in pos_collection
-        for x in (Pos(1, 0, 0), Pos(1, 0, 1), Pos(1, 1, 0), Pos(1, 1, 1))
-    ):
-        parents.add(Pos(0, 0, 0))
-        return parents
-
-    for pos in pos_collection:
-        parent_pos = pos_parent(pos)[0]
-        parents.add(parent_pos)
-
-    if get_all_ancestors:
-        grandparents = get_parents(parents, get_all_ancestors)
-        parents = parents.union(grandparents)
-
-    return parents
 
 
 def guess_base_layer_level(wcs):

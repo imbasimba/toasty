@@ -39,34 +39,6 @@ def test_pos_parent():
         pos_parent(Pos(0, 0, 0))
 
 
-def test_get_parents():
-    from ..pyramid import get_parents
-
-    assert get_parents((Pos(1, 0, 0), Pos(1, 1, 0))) == {Pos(0, 0, 0)}
-
-    all_ancestors = {
-        Pos(n=0, x=0, y=0),
-        Pos(n=1, x=0, y=0),
-        Pos(n=1, x=1, y=0),
-        Pos(n=2, x=1, y=1),
-        Pos(n=2, x=2, y=1),
-        Pos(n=3, x=3, y=2),
-        Pos(n=3, x=4, y=2),
-        Pos(n=4, x=7, y=4),
-        Pos(n=4, x=8, y=4),
-        Pos(n=5, x=15, y=8),
-        Pos(n=5, x=16, y=8),
-        Pos(n=6, x=31, y=16),
-        Pos(n=6, x=32, y=16),
-    }
-    assert (
-        get_parents(
-            {Pos(7, 63, 33), Pos(7, 64, 33), Pos(7, 65, 33)}, get_all_ancestors=True
-        )
-        == all_ancestors
-    )
-
-
 def test_generate_pos():
     from ..pyramid import generate_pos
 

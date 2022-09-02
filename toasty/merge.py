@@ -22,6 +22,7 @@ the operation over sets of four adjacent pixels."""
 __all__ = """
 averaging_merger
 cascade_images
+TileMerger
 """.split()
 
 import numpy as np
@@ -71,7 +72,12 @@ def averaging_merger(data):
 
 
 def cascade_images(
-    pio, start, merger, parallel=None, cli_progress=False, tile_filter=None
+    pio,
+    start,
+    merger,
+    parallel=None,
+    cli_progress=False,
+    tile_filter=None,
 ):
     """Downsample image tiles all the way to the top of the pyramid.
 
@@ -99,96 +105,78 @@ def cascade_images(
     tile_filter : callable
         A tile filtering function, suitable for passing to
         :func:`toasty.toast.generate_tiles_filtered`.
-
+    subpyramid_pos : :class:`toasty.pyramid.Pos` or None
+        If specified, the cascade will only occur through a subset of the
+        pyramid, finishing at this position.
     """
-    from .par_util import resolve_parallelism
-
-    parallel = resolve_parallelism(parallel)
+    from .pyramid import Pyramid
 
     if start < 1:
         return  # Nothing to do.
 
-    if parallel > 1:
-        _cascade_images_parallel(
-            pio, start, merger, cli_progress, parallel, tile_filter
-        )
-    else:
-        _cascade_images_serial(pio, start, merger, cli_progress, tile_filter)
-
-
-def _cascade_images_serial(pio, start, merger, cli_progress, tile_filter=None):
-    from .toast import count_tiles_matching_filter, generate_tiles_filtered
-
-    buf = None
-
-    # Pyramids always follow a negative-parity (JPEG-like) coordinate system:
-    # tile X=0,Y=0 is at the top left. The file formats for individual tiles may
-    # share the same parity, or they may be negative: pixel x=0,y=0 is at the
-    # bottom-left. In particular, this is the case for FITS files. When this
-    # happens, we can pretty much cascade as normal, but when putting tile
-    # quartets together we need to y-flip at the tile level.
-
-    if pio.get_default_vertical_parity_sign() == 1:
-        slices = SLICES_OPPOSITE_PARITY
-    else:
-        slices = SLICES_MATCHING_PARITY
-
     if tile_filter is None:
-        total = pyramid.depth2tiles(start - 1)
-        with progress_bar(total=total, show=cli_progress) as progress:
-            for pos in pyramid.generate_pos(
-                start - 1
-            ):  # start layer is already there; we're cascading up
-                _process_tile(pos, buf, pio, slices, merger)
-                progress.update(1)
+        # It's much faster if we can avoid calculating TOAST coordinate
+        # information for the tiles.
+        p = Pyramid.new_generic(start)
     else:
-        # +1 because tile 0 is not counted by count_tiles_matching_filter
-        total = (
-            count_tiles_matching_filter(start - 1, tile_filter, bottom_only=False) + 1
+        p = Pyramid.new_toast_filtered(start, tile_filter)
+
+    proc = TileMerger(pio, merger)
+    p.walk(proc.walk_callback, parallel=parallel, cli_progress=cli_progress)
+
+
+class TileMerger(object):
+    def __init__(self, pio, merger):
+        self._pio = pio
+        self._merger = merger
+        self._buf = None
+
+        # Pyramids always follow a negative-parity (JPEG-like) coordinate system:
+        # tile X=0,Y=0 is at the top left. The file formats for individual tiles may
+        # share the same parity, or they may be negative: pixel x=0,y=0 is at the
+        # bottom-left. In particular, this is the case for FITS files. When this
+        # happens, we can pretty much cascade as normal, but when putting tile
+        # quartets together we need to y-flip at the tile level.
+
+        if pio.get_default_vertical_parity_sign() == 1:
+            self._slices = SLICES_OPPOSITE_PARITY
+        else:
+            self._slices = SLICES_MATCHING_PARITY
+
+    def walk_callback(self, pos):
+        # By construction, the children of this tile have all already been
+        # processed.
+        children = pyramid.pos_children(pos)
+
+        img0 = self._pio.read_image(children[0], default="none")
+        img1 = self._pio.read_image(children[1], default="none")
+        img2 = self._pio.read_image(children[2], default="none")
+        img3 = self._pio.read_image(children[3], default="none")
+
+        if img0 is None and img1 is None and img2 is None and img3 is None:
+            return
+
+        if self._buf is not None:
+            self._buf.clear()
+
+        for slidx, subimg in zip(self._slices, (img0, img1, img2, img3)):
+            if subimg is not None:
+                if self._buf is None:
+                    self._buf = subimg.mode.make_maskable_buffer(512, 512)
+                    self._buf.clear()
+
+                subimg.update_into_maskable_buffer(
+                    self._buf,
+                    slice(None),
+                    slice(None),  # subimage indexer: nothing
+                    *slidx,  # buffer indexer: appropriate sub-quadrant
+                )
+
+        merged = Image.from_array(self._merger(self._buf.asarray()))
+        min_value, max_value = _get_min_max_of_children(
+            self._pio, [img0, img1, img2, img3]
         )
-        with progress_bar(total=total, show=cli_progress) as progress:
-            for tile in generate_tiles_filtered(
-                start - 1, tile_filter, bottom_only=False
-            ):
-                _process_tile(tile.pos, buf, pio, slices, merger)
-                progress.update(1)
-            _process_tile(Pos(0, 0, 0), buf, pio, slices, merger)
-            progress.update(1)
-
-
-def _process_tile(pos, buf, pio, slices, merger):
-    # By construction, the children of this tile have all already been
-    # processed.
-    children = pyramid.pos_children(pos)
-
-    img0 = pio.read_image(children[0], default="none")
-    img1 = pio.read_image(children[1], default="none")
-    img2 = pio.read_image(children[2], default="none")
-    img3 = pio.read_image(children[3], default="none")
-
-    if img0 is None and img1 is None and img2 is None and img3 is None:
-        return
-
-    if buf is not None:
-        buf.clear()
-
-    for slidx, subimg in zip(slices, (img0, img1, img2, img3)):
-        if subimg is not None:
-            if buf is None:
-                buf = subimg.mode.make_maskable_buffer(512, 512)
-                buf.clear()
-
-            subimg.update_into_maskable_buffer(
-                buf,
-                slice(None),
-                slice(None),  # subimage indexer: nothing
-                *slidx,  # buffer indexer: appropriate sub-quadrant
-            )
-
-    merged = Image.from_array(merger(buf.asarray()))
-    min_value, max_value = _get_min_max_of_children(pio, [img0, img1, img2, img3])
-
-    pio.write_image(pos, merged, min_value=min_value, max_value=max_value)
+        self._pio.write_image(pos, merged, min_value=min_value, max_value=max_value)
 
 
 def _get_min_max_of_children(pio, children):
@@ -218,161 +206,3 @@ def _get_existing_max_values(images):
         if image is not None and image.data_max is not None:
             values.append(image.data_max)
     return values
-
-
-def _cascade_images_parallel(pio, start, merger, cli_progress, parallel, tile_filter):
-    """Parallelized cascade operation
-
-    At the moment, we require fork-based multiprocessing because the PyramidIO
-    and ``merger`` items are not pickle-able. This could be relaxed, but we
-    might plausibly want to support custom merger functions, so pickle-ability
-    is likely to be a continuing issue.
-
-    """
-    import multiprocessing as mp
-    from queue import Empty
-    from .pyramid import Pos, pos_parent
-    from .toast import count_tiles_matching_filter, generate_tiles_filtered
-
-    # The dispatcher process keeps track of finished tiles (reported in
-    # `done_queue`) and notifiers worker when new tiles are ready to process
-    # (`ready_queue`).
-
-    first_level_to_do = start - 1
-    if tile_filter is None:
-        n_todo = pyramid.depth2tiles(first_level_to_do)
-    else:
-        n_todo = (
-            count_tiles_matching_filter(
-                first_level_to_do, tile_filter, bottom_only=False
-            )
-            + 1
-        )  # +1 because tile 0 is not counted by count_tiles_matching_filter
-    ready_queue = mp.Queue()
-    done_queue = mp.Queue(maxsize=2 * parallel)
-    done_event = mp.Event()
-
-    # Seed the queue of ready tiles. We use generate_pos to try to seed the
-    # queue in an order that will get us to generate higher-level tiles as early
-    # as possible, to make it easier to evaluate the output during processing ...
-    # but in practice this isn't working. Seems that we're saturating the ready
-    # queue before any higher-level tiles can become eligible for processing.
-    readiness = {}
-    if tile_filter is None:
-        for pos in pyramid.generate_pos(first_level_to_do):
-            if pos.n == first_level_to_do:
-                ready_queue.put(pos)
-    else:
-        tiles_to_process = set()
-        for tile in generate_tiles_filtered(
-            first_level_to_do, tile_filter, bottom_only=True
-        ):
-            ready_queue.put(tile.pos)
-            tiles_to_process.add(tile.pos)
-        _initiate_readiness_state(tiles_to_process, readiness)
-
-    # The workers pick up tiles that are ready to process and do the merging.
-
-    workers = []
-
-    for _ in range(parallel):
-        w = mp.Process(
-            target=_mp_cascade_worker,
-            args=(done_queue, ready_queue, done_event, pio, merger),
-        )
-        w.daemon = True
-        w.start()
-        workers.append(w)
-
-    # Start dispatching tiles
-
-    with progress_bar(total=n_todo, show=cli_progress) as progress:
-        while True:
-            # Did anybody finish a tile?
-            try:
-                pos = done_queue.get(True, timeout=1)
-            except (OSError, ValueError, Empty):
-                # OSError or ValueError => queue closed. This signal seems not to
-                # cross multiprocess lines, though.
-                continue
-
-            progress.update(1)
-
-            # If the n=0 tile was done, that's everything.
-            if pos.n == 0:
-                break
-
-            # If this tile was finished, its parent is one step
-            # closer to being ready to process.
-            ppos, x_index, y_index = pos_parent(pos)
-            bit_num = 2 * y_index + x_index
-            flags = readiness.get(ppos, 0)
-            flags |= 1 << bit_num
-
-            # If this tile was the last of its siblings to be finished,
-            # the parent is now ready for processing.
-            if flags == 0xF:
-                readiness.pop(ppos)
-                ready_queue.put(ppos)
-            else:
-                readiness[ppos] = flags
-
-    # All done!
-
-    ready_queue.close()
-    ready_queue.join_thread()
-    done_event.set()
-
-    for w in workers:
-        w.join()
-
-
-def _mp_cascade_worker(done_queue, ready_queue, done_event, pio, merger):
-    """
-    Process tiles that are ready.
-    """
-    from queue import Empty
-
-    buf = None
-
-    # See discussion in the serial implementation.
-    if pio.get_default_vertical_parity_sign() == 1:
-        slices = SLICES_OPPOSITE_PARITY
-    else:
-        slices = SLICES_MATCHING_PARITY
-
-    while True:
-        try:
-            pos = ready_queue.get(True, timeout=1)
-        except Empty:
-            if done_event.is_set():
-                break
-            continue
-
-        _process_tile(pos, buf, pio, slices, merger)
-
-        done_queue.put(pos)
-
-
-def _initiate_readiness_state(tiles_to_process, readiness):
-    """
-    Marking sibling tiles with no data (as well as their ancestors) as already processed.
-    This allows us to properly detect when ancestors of the tiles to be processed are
-    actually ready to be processed (i.e. when all children of a tile are marked as processed)
-    """
-    from .pyramid import pos_children, get_parents
-
-    if len(tiles_to_process) == 0 or Pos(0, 0, 0) in tiles_to_process:
-        return
-
-    parents = get_parents(tiles_to_process, get_all_ancestors=False)
-    for parent in parents:
-        for child in pos_children(parent):
-            if child not in tiles_to_process:
-                flags = readiness.get(parent, 0)
-                # Using the child's position within the parent tile (0-1x, 0-1y)
-                bit_num = 2 * (child.y % 2) + child.x % 2
-                flags |= 1 << bit_num
-                readiness[parent] = flags
-
-    _initiate_readiness_state(parents, readiness)

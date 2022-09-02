@@ -429,13 +429,23 @@ class PyramidIO(object):
 
         """
         p = self.tile_path(pos, format=format or self._default_format)
-        image.save(
-            p,
-            format=format or self._default_format,
-            mode=mode,
-            min_value=min_value,
-            max_value=max_value,
-        )
+
+        if image.is_completely_masked():
+            # Fully masked tiles are not written to disk. If we're overwriting a
+            # tile pyramid, we can't just leave any existing file lying around;
+            # we must ensure that it is destroyed.
+            try:
+                os.unlink(p)
+            except (FileNotFoundError, OSError):
+                pass
+        else:
+            image.save(
+                p,
+                format=format or self._default_format,
+                mode=mode,
+                min_value=min_value,
+                max_value=max_value,
+            )
 
     @contextmanager
     def update_image(self, pos, default="none", masked_mode=None, format=None):

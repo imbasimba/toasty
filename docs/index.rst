@@ -40,6 +40,7 @@ Python API Reference
    api/toasty.pipeline.cli
    api/toasty.pipeline.djangoplicity
    api/toasty.pipeline.local_io
+   api/toasty.progress
    api/toasty.pyramid
    api/toasty.samplers
    api/toasty.study

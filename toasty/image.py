@@ -1153,6 +1153,24 @@ class Image(object):
                 f"unhandled mode `{self.mode}` in update_into_maskable_buffer"
             )
 
+    def is_completely_masked(self):
+        """
+        Return whether the image is completely masked.
+        """
+
+        i = self.asarray()
+
+        if self.mode in (ImageMode.RGB, ImageMode.U8, ImageMode.I16, ImageMode.I32):
+            return False
+        elif self.mode in (ImageMode.F32, ImageMode.F64, ImageMode.F16x3):
+            return np.all(np.isnan(i))
+        elif self.mode == ImageMode.RGBA:
+            return np.all(i[..., 3] == 0)
+        else:
+            raise Exception(
+                f"unhandled mode `{self.mode}` in is_completely_masked"
+            )
+
     def save(
         self, path_or_stream, format=None, mode=None, min_value=None, max_value=None
     ):

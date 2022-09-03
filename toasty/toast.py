@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2013-2021 Chris Beaumont and the AAS WorldWide Telescope project
+# Copyright 2013-2022 Chris Beaumont and the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 """Computations for the TOAST projection scheme and tile pyramid format.
@@ -21,7 +21,6 @@ the square as for sky maps. In other words, the longitudinal orientation is
 rotated by 180 degrees.
 
 """
-from __future__ import absolute_import, division, print_function
 
 __all__ = """
 count_tiles_matching_filter
@@ -41,10 +40,10 @@ toast_tile_get_coords
 from collections import namedtuple
 from enum import Enum
 import numpy as np
-from tqdm import tqdm
 
 from ._libtoasty import subsample, mid
 from .image import Image
+from .progress import progress_bar
 from .pyramid import Pos, tiles_at_depth
 
 HALFPI = 0.5 * np.pi
@@ -388,9 +387,9 @@ def toast_pixel_for_point(depth, lat, lon, coordsys=ToastCoordinateSystem.ASTRON
             flat_lons * 0 + 1,
             flat_lons,
             flat_lats,
-            flat_lons ** 2,
+            flat_lons**2,
             flat_lons * flat_lats,
-            flat_lats ** 2,
+            flat_lats**2,
         ]
     ).T
 
@@ -405,9 +404,9 @@ def toast_pixel_for_point(depth, lat, lon, coordsys=ToastCoordinateSystem.ASTRON
             1,
             lon,
             lat,
-            lon ** 2,
+            lon**2,
             lon * lat,
-            lat ** 2,
+            lat**2,
         ]
     )
     x = np.dot(x_coeff, pt)
@@ -646,7 +645,7 @@ def sample_layer(
         parallel processing is not possible and serial processing will be
         forced. Pass ``1`` to force serial processing.
     cli_progress : optional boolean, defaults False
-        If true, a progress bar will be printed to the terminal using tqdm.
+        If true, a progress bar will be printed to the terminal.
     """
 
     from .par_util import resolve_parallelism
@@ -665,7 +664,7 @@ def _sample_layer_serial(pio, format, sampler, depth, coordsys, cli_progress):
     # The usual vertical flip that we may need if tiling into FITS:
     invert_into_tiles = pio.get_default_vertical_parity_sign() == 1
 
-    with tqdm(total=tiles_at_depth(depth), disable=not cli_progress) as progress:
+    with progress_bar(total=tiles_at_depth(depth), show=cli_progress) as progress:
         for tile in generate_tiles(depth, bottom_only=True, coordsys=coordsys):
             lon, lat = toast_tile_get_coords(tile)
             sampled_data = sampler(lon, lat)
@@ -675,9 +674,6 @@ def _sample_layer_serial(pio, format, sampler, depth, coordsys, cli_progress):
 
             pio.write_image(tile.pos, Image.from_array(sampled_data), format=format)
             progress.update(1)
-
-    if cli_progress:
-        print()
 
 
 def _sample_layer_parallel(
@@ -699,7 +695,7 @@ def _sample_layer_parallel(
 
     # Send out tiles:
 
-    with tqdm(total=tiles_at_depth(depth), disable=not cli_progress) as progress:
+    with progress_bar(total=tiles_at_depth(depth), show=cli_progress) as progress:
         for tile in generate_tiles(depth, bottom_only=True, coordsys=coordsys):
             queue.put(tile)
             progress.update(1)
@@ -712,9 +708,6 @@ def _sample_layer_parallel(
 
     for w in workers:
         w.join()
-
-    if cli_progress:
-        print()
 
 
 def _mp_sample_worker(queue, done_event, pio, sampler, format):
@@ -778,7 +771,7 @@ def sample_layer_filtered(
         parallel processing is not possible and serial processing will be
         forced. Pass ``1`` to force serial processing.
     cli_progress : optional boolean, defaults False
-        If true, a progress bar will be printed to the terminal using tqdm.
+        If true, a progress bar will be printed to the terminal.
     """
 
     from .par_util import resolve_parallelism
@@ -803,7 +796,7 @@ def _sample_filtered_serial(pio, tile_filter, sampler, depth, coordsys, cli_prog
     # The usual vertical flip that we may need if tiling into FITS:
     invert_into_tiles = pio.get_default_vertical_parity_sign() == 1
 
-    with tqdm(total=n_todo, disable=not cli_progress) as progress:
+    with progress_bar(total=n_todo, show=cli_progress) as progress:
         for tile in generate_tiles_filtered(
             depth, tile_filter, bottom_only=True, coordsys=coordsys
         ):
@@ -823,9 +816,6 @@ def _sample_filtered_serial(pio, tile_filter, sampler, depth, coordsys, cli_prog
                 )
 
             progress.update(1)
-
-    if cli_progress:
-        print()
 
     # do not clean lockfiles, for HPC contexts where we're processing different
     # chunks in parallel.
@@ -854,7 +844,7 @@ def _sample_filtered_parallel(
 
     # Here we go:
 
-    with tqdm(total=n_todo, disable=not cli_progress) as progress:
+    with progress_bar(total=n_todo, show=cli_progress) as progress:
         for tile in generate_tiles_filtered(
             depth, tile_filter, bottom_only=True, coordsys=coordsys
         ):
@@ -869,9 +859,6 @@ def _sample_filtered_parallel(
 
     for w in workers:
         w.join()
-
-    if cli_progress:
-        print()
 
     # do not clean lockfiles, for HPC contexts where we're processing different
     # chunks in parallel.

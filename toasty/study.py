@@ -1,22 +1,21 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2021 the AAS WorldWide Telescope project
+# Copyright 2021-2022 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 """Common routines for tiling images anchored to the sky in a gnomonic
 (tangential) projection.
 
 """
-from __future__ import absolute_import, division, print_function
 
-__all__ = '''
+__all__ = """
 StudyTiling
 tile_study_image
-'''.split()
+""".split()
 
 import numpy as np
-from tqdm import tqdm
 
-from .pyramid import Pos, next_highest_power_of_2, tiles_at_depth
+from .progress import progress_bar
+from .pyramid import Pos, next_highest_power_of_2
 
 
 class StudyTiling(object):
@@ -32,6 +31,7 @@ class StudyTiling(object):
     functionality doesn't need to care about that.
 
     """
+
     _width = None
     "The width of the region in which image data are available, in pixels (int)."
 
@@ -57,6 +57,7 @@ class StudyTiling(object):
     pixelization, in pixels down from the top edge (int). Nonnegative.
 
     """
+
     def __init__(self, width, height):
         """Set up the tiling information.
 
@@ -72,9 +73,9 @@ class StudyTiling(object):
         height = int(height)
 
         if width <= 0:
-            raise ValueError('bad width value: %r' % (width, ))
+            raise ValueError("bad width value: %r" % (width,))
         if height <= 0:
-            raise ValueError('bad height value: %r' % (height, ))
+            raise ValueError("bad height value: %r" % (height,))
 
         self._width = width
         self._height = height
@@ -85,7 +86,6 @@ class StudyTiling(object):
         self._tile_levels = int(np.log2(self._tile_size))
         self._img_gx0 = (self._p2n - self._width) // 2
         self._img_gy0 = (self._p2n - self._height) // 2
-
 
     def compute_for_subimage(self, subim_ix, subim_iy, subim_width, subim_height):
         """
@@ -114,13 +114,13 @@ class StudyTiling(object):
 
         """
         if subim_width < 0 or subim_width > self._width:
-            raise ValueError('bad subimage width value {!r}'.format(subim_width))
+            raise ValueError("bad subimage width value {!r}".format(subim_width))
         if subim_height < 0 or subim_height > self._height:
-            raise ValueError('bad subimage height value {!r}'.format(subim_height))
+            raise ValueError("bad subimage height value {!r}".format(subim_height))
         if subim_ix < 0 or subim_ix + subim_width > self._width:
-            raise ValueError('bad subimage ix value {!r}'.format(subim_ix))
+            raise ValueError("bad subimage ix value {!r}".format(subim_ix))
         if subim_iy < 0 or subim_iy + subim_height > self._height:
-            raise ValueError('bad subimage iy value {!r}'.format(subim_iy))
+            raise ValueError("bad subimage iy value {!r}".format(subim_iy))
 
         sub_tiling = StudyTiling(self._width, self._height)
         sub_tiling._width = subim_width
@@ -129,11 +129,9 @@ class StudyTiling(object):
         sub_tiling._img_gy0 += subim_iy
         return sub_tiling
 
-
     def n_deepest_layer_tiles(self):
         """Return the number of tiles in the highest-resolution layer."""
         return 4**self._tile_levels
-
 
     def apply_to_imageset(self, imgset):
         """Fill the specific ``wwt_data_formats.imageset.ImageSet`` object
@@ -155,10 +153,9 @@ class StudyTiling(object):
         imgset.tile_levels = self._tile_levels
 
         if self._tile_levels == 0:
-          imgset.projection = ProjectionType.SKY_IMAGE
+            imgset.projection = ProjectionType.SKY_IMAGE
         else:
-          imgset.projection = ProjectionType.TAN
-
+            imgset.projection = ProjectionType.TAN
 
     def image_to_tile(self, im_ix, im_iy):
         """Convert an image pixel position to a tiled pixel position.
@@ -197,7 +194,6 @@ class StudyTiling(object):
         tile_iy = np.floor(gy // 256).astype(int)
         return (tile_ix, tile_iy, gx % 256, gy % 256)
 
-
     def count_populated_positions(self):
         """
         Count how many tiles contain image data.
@@ -212,7 +208,6 @@ class StudyTiling(object):
         tile_end_tx = img_gx1 // 256
         tile_end_ty = img_gy1 // 256
         return (tile_end_ty + 1 - tile_start_ty) * (tile_end_tx + 1 - tile_start_tx)
-
 
     def generate_populated_positions(self):
         """Generate information about tiles containing image data.
@@ -250,12 +245,16 @@ class StudyTiling(object):
         # image itself) with x=0, y=0 being the left-top corner of the tiled
         # region.
 
-        img_gx1 = self._img_gx0 + self._width - 1  # inclusive: there are image data in this column
+        img_gx1 = (
+            self._img_gx0 + self._width - 1
+        )  # inclusive: there are image data in this column
         img_gy1 = self._img_gy0 + self._height - 1  # ditto
 
         tile_start_tx = self._img_gx0 // 256
         tile_start_ty = self._img_gy0 // 256
-        tile_end_tx = img_gx1 // 256  # inclusive; there are image data in this column of tiles
+        tile_end_tx = (
+            img_gx1 // 256
+        )  # inclusive; there are image data in this column of tiles
         tile_end_ty = img_gy1 // 256  # ditto
 
         for ity in range(tile_start_ty, tile_end_ty + 1):
@@ -296,7 +295,6 @@ class StudyTiling(object):
                     tile_overlap_y0,
                 )
 
-
     def tile_image(self, image, pio, cli_progress=False):
         """Tile an in-memory image as a study.
 
@@ -308,7 +306,7 @@ class StudyTiling(object):
         pio : :class:`toasty.pyramid.PyramidIO`
             A handle for doing I/O on the tile pyramid
         cli_progress : optional boolean, defaults False
-            If true, a progress bar will be printed to the terminal using tqdm.
+            If true, a progress bar will be printed to the terminal.
 
         Returns
         -------
@@ -316,9 +314,9 @@ class StudyTiling(object):
 
         """
         if image.height != self._height:
-            raise ValueError('height of image to be sampled does not match tiling')
+            raise ValueError("height of image to be sampled does not match tiling")
         if image.width != self._width:
-            raise ValueError('width of image to be sampled does not match tiling')
+            raise ValueError("width of image to be sampled does not match tiling")
 
         # For tiled FITS, the overall input image and tiling coordinate system
         # need to have negative (JPEG-like) parity, but the individal tiles need
@@ -332,8 +330,18 @@ class StudyTiling(object):
         buffer = image.mode.make_maskable_buffer(256, 256)
         buffer._default_format = image._default_format
 
-        with tqdm(total=self.count_populated_positions(), disable=not cli_progress) as progress:
-            for pos, width, height, image_x, image_y, tile_x, tile_y in self.generate_populated_positions():
+        with progress_bar(
+            total=self.count_populated_positions(), show=cli_progress
+        ) as progress:
+            for (
+                pos,
+                width,
+                height,
+                image_x,
+                image_y,
+                tile_x,
+                tile_y,
+            ) in self.generate_populated_positions():
                 if invert_into_tiles:
                     flip_tile_y1 = 255 - tile_y
                     flip_tile_y0 = flip_tile_y1 - height
@@ -353,9 +361,6 @@ class StudyTiling(object):
                 pio.write_image(pos, buffer)
                 progress.update(1)
 
-        if cli_progress:
-            print()
-
         return self
 
 
@@ -369,7 +374,7 @@ def tile_study_image(image, pio, cli_progress=False):
     pio : :class:`toasty.pyramid.PyramidIO`
         A handle for doing I/O on the tile pyramid
     cli_progress : optional boolean, defaults False
-        If true, a progress bar will be printed to the terminal using tqdm.
+        If true, a progress bar will be printed to the terminal.
 
     Returns
     -------

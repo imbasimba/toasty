@@ -1,5 +1,5 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2019-2020 the AAS WorldWide Telescope project
+# Copyright 2019-2022 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
 """General tools for merging and downsampling tiles
@@ -17,10 +17,7 @@ same size as the input.
 To efficiently vectorize two-by-two downsampling, a useful trick is to reshape
 the ``(512, 512)`` input tile into a shape ``(256, 2, 256, 2)``. You can then
 use functions like ``np.mean()`` with an argument ``axes=(1, 3)`` to vectorize
-the operation over sets of four adjacent pixels.
-
-"""
-from __future__ import absolute_import, division, print_function
+the operation over sets of four adjacent pixels."""
 
 __all__ = """
 averaging_merger
@@ -28,12 +25,10 @@ cascade_images
 """.split()
 
 import numpy as np
-import os
-import sys
-from tqdm import tqdm
 import warnings
 
 from . import pyramid
+from .progress import progress_bar
 from .pyramid import Pos
 from .image import Image
 
@@ -100,7 +95,7 @@ def cascade_images(
         parallel processing is not possible and serial processing will be
         forced. Pass ``1`` to force serial processing.
     cli_progress : optional boolean, defaults False
-        If true, a progress bar will be printed to the terminal using tqdm.
+        If true, a progress bar will be printed to the terminal.
     tile_filter : callable
         A tile filtering function, suitable for passing to
         :func:`toasty.toast.generate_tiles_filtered`.
@@ -140,7 +135,7 @@ def _cascade_images_serial(pio, start, merger, cli_progress, tile_filter=None):
 
     if tile_filter is None:
         total = pyramid.depth2tiles(start - 1)
-        with tqdm(total=total, disable=not cli_progress) as progress:
+        with progress_bar(total=total, show=cli_progress) as progress:
             for pos in pyramid.generate_pos(
                 start - 1
             ):  # start layer is already there; we're cascading up
@@ -151,7 +146,7 @@ def _cascade_images_serial(pio, start, merger, cli_progress, tile_filter=None):
         total = (
             count_tiles_matching_filter(start - 1, tile_filter, bottom_only=False) + 1
         )
-        with tqdm(total=total, disable=not cli_progress) as progress:
+        with progress_bar(total=total, show=cli_progress) as progress:
             for tile in generate_tiles_filtered(
                 start - 1, tile_filter, bottom_only=False
             ):
@@ -159,9 +154,6 @@ def _cascade_images_serial(pio, start, merger, cli_progress, tile_filter=None):
                 progress.update(1)
             _process_tile(Pos(0, 0, 0), buf, pio, slices, merger)
             progress.update(1)
-
-    if cli_progress:
-        print()
 
 
 def _process_tile(pos, buf, pio, slices, merger):
@@ -294,7 +286,7 @@ def _cascade_images_parallel(pio, start, merger, cli_progress, parallel, tile_fi
 
     # Start dispatching tiles
 
-    with tqdm(total=n_todo, disable=not cli_progress) as progress:
+    with progress_bar(total=n_todo, show=cli_progress) as progress:
         while True:
             # Did anybody finish a tile?
             try:
@@ -333,9 +325,6 @@ def _cascade_images_parallel(pio, start, merger, cli_progress, parallel, tile_fi
 
     for w in workers:
         w.join()
-
-    if cli_progress:
-        print()
 
 
 def _mp_cascade_worker(done_queue, ready_queue, done_event, pio, merger):

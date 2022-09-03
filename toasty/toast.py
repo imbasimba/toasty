@@ -431,7 +431,7 @@ def _postfix_corner(tile, depth, filter, bottom_only):
         If True, only yield tiles at max_depth.
 
     """
-    n = tile[0].n
+    n = tile.pos.n
     if n > depth:
         return
 
@@ -566,8 +566,9 @@ def generate_tiles_filtered(
 
     """
     for t in _create_level1_tiles(coordsys):
-        for item in _postfix_corner(t, depth, filter, bottom_only):
-            yield item
+        if filter(t):
+            for item in _postfix_corner(t, depth, filter, bottom_only):
+                yield item
 
 
 def count_tiles_matching_filter(

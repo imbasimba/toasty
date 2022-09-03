@@ -1,8 +1,7 @@
 # -*- mode: python; coding: utf-8 -*-
-# Copyright 2019 the AAS WorldWide Telescope project
+# Copyright 2019-2022 the AAS WorldWide Telescope project
 # Licensed under the MIT License.
 
-import numpy as np
 import pytest
 
 from .. import pyramid
@@ -38,34 +37,6 @@ def test_pos_parent():
 
     with pytest.raises(ValueError):
         pos_parent(Pos(0, 0, 0))
-
-
-def test_get_parents():
-    from ..pyramid import get_parents
-
-    assert get_parents((Pos(1, 0, 0), Pos(1, 1, 0))) == {Pos(0, 0, 0)}
-
-    all_ancestors = {
-        Pos(n=0, x=0, y=0),
-        Pos(n=1, x=0, y=0),
-        Pos(n=1, x=1, y=0),
-        Pos(n=2, x=1, y=1),
-        Pos(n=2, x=2, y=1),
-        Pos(n=3, x=3, y=2),
-        Pos(n=3, x=4, y=2),
-        Pos(n=4, x=7, y=4),
-        Pos(n=4, x=8, y=4),
-        Pos(n=5, x=15, y=8),
-        Pos(n=5, x=16, y=8),
-        Pos(n=6, x=31, y=16),
-        Pos(n=6, x=32, y=16),
-    }
-    assert (
-        get_parents(
-            {Pos(7, 63, 33), Pos(7, 64, 33), Pos(7, 65, 33)}, get_all_ancestors=True
-        )
-        == all_ancestors
-    )
 
 
 def test_generate_pos():
@@ -106,3 +77,142 @@ def test_guess_base_layer_level():
 
     wcs.wcs.cdelt = 0.0001, 0.0001
     assert guess_base_layer_level(wcs=wcs) == 13
+
+
+def test_pyramid_gen_generic():
+    p = pyramid.Pyramid.new_generic(0)
+
+    assert list(p._generator()) == [(Pos(0, 0, 0), None)]
+    assert p.count_leaf_tiles() == 1
+    assert p.count_live_tiles() == 1
+    assert p.count_operations() == 0
+
+    p = pyramid.Pyramid.new_generic(1)
+
+    assert list(p._generator()) == [
+        (Pos(1, 0, 0), None),
+        (Pos(1, 1, 0), None),
+        (Pos(1, 0, 1), None),
+        (Pos(1, 1, 1), None),
+        (Pos(0, 0, 0), None),
+    ]
+    assert p.count_leaf_tiles() == 4
+    assert p.count_live_tiles() == 5
+    assert p.count_operations() == 1
+
+    p = pyramid.Pyramid.new_generic(2).subpyramid(Pos(1, 1, 1))
+
+    assert list(p._generator()) == [
+        (Pos(2, 2, 2), None),
+        (Pos(2, 3, 2), None),
+        (Pos(2, 2, 3), None),
+        (Pos(2, 3, 3), None),
+        (Pos(1, 1, 1), None),
+        (Pos(0, 0, 0), None),
+    ]
+    assert p.count_leaf_tiles() == 4
+    assert p.count_live_tiles() == 5
+    assert p.count_operations() == 1
+
+
+def test_pyramid_gen_toast():
+    p = pyramid.Pyramid.new_toast(0)
+
+    assert list([t[0] for t in p._generator()]) == [Pos(0, 0, 0)]
+    assert p.count_leaf_tiles() == 1
+    assert p.count_live_tiles() == 1
+    assert p.count_operations() == 0
+
+    p = pyramid.Pyramid.new_toast(1)
+
+    assert list([t[0] for t in p._generator()]) == [
+        Pos(1, 0, 0),
+        Pos(1, 1, 0),
+        Pos(1, 0, 1),
+        Pos(1, 1, 1),
+        Pos(0, 0, 0),
+    ]
+    assert p.count_leaf_tiles() == 4
+    assert p.count_live_tiles() == 5
+    assert p.count_operations() == 1
+
+    p = pyramid.Pyramid.new_toast(2).subpyramid(Pos(1, 1, 1))
+
+    assert list([t[0] for t in p._generator()]) == [
+        Pos(2, 2, 2),
+        Pos(2, 3, 2),
+        Pos(2, 2, 3),
+        Pos(2, 3, 3),
+        Pos(1, 1, 1),
+        Pos(0, 0, 0),
+    ]
+    assert p.count_leaf_tiles() == 4
+    assert p.count_live_tiles() == 5
+    assert p.count_operations() == 1
+
+
+def test_pyramid_gen_toast_filtered():
+    from ..samplers import _latlon_tile_filter
+
+    # These bounds are roughly from the DECaPS2 dataset
+    # which I've been processing.
+    tf = _latlon_tile_filter(0.106, 4.878, -1.285, -0.120)
+
+    p = pyramid.Pyramid.new_toast_filtered(0, tf)
+
+    assert list([t[0] for t in p._generator()]) == [Pos(0, 0, 0)]
+    assert p.count_leaf_tiles() == 1
+    assert p.count_live_tiles() == 1
+    assert p.count_operations() == 0
+
+    p = pyramid.Pyramid.new_toast_filtered(3, tf)
+    REFXY = [
+        (0, 0),
+        (0, 1),
+        (0, 2),
+        (0, 3),
+        (1, 0),
+        (1, 3),
+        (2, 0),
+        (2, 3),
+        (3, 0),
+        (3, 1),
+        (3, 3),
+    ]
+    assert sorted(t[0] for t in p._generator() if t[0].n == 2) == [
+        Pos(2, *t) for t in REFXY
+    ]
+    assert p.count_leaf_tiles() == 34
+    assert p.count_live_tiles() == 50
+    assert p.count_operations() == 16
+
+
+def test_pyramid_toast_filtered_gap_child():
+    """
+    This examines a corner case where the tile filter matches the level-4 tile
+    in question, but not any of its children -- this is correct behavior because
+    the filtering is only done with bounding boxes, and the union of the
+    bounding boxes of the children is smaller than the bounding box of the
+    parent. Correct behavior for the pyramid is to say that we have no live
+    tiles.
+    """
+    from ..samplers import _latlon_tile_filter
+
+    THE_POS = Pos(4, 15, 7)
+
+    # These bounds are roughly from the DECaPS2 dataset
+    # which I've been processing.
+    tf = _latlon_tile_filter(0.106, 4.878, -1.285, -0.120)
+
+    p = pyramid.Pyramid.new_toast_filtered(4, tf)
+    riter = p._make_iter_reducer()
+
+    for pos, tile, _is_leaf, _data in riter:
+        if pos == THE_POS:
+            assert tf(tile)
+        riter.set_data(True)
+
+    p = pyramid.Pyramid.new_toast_filtered(6, tf).subpyramid(THE_POS)
+    assert p.count_leaf_tiles() == 0
+    assert p.count_live_tiles() == 0
+    assert p.count_operations() == 0

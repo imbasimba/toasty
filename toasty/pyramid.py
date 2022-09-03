@@ -502,17 +502,24 @@ class Pyramid(object):
     information, or TOAST-based, where each tile in the pyramid has associated
     spatial information. TOAST-based pyramids may have a spatial filter applied
     if only a subset of tiles are known to be of interest. In both cases, the
-    pyramid may be limited to a "subpyramid"."""
+    pyramid may be limited to a "subpyramid".
+
+    The key interface of this class is the :meth:`walk` method, which provides a
+    generic way to visit locations in the pyramid with flexible filtering and
+    the possibility of performing the walk at a high level of
+    parallelization."""
 
     depth = None
+    """The maximum depth of the pyramid, a nonnegative integer. This value may
+    be changed."""
+
     _coordsys = None
     _tile_filter = None
     _apex = Pos(n=0, x=0, y=0)
 
     @classmethod
     def new_generic(cls, depth):
-        """
-        Define a tile pyramid without TOAST coordinate information.
+        """Define a tile pyramid without TOAST coordinate information.
 
         Parameters
         ----------
@@ -520,9 +527,9 @@ class Pyramid(object):
             The tile depth to recurse to.
 
         Returns
-        ------
-        New :class:`Pyramid` instance.
-        """
+        -------
+        New :class:`Pyramid` instance."""
+
         inst = cls()
         inst.depth = depth
         inst._coordsys = None
@@ -530,21 +537,19 @@ class Pyramid(object):
 
     @classmethod
     def new_toast(cls, depth, coordsys=None):
-        """
-        Define a TOAST tile pyramid.
+        """Define a TOAST tile pyramid.
 
         Parameters
         ----------
         depth : int
             The tile depth to recurse to.
-        coordsys : optional :class:`ToastCoordinateSystem`
+        coordsys : optional :class:`~toasty.toast.ToastCoordinateSystem`
             The TOAST coordinate system to use. Default is
-            :attr:`ToastCoordinateSystem.ASTRONOMICAL`.
+            :attr:`~toasty.toast.ToastCoordinateSystem.ASTRONOMICAL`.
 
         Returns
-        ------
-        New :class:`Pyramid` instance.
-        """
+        -------
+        New :class:`Pyramid` instance."""
 
         # We use None for the default here to not create a circular dep between
         # this and the `toast` module
@@ -560,8 +565,7 @@ class Pyramid(object):
 
     @classmethod
     def new_toast_filtered(cls, depth, tile_filter, coordsys=None):
-        """
-        Define a TOAST tile pyramid where some tiles are filtered out.
+        """Define a TOAST tile pyramid where some tiles are filtered out.
 
         Parameters
         ----------
@@ -570,14 +574,14 @@ class Pyramid(object):
         tile_filter : function(Tile)->bool
             A tile filter function; only tiles for which the function returns True will
             be investigated.
-        coordsys : optional :class:`ToastCoordinateSystem`
+        coordsys : optional :class:`~toasty.toast.ToastCoordinateSystem`
             The TOAST coordinate system to use. Default is
-            :attr:`ToastCoordinateSystem.ASTRONOMICAL`.
+            :attr:`~toasty.toast.ToastCoordinateSystem.ASTRONOMICAL`.
 
         Returns
-        ------
-        New :class:`Pyramid` instance.
-        """
+        -------
+        New :class:`Pyramid` instance."""
+
         from .toast import ToastCoordinateSystem
 
         if coordsys is None:
@@ -590,6 +594,26 @@ class Pyramid(object):
         return inst
 
     def subpyramid(self, apex):
+        """Configure this pyramid to only visit a sub-pyramid.
+
+        Parameters
+        ----------
+        apex : :class:`Pos`
+            The apex of the sub-pyramid to visit.
+
+        Returns
+        -------
+        Self.
+
+        Notes
+        -----
+        After calling this function, iterations over this pyramid will only
+        return tiles below and including *apex*. The depth of *apex* may not be
+        larger than the pyramid's total depth.
+
+        It is not legal to call this function more than once on the same
+        :class:`Pyramid` instance."""
+
         if apex.n > self.depth:
             raise ValueError(
                 "cannot select a subpyramid past the parent pyramid's depth"
@@ -617,6 +641,25 @@ class Pyramid(object):
         return self
 
     def _generator(self):
+        """Generate positions and tiles in this pyramid.
+
+        As per usual, this occurs in a depth-first fashion.
+
+        This generator yields a series of ``(Pos, Optional[Tile])``. The tile
+        information is only available if this is a TOAST tile pyramid. Even in
+        that case, the level-0 position is not associated with a Tile instance,
+        because the fields of the Tile class are not meaningful at level 0.
+
+        If this pyramid has a tile filter applied, it will be used to filter out
+        the positions/tiles yielded by this function. It is possible that this
+        iteration will return tiles that match the filter but are not "live",
+        because it is possible for the filter to match a tile but none of its
+        children.
+
+        If this pyramid has been limited to a subpyramid, that limitation will
+        apply as well. Note, however, that the parents of the subpyramid apex
+        will be yielded, all the way up to the level-0 tile."""
+
         if self._coordsys is None:
             # Not TOAST - we can generate positions much more efficiently
             # if we don't have to compute the TOAST coordinates.
@@ -669,9 +712,35 @@ class Pyramid(object):
             yield Pos(n=0, x=0, y=0), None
 
     def _make_iter_reducer(self, default_value=None):
+        """Create an object for an "iterative reduction" across the pyramid.
+
+        The returned iterable helps perform a reduction operation, calculating a
+        value for each live parent tile based on whatever values were calculated
+        from its child tiles.
+
+        Unlike the "walk" operation, the reduction cannot be parallelized
+        efficiently, so this API only supports serial operation. If you want to
+        perform something like a reduction in a parallelizable fashion, use
+        "walk" and use a PyramidIO object to transfer data between visits using
+        the disk."""
+
         return PyramidReductionIterator(self, default_value=default_value)
 
     def count_live_tiles(self):
+        """Count the number of "live" tiles in the current pyramid.
+
+        Returns
+        -------
+        The number of live tiles.
+
+        Notes
+        -----
+        A tile is "live" if it is a leaf tile matching the tile filter and/or
+        subpyramid limitation (if active), or if any of its children are live.
+        Tiles above the subpyramid apex, if a subpyramid limitation is active,
+        are not live. A leaf tile is a tile whose level is equal to the depth of
+        the pyramid."""
+
         if self._tile_filter is None:
             # In this case, we know analytically.
             return depth2tiles(self.depth - self._apex.n)
@@ -693,6 +762,19 @@ class Pyramid(object):
         return riter.result()
 
     def count_operations(self):
+        """Count the number of operations needed to perform a reduction over the
+        pyramid's live tiles.
+
+        Returns
+        -------
+        The number of needed operations.
+
+        Notes
+        -----
+        See :meth:`count_live_tiles` for a definition of liveness. The return
+        value of this function is equal to the number of live tiles that are not
+        also leaf tiles."""
+
         if self._tile_filter is None:
             # In this case, we know analytically.
             return depth2tiles(self.depth - (self._apex.n + 1))
@@ -720,6 +802,50 @@ class Pyramid(object):
         parallel=None,
         cli_progress=False,
     ):
+        """Walk the pyramid depth-first, calling the callback for each live
+        tile.
+
+        Parameters
+        ----------
+        callback : function(:class:`Pos`) -> None
+            A function to be called across the pyramid.
+        parallel : integer or None (the default)
+            The level of parallelization to use. If unspecified, defaults to
+            using all CPUs. If the OS does not support fork-based
+            multiprocessing, parallel processing is not possible and serial
+            processing will be forced. Pass ``1`` to force serial processing.
+        cli_progress : optional boolean, defaults False
+            If true, a progress bar will be printed to the terminal.
+
+        Returns
+        -------
+        None.
+
+        Notes
+        -----
+        Use this function to perform a calculation over each tile in the
+        pyramid, visiting in a depth-first fashion, with the possibility of
+        parallelizing the computation substantially using Python's
+        multiprocessing framework.
+
+        In order to allow for efficient parallelization, there are important
+        limitations on the what can occur inside the *callback*. It is
+        guaranteed that when the callback for a given position is called, the
+        callback has already been called for that position's children. The
+        callback may not have been called for *all* of those children, however,
+        if tile filtering is in effect.
+
+        Callbacks may occur in different processes and so cannot communicate
+        with each other in memory. If you need to transfer information between
+        different callbacks, you must use a :class:`PyramidIO` instance, write
+        data to disk, and read the data later. For calculations whose
+        intermediate products don't merit long-term storage, consider using a
+        temporary pyramid.
+
+        The callback is *not* called for the "leaf" positions in the pyramid,
+        which are the ones at the pyramid's :attr:`depth` level.
+        """
+
         from .par_util import resolve_parallelism
 
         parallel = resolve_parallelism(parallel)
@@ -896,13 +1022,36 @@ class Pyramid(object):
 
 
 class PyramidReductionIterator(object):
+    """Non-public helper class for a performing a "reduction iteration" over a
+    pyramid's tiles.
+
+    This mechanism only supports serial processing, and the underlying
+    implementations use a straightforward depth-first iteration order that means
+    that we only need to store a limited amount of state at any one time. In
+    particular, we only need to store ``4 * depth`` items of state.
+
+    This object is iterable, but you must call its :meth:`set_data` method
+    during each iteration to indicate the "result" for each tile. After
+    iteration is complete, :meth:`result` gives the result of the reduction."""
+
     def __init__(self, pyramid, default_value=None):
         self._pyramid = pyramid
         self._generator = pyramid._generator()
         self._d = default_value
+
+        # A list of the results of the currently active child at each level. We
+        # record the x and y positions of the active tile at each level for
+        # sanity-checking. If everything is working, we don't actually need that
+        # info, but it seems prudent to keep tabs on things.
         self._levels = [[0, 0, self._d, self._d, self._d, self._d]]
+
+        # The Pos that we most recently yielded in our iteration.
         self._most_recent_pos = None
+
+        # Whether the `set_data` was called for the current iteration.
         self._got_data = False
+
+        # The final result of the reduction.
         self._final_result = default_value
 
     def __iter__(self):
@@ -911,10 +1060,24 @@ class PyramidReductionIterator(object):
         return self
 
     def _ensure_levels(self, pos):
+        """Ensure that ``self._levels`` is filled out sufficiently to store
+        state for the specified position."""
+
+        # If it's already deep enough, OK.
+
         n_before = len(self._levels)
 
         if pos.n < n_before:
             return
+
+        # If not, we need to add new defaulted entries for however many levels
+        # are missing. (For instance, after finishing the `(1, 0, 0)` tile, we
+        # might leap deep down to `(10, 2**9, 0)`, requiring that we generate
+        # many levels of data.
+        #
+        # We traverse the positions deep-to-shallow, but `self._levels` is
+        # ordered shallow-to-deep for easy indexing, so we make a list and
+        # reverse it.
 
         new_levels = []
         ipos = pos
@@ -931,6 +1094,9 @@ class PyramidReductionIterator(object):
                 "cannot continue to next item without setting data for the previous"
             )
 
+        # When needed, we ensure that iteration stops by setting _generator to
+        # None.
+
         if self._generator is None:
             raise StopIteration()
 
@@ -942,18 +1108,37 @@ class PyramidReductionIterator(object):
 
         # If we're subpyramiding and the user has a tile filter that's disjoint
         # with the subpyramid, the generator will return one of the parents of
-        # the apex. If that's the case, there are no positions to reduce.
+        # the apex. If we see that happen, there are no positions to reduce,
+        # and we should stop.
+
         if pos.n < self._pyramid._apex.n:
             self._generator = None
             raise StopIteration()
 
+        # Definition of "leaf" is easy:
+
         is_leaf = pos.n == self._pyramid.depth
+
+        # `_levels` may be shallower than the current *pos* (if say we just
+        # finished (1, 0, 0) and are now diving back down to the lowest layer),
+        # but it should never be *deeper* than it, because of the `pop()` at the
+        # end of this stanza that will have happened in the previous iteration.
+        # In other words, after a pos at level `n`, the next pos should not be
+        # shallower than level `n - 1`.
+        #
+        # Given that order of traversal, the child data for this tile can be
+        # obtained by popping off of `_levels`. For leaf tiles, `child_data` will
+        # always be four default values. Note, however, that `child_data` might also
+        # contain four default values for non-leaf tiles, which is why we inform
+        # the caller of leaf-ness explicitly.
 
         self._ensure_levels(pos)
         assert len(self._levels) == pos.n + 1
         assert self._levels[-1][0] == pos.x
         assert self._levels[-1][1] == pos.y
         child_data = self._levels.pop()[2:]
+
+        # We have what we need.
 
         self._most_recent_pos = pos
         self._got_data = False
@@ -964,9 +1149,13 @@ class PyramidReductionIterator(object):
             raise Exception("cannot set data repeatedly for the same position")
 
         if self._most_recent_pos == self._pyramid._apex:
+            # If we hit the apex (which is (0, 0, 0) when no subpyramiding is
+            # active, the next `next()` call should trigger a StopIteration.
             self._generator = iter([])
             self._final_result = value
         else:
+            # Otherwise, log this result in the appropriate entry for this
+            # tile's parent.
             ppos, ix, iy = pos_parent(self._most_recent_pos)
             self._ensure_levels(ppos)
             assert self._levels[ppos.n][0] == ppos.x
@@ -976,6 +1165,8 @@ class PyramidReductionIterator(object):
         self._got_data = True
 
     def result(self):
+        """Get the final result of the reduction procedure."""
+
         if self._generator is not None:
             raise Exception("cannot get final reduction result yet")
 
@@ -985,7 +1176,8 @@ class PyramidReductionIterator(object):
 def _make_position_filter(apex):
     """
     A simple pyramid filter that only accepts positions leading up to a
-    specified subpyramid "apex" position, and all below it.
+    specified subpyramid "apex" position, and all below it. This is used by the
+    Pyramid class when subpyramiding in TOAST mode.
 
     We're a bit lazy here where we accept *all* positions deeper than the apex,
     when in principle we should only accept ones that are its descendants. But

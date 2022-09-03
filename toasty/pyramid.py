@@ -1151,13 +1151,12 @@ class PyramidReductionIterator(object):
         if self._most_recent_pos == self._pyramid._apex:
             # If we hit the apex (which is (0, 0, 0) when no subpyramiding is
             # active, the next `next()` call should trigger a StopIteration.
-            self._generator = iter([])
+            self._generator = None
             self._final_result = value
         else:
             # Otherwise, log this result in the appropriate entry for this
             # tile's parent.
             ppos, ix, iy = pos_parent(self._most_recent_pos)
-            self._ensure_levels(ppos)
             assert self._levels[ppos.n][0] == ppos.x
             assert self._levels[ppos.n][1] == ppos.y
             self._levels[ppos.n][2 + 2 * iy + ix] = value

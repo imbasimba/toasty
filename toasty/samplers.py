@@ -566,7 +566,7 @@ class WcsSampler(object):
         coarse_edge_lons[2 * nm : 3 * nm] = coarse_lon[-1:0:-1, nm]
         coarse_edge_lons[3 * nm :] = coarse_lon[0, -1::-1]
 
-        deltas = np.zeros(coarse_edge_lons.shape, dtype=np.int)
+        deltas = np.zeros(coarse_edge_lons.shape, dtype=int)
 
         for i in range(1, coarse_edge_lons.size):
             v0 = coarse_edge_lons[i - 1]

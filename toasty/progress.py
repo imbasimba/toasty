@@ -25,6 +25,31 @@ NON_TTY_INTERVAL = 30
 
 @contextmanager
 def progress_bar(total=None, show=None):
+    """Create and return a TQDM progress bar.
+
+    Parameters
+    ----------
+    total : int
+        The total number of items to be processed.
+    show : bool
+        Whether the progress bar should actually be shown.
+
+    Returns
+    -------
+    A ``tqdm`` progress bar instance.
+
+    Notes
+    -----
+    The progress bar will be customized to be emitted much less frequently when
+    standard output is not a terminal. It will also print newlines with every
+    update, which makes log files much easier to review.
+
+    Terminal-style output will be used even when standard output is not a
+    terminal, *if* the environment variable ``JPY_PARENT_PID`` is set. This
+    variable is set inside Jupyter kernel processes, and in those circumstances
+    stdout is a pipe but we probably still want to use the terminal-like
+    progress bar output."""
+
     assert total is not None
     assert show is not None
 

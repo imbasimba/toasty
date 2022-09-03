@@ -83,6 +83,7 @@ def test_pyramid_gen_generic():
     p = pyramid.Pyramid.new_generic(0)
 
     assert list(p._generator()) == [(Pos(0, 0, 0), None)]
+    assert p.count_leaf_tiles() == 1
     assert p.count_live_tiles() == 1
     assert p.count_operations() == 0
 
@@ -95,6 +96,7 @@ def test_pyramid_gen_generic():
         (Pos(1, 1, 1), None),
         (Pos(0, 0, 0), None),
     ]
+    assert p.count_leaf_tiles() == 4
     assert p.count_live_tiles() == 5
     assert p.count_operations() == 1
 
@@ -108,6 +110,7 @@ def test_pyramid_gen_generic():
         (Pos(1, 1, 1), None),
         (Pos(0, 0, 0), None),
     ]
+    assert p.count_leaf_tiles() == 4
     assert p.count_live_tiles() == 5
     assert p.count_operations() == 1
 
@@ -116,6 +119,7 @@ def test_pyramid_gen_toast():
     p = pyramid.Pyramid.new_toast(0)
 
     assert list([t[0] for t in p._generator()]) == [Pos(0, 0, 0)]
+    assert p.count_leaf_tiles() == 1
     assert p.count_live_tiles() == 1
     assert p.count_operations() == 0
 
@@ -128,6 +132,7 @@ def test_pyramid_gen_toast():
         Pos(1, 1, 1),
         Pos(0, 0, 0),
     ]
+    assert p.count_leaf_tiles() == 4
     assert p.count_live_tiles() == 5
     assert p.count_operations() == 1
 
@@ -141,6 +146,7 @@ def test_pyramid_gen_toast():
         Pos(1, 1, 1),
         Pos(0, 0, 0),
     ]
+    assert p.count_leaf_tiles() == 4
     assert p.count_live_tiles() == 5
     assert p.count_operations() == 1
 
@@ -155,6 +161,7 @@ def test_pyramid_gen_toast_filtered():
     p = pyramid.Pyramid.new_toast_filtered(0, tf)
 
     assert list([t[0] for t in p._generator()]) == [Pos(0, 0, 0)]
+    assert p.count_leaf_tiles() == 1
     assert p.count_live_tiles() == 1
     assert p.count_operations() == 0
 
@@ -175,6 +182,7 @@ def test_pyramid_gen_toast_filtered():
     assert sorted(t[0] for t in p._generator() if t[0].n == 2) == [
         Pos(2, *t) for t in REFXY
     ]
+    assert p.count_leaf_tiles() == 34
     assert p.count_live_tiles() == 50
     assert p.count_operations() == 16
 
@@ -205,5 +213,6 @@ def test_pyramid_toast_filtered_gap_child():
         riter.set_data(True)
 
     p = pyramid.Pyramid.new_toast_filtered(6, tf).subpyramid(THE_POS)
+    assert p.count_leaf_tiles() == 0
     assert p.count_live_tiles() == 0
     assert p.count_operations() == 0

@@ -726,6 +726,37 @@ class Pyramid(object):
 
         return PyramidReductionIterator(self, default_value=default_value)
 
+    def count_leaf_tiles(self):
+        """Count the number of leaf tiles in the current pyramid.
+
+        Returns
+        -------
+        The number of leaf tiles.
+
+        Notes
+        -----
+        A leaf tile is a tile whose level is equal to the depth of the pyramid.
+
+        This calculation is non-trivial if tile filtering is in effect, and in
+        fact requires iterating over essentially the entire pyramid to ensure
+        that all of the tiles at the deepest layer are visited."""
+
+        if self._tile_filter is None:
+            # In this case, we know analytically.
+            return tiles_at_depth(self.depth - self._apex.n)
+
+        riter = self._make_iter_reducer(default_value=0)
+
+        for _pos, _tile, is_leaf, data in riter:
+            if is_leaf:
+                count = 1
+            else:
+                count = data[0] + data[1] + data[2] + data[3]
+
+            riter.set_data(count)
+
+        return riter.result()
+
     def count_live_tiles(self):
         """Count the number of "live" tiles in the current pyramid.
 
@@ -773,7 +804,8 @@ class Pyramid(object):
         -----
         See :meth:`count_live_tiles` for a definition of liveness. The return
         value of this function is equal to the number of live tiles that are not
-        also leaf tiles."""
+        also leaf tiles. Therefore, ``count_operations() + count_leaf_tiles() =
+        count_live_tiles()``."""
 
         if self._tile_filter is None:
             # In this case, we know analytically.

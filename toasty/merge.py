@@ -29,8 +29,6 @@ import numpy as np
 import warnings
 
 from . import pyramid
-from .progress import progress_bar
-from .pyramid import Pos
 from .image import Image
 
 
@@ -104,11 +102,8 @@ def cascade_images(
         If true, a progress bar will be printed to the terminal.
     tile_filter : callable
         A tile filtering function, suitable for passing to
-        :func:`toasty.toast.generate_tiles_filtered`.
-    subpyramid_pos : :class:`toasty.pyramid.Pos` or None
-        If specified, the cascade will only occur through a subset of the
-        pyramid, finishing at this position.
-    """
+        :func:`toasty.toast.generate_tiles_filtered`."""
+
     from .pyramid import Pyramid
 
     if start < 1:
@@ -126,6 +121,24 @@ def cascade_images(
 
 
 class TileMerger(object):
+    """A utility for performing a merge operation with a
+    :class:`~toasty.pyramid.Pyramid`.
+
+    Parameters
+    ----------
+    pio : :class:`toasty.pyramid.PyramidIO`
+        Handle for image I/O on the pyramid
+
+    merger : a merger function
+        Function for merging tile image data, such as :func:`averaging_merger`.
+
+    Notes
+    -----
+
+    This class provides a :meth:`walk_callback` method that can be passed to the
+    :meth:`toasty.pyramid.Pyramid.walk` function. This class preserves some
+    state between calls to help speed up processing."""
+
     def __init__(self, pio, merger):
         self._pio = pio
         self._merger = merger
@@ -144,6 +157,18 @@ class TileMerger(object):
             self._slices = SLICES_MATCHING_PARITY
 
     def walk_callback(self, pos):
+        """A callback for :meth:`toasty.pyramid.Pyramid.walk`.
+
+        Parameters
+        ----------
+        pos : :class:`toasty.pyramid.Pos`
+            A position for a pyramid tile.
+
+        Notes
+        -----
+        This function loads up the image data for the four children of the
+        specified position, merges them, and writes out the merged image."""
+
         # By construction, the children of this tile have all already been
         # processed.
         children = pyramid.pos_children(pos)

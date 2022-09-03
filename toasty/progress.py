@@ -15,6 +15,7 @@ progress_bar
 """.split()
 
 from contextlib import contextmanager
+import os
 import sys
 
 from tqdm import tqdm
@@ -32,7 +33,9 @@ def progress_bar(total=None, show=None):
         disable=not show,
     )
 
-    if not sys.stdout.isatty():
+    log_like_output = not sys.stdout.isatty() and "JPY_PARENT_PID" not in os.environ
+
+    if log_like_output:
         args["bar_format"] = "{l_bar}{bar}{r_bar}\n"
         args["mininterval"] = NON_TTY_INTERVAL
         args["maxinterval"] = NON_TTY_INTERVAL
@@ -41,5 +44,5 @@ def progress_bar(total=None, show=None):
         with tqdm(**args) as progress:
             yield progress
     finally:
-        if show and sys.stdout.isatty():
+        if show and not log_like_output:
             print()

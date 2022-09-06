@@ -228,18 +228,6 @@ class ImageMode(Enum):
 
         return Image.from_array(arr)
 
-    def try_as_pil(self):
-        """
-        Attempt to convert this mode into a PIL image mode string.
-
-        Returns
-        -------
-        A PIL image mode string, or None if there is no exact counterpart.
-        """
-        if self == ImageMode.F16x3:
-            return None
-        return self.value
-
 
 def _wcs_to_parity_sign(wcs):
     h = wcs.to_header()
@@ -854,24 +842,44 @@ class Image(object):
             self._array = np.asarray(self._pil)
         return self._array
 
-    def aspil(self):
+    def aspil(self, pixel_cut_low=None, pixel_cut_high=None):
         """Obtain the image data as :class:`PIL.Image.Image`.
 
+        Parameters
+        ----------
+        pixel_cut_low : number or ``None`` (the default)
+            An optional value used to stretch the pixel values to the new range
+            as defined by pixel_cut_low and pixel_cut_high. Only used if the
+            image was not loaded as a PIL image, and mus be used together with
+            pixel_cut_high. To get resonable values for arrays with dtype other
+            than ``unit8`` this parameter is highly recommended.
+        pixel_cut_high : number or ``None`` (the default)
+            An optional value used to stretch the pixel values to the new range
+            as defined by pixel_cut_low and pixel_cut_high. Only used if the
+            image was not loaded as a PIL image, and mus be used together with
+            pixel_cut_low. To get resonable values for arrays with dtype other
+            than ``unit8`` this parameter is highly recommended.
         Returns
         -------
         If the image was loaded as a PIL image, the underlying object will be
         returned. Otherwise the data array will be converted into a PIL image,
         which requires that the array have an RGB(A) format with a shape of
-        ``(height, width, planes)``, where ``planes`` is 3 or 4, and a dtype of
-        ``uint8``.
+        ``(height, width, planes)``, where ``planes`` is 3 or 4.
 
         """
         if self._pil is not None:
             return self._pil
-        if self.mode.try_as_pil() is None:
-            raise Exception(
-                f"Toasty image with mode {self.mode} cannot be converted to PIL"
-            )
+        if (
+            pixel_cut_low is not None
+            and pixel_cut_high is not None
+            and pixel_cut_low != pixel_cut_high
+        ):
+            # TODO don't operate on potential alpha channel
+            array = (self._array - pixel_cut_low) / (
+                pixel_cut_high - pixel_cut_low
+            ) * 255 + 0.5
+            array = np.uint8(np.clip(array, 0, 255))
+            return pil_image.fromarray(array)
         return pil_image.fromarray(self._array)
 
     @property
@@ -1167,9 +1175,7 @@ class Image(object):
         elif self.mode == ImageMode.RGBA:
             return np.all(i[..., 3] == 0)
         else:
-            raise Exception(
-                f"unhandled mode `{self.mode}` in is_completely_masked"
-            )
+            raise Exception(f"unhandled mode `{self.mode}` in is_completely_masked")
 
     def save(
         self, path_or_stream, format=None, mode=None, min_value=None, max_value=None
@@ -1205,7 +1211,7 @@ class Image(object):
             if format in PIL_RGB_FORMATS and mode is None:
                 mode = ImageMode.RGB
             if mode is not None:
-                pil_image = pil_image.convert(mode.try_as_pil())
+                pil_image = pil_image.convert(mode.value)
             pil_image.save(path_or_stream, format=PIL_FORMATS[format])
         elif format == "npy":
             np.save(path_or_stream, self.asarray())
@@ -1239,8 +1245,23 @@ class Image(object):
                 overwrite=True,
             )
 
-    def make_thumbnail_bitmap(self):
+    def make_thumbnail_bitmap(self, pixel_cut_low=None, pixel_cut_high=None):
         """Create a thumbnail bitmap from the image.
+
+        Parameters
+        ----------
+        pixel_cut_low : number or ``None`` (the default)
+            An optional value used to stretch the pixel values to the new range
+            as defined by pixel_cut_low and pixel_cut_high. Only used if the
+            image was not loaded as a PIL image, and mus be used together with
+            pixel_cut_high. To get resonable values for arrays with dtype other
+            than ``unit8`` this parameter is highly recommended.
+        pixel_cut_high : number or ``None`` (the default)
+            An optional value used to stretch the pixel values to the new range
+            as defined by pixel_cut_low and pixel_cut_high. Only used if the
+            image was not loaded as a PIL image, and mus be used together with
+            pixel_cut_low. To get resonable values for arrays with dtype other
+            than ``unit8`` this parameter is highly recommended.
 
         Returns
         -------
@@ -1249,16 +1270,6 @@ class Image(object):
         be saved in JPEG format.
 
         """
-        if self.mode in (
-            ImageMode.U8,
-            ImageMode.I16,
-            ImageMode.I32,
-            ImageMode.F32,
-            ImageMode.F64,
-            ImageMode.F16x3,
-        ):
-            raise Exception("cannot thumbnail-ify non-RGB Image")
-
         THUMB_SHAPE = (96, 45)
         THUMB_ASPECT = THUMB_SHAPE[0] / THUMB_SHAPE[1]
 
@@ -1280,7 +1291,7 @@ class Image(object):
 
         try:
             pil_image.MAX_IMAGE_PIXELS = None
-            thumb = self.aspil().crop(crop_box)
+            thumb = self.aspil(pixel_cut_low, pixel_cut_high).crop(crop_box)
         finally:
             pil_image.MAX_IMAGE_PIXELS = old_max
 

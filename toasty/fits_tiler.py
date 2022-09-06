@@ -167,6 +167,9 @@ class FitsTiler(object):
         else:
             self._tile_tan(cli_progress, parallel, **kwargs)
 
+        for img in self.coll.images():
+            self.builder.make_thumbnail_from_other(img)
+            break
         self.builder.write_index_rel_wtml(
             add_place_for_toast=self.add_place_for_toast,
         )

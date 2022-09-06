@@ -257,7 +257,9 @@ class Builder(object):
         return self
 
     def make_thumbnail_from_other(self, thumbnail_image):
-        thumb = thumbnail_image.make_thumbnail_bitmap()
+        thumb = thumbnail_image.make_thumbnail_bitmap(
+            self.imgset.pixel_cut_low, self.imgset.pixel_cut_high
+        )
         with self.pio.open_metadata_for_write("thumb.jpg") as f:
             thumb.save(f, format="JPEG")
         self.imgset.thumbnail_url = "thumb.jpg"

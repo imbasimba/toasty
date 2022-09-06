@@ -23,7 +23,6 @@ ImageMode
 
       ~ImageMode.from_array_info
       ~ImageMode.make_maskable_buffer
-      ~ImageMode.try_as_pil
 
    .. rubric:: Attributes Documentation
 
@@ -38,4 +37,3 @@ ImageMode
 
    .. automethod:: from_array_info
    .. automethod:: make_maskable_buffer
-   .. automethod:: try_as_pil

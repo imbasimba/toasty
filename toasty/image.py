@@ -850,14 +850,14 @@ class Image(object):
         pixel_cut_low : number or ``None`` (the default)
             An optional value used to stretch the pixel values to the new range
             as defined by pixel_cut_low and pixel_cut_high. Only used if the
-            image was not loaded as a PIL image, and mus be used together with
-            pixel_cut_high. To get resonable values for arrays with dtype other
+            image was not loaded as a PIL image, and must be used together with
+            pixel_cut_high. To get reasonable values for arrays with dtype other
             than ``unit8`` this parameter is highly recommended.
         pixel_cut_high : number or ``None`` (the default)
             An optional value used to stretch the pixel values to the new range
             as defined by pixel_cut_low and pixel_cut_high. Only used if the
-            image was not loaded as a PIL image, and mus be used together with
-            pixel_cut_low. To get resonable values for arrays with dtype other
+            image was not loaded as a PIL image, and must be used together with
+            pixel_cut_low. To get reasonable values for arrays with dtype other
             than ``unit8`` this parameter is highly recommended.
         Returns
         -------
@@ -1253,14 +1253,14 @@ class Image(object):
         pixel_cut_low : number or ``None`` (the default)
             An optional value used to stretch the pixel values to the new range
             as defined by pixel_cut_low and pixel_cut_high. Only used if the
-            image was not loaded as a PIL image, and mus be used together with
-            pixel_cut_high. To get resonable values for arrays with dtype other
+            image was not loaded as a PIL image, and must be used together with
+            pixel_cut_high. To get reasonable values for arrays with dtype other
             than ``unit8`` this parameter is highly recommended.
         pixel_cut_high : number or ``None`` (the default)
             An optional value used to stretch the pixel values to the new range
             as defined by pixel_cut_low and pixel_cut_high. Only used if the
-            image was not loaded as a PIL image, and mus be used together with
-            pixel_cut_low. To get resonable values for arrays with dtype other
+            image was not loaded as a PIL image, and must be used together with
+            pixel_cut_low. To get reasonable values for arrays with dtype other
             than ``unit8`` this parameter is highly recommended.
 
         Returns

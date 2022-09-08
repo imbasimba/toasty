@@ -878,12 +878,10 @@ class Image(object):
             range (0 - 255).
         """
         array = np.copy(self._array)
-        (
-            array[..., :3] = (array[..., :3] - pixel_cut_low)
-            / (pixel_cut_high - pixel_cut_low)
-            * 255
-            + 0.5
-        )
+        array[..., :3] = (array[..., :3] - pixel_cut_low) / (
+            pixel_cut_high - pixel_cut_low
+        ) * 255 + 0.5
+
         array = np.uint8(np.clip(array, 0, 255))
         return pil_image.fromarray(array)
 

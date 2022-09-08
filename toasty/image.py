@@ -842,45 +842,50 @@ class Image(object):
             self._array = np.asarray(self._pil)
         return self._array
 
-    def aspil(self, pixel_cut_low=None, pixel_cut_high=None):
+    def aspil(self):
         """Obtain the image data as :class:`PIL.Image.Image`.
 
-        Parameters
-        ----------
-        pixel_cut_low : number or ``None`` (the default)
-            An optional value used to stretch the pixel values to the new range
-            as defined by pixel_cut_low and pixel_cut_high. Only used if the
-            image was not loaded as a PIL image, and must be used together with
-            pixel_cut_high. To get reasonable values for arrays with dtype other
-            than ``unit8`` this parameter is highly recommended.
-        pixel_cut_high : number or ``None`` (the default)
-            An optional value used to stretch the pixel values to the new range
-            as defined by pixel_cut_low and pixel_cut_high. Only used if the
-            image was not loaded as a PIL image, and must be used together with
-            pixel_cut_low. To get reasonable values for arrays with dtype other
-            than ``unit8`` this parameter is highly recommended.
+
         Returns
         -------
         If the image was loaded as a PIL image, the underlying object will be
         returned. Otherwise the data array will be converted into a PIL image,
         which requires that the array have an RGB(A) format with a shape of
-        ``(height, width, planes)``, where ``planes`` is 3 or 4.
+        ``(height, width, planes)``, where ``planes`` is 3 or 4, and a dtype of
+        ``uint8``.
 
         """
         if self._pil is not None:
             return self._pil
-        if (
-            pixel_cut_low is not None
-            and pixel_cut_high is not None
-            and pixel_cut_low != pixel_cut_high
-        ):
-            # TODO don't operate on potential alpha channel
-            array = (self._array - pixel_cut_low) / (
-                pixel_cut_high - pixel_cut_low
-            ) * 255 + 0.5
-            array = np.uint8(np.clip(array, 0, 255))
-            return pil_image.fromarray(array)
+        if self.mode not in (ImageMode.RGB, ImageMode.RGBA):
+            raise Exception(
+                f"Toasty image with mode {self.mode} cannot be converted to PIL"
+            )
+
         return pil_image.fromarray(self._array)
+
+    def coerce_into_pil(self, pixel_cut_low, pixel_cut_high):
+        """Coerce the image data into a :class:`PIL.Image.Image` by converting
+        the data into an ``uint8`` RGB(A) array.
+
+        Parameters
+        ----------
+        pixel_cut_low : number
+            An value used to stretch the pixel values to the new ``uint8``
+            range (0 - 255).
+        pixel_cut_high : number
+            An value used to stretch the pixel values to the new ``uint8``
+            range (0 - 255).
+        """
+        array = np.copy(self._array)
+        (
+            array[..., :3](array[..., :3] - pixel_cut_low)
+            / (pixel_cut_high - pixel_cut_low)
+            * 255
+            + 0.5
+        )
+        array = np.uint8(np.clip(array, 0, 255))
+        return pil_image.fromarray(array)
 
     @property
     def mode(self):
@@ -1254,14 +1259,12 @@ class Image(object):
             An optional value used to stretch the pixel values to the new range
             as defined by pixel_cut_low and pixel_cut_high. Only used if the
             image was not loaded as a PIL image, and must be used together with
-            pixel_cut_high. To get reasonable values for arrays with dtype other
-            than ``unit8`` this parameter is highly recommended.
+            pixel_cut_high.
         pixel_cut_high : number or ``None`` (the default)
             An optional value used to stretch the pixel values to the new range
             as defined by pixel_cut_low and pixel_cut_high. Only used if the
             image was not loaded as a PIL image, and must be used together with
-            pixel_cut_low. To get reasonable values for arrays with dtype other
-            than ``unit8`` this parameter is highly recommended.
+            pixel_cut_low.
 
         Returns
         -------
@@ -1291,7 +1294,16 @@ class Image(object):
 
         try:
             pil_image.MAX_IMAGE_PIXELS = None
-            thumb = self.aspil(pixel_cut_low, pixel_cut_high).crop(crop_box)
+            thumb = self.aspil().crop(crop_box)
+        except:
+            if pixel_cut_low is None or pixel_cut_high is None:
+                raise Exception(
+                    (
+                        "Need both pixel_cut_low and pixel_cut_high parameters"
+                        "to be able to coerce Toasty image into PIL format."
+                    )
+                )
+            thumb = self.coerce_into_pil(pixel_cut_low, pixel_cut_high).crop(crop_box)
         finally:
             pil_image.MAX_IMAGE_PIXELS = old_max
 

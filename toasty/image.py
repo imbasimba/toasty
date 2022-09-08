@@ -879,7 +879,7 @@ class Image(object):
         """
         array = np.copy(self._array)
         (
-            array[..., :3](array[..., :3] - pixel_cut_low)
+            array[..., :3] = (array[..., :3] - pixel_cut_low)
             / (pixel_cut_high - pixel_cut_low)
             * 255
             + 0.5
